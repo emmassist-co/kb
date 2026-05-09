@@ -1,10 +1,20 @@
 {
-  "name": "@emmassist/kb-flue-adapter",
+  "name": "@emmassist-co/kb-flue-adapter",
   "version": "0.1.0",
   "private": false,
   "type": "module",
+  "files": [
+    "src"
+  ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "@emmassist-co/kb-cli": "^0.1.0",
+    "@emmassist-co/kb-core": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@flue/sdk": "^0.3.10"
   },
   "exports": {
     ".": "./src/index.ts",

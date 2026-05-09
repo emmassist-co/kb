@@ -1,6 +1,6 @@
 import type { Command } from '@flue/sdk/client';
-import { runKnowledgeBaseCli, type KnowledgeBaseCliExecutor } from '@emmassist/kb-cli';
-import type { KnowledgeBaseService } from '@emmassist/kb-core';
+import { runKnowledgeBaseCli, type KnowledgeBaseCliExecutor } from '@emmassist-co/kb-cli';
+import type { KnowledgeBaseService } from '@emmassist-co/kb-core';
 
 export interface KnowledgeBaseRuntimeLike {
   getService(): Promise<KnowledgeBaseService>;

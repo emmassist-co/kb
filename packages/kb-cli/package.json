@@ -1,10 +1,15 @@
 {
-  "name": "@emmassist/kb-cli",
+  "name": "@emmassist-co/kb-cli",
   "version": "0.1.0",
   "private": false,
   "type": "module",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "@emmassist-co/kb-core": "^0.1.0",
+    "@emmassist-co/kb-http": "^0.1.0",
+    "@emmassist-co/kb-storage-file": "^0.1.0"
   },
   "files": [
     "src",
@@ -17,6 +22,7 @@
     ".": "./src/index.ts",
     "./bin": "./src/bin.ts",
     "./daemon": "./src/daemon.ts",
-    "./main": "./src/main.ts"
+    "./main": "./src/main.ts",
+    "./node-server": "./src/daemon.ts"
   }
 }

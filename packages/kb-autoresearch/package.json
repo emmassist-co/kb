@@ -1,11 +1,11 @@
 {
-  "name": "@emmassist/kb-autoresearch",
+  "name": "@emmassist-co/kb-autoresearch",
   "version": "0.1.0",
-  "private": false,
+  "private": true,
   "type": "module",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
+  "files": [
+    "src"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*"

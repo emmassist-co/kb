@@ -1,4 +1,4 @@
-# `@emmassist/kb-core`
+# `@emmassist-co/kb-core`
 
 Backend-neutral knowledge base semantics.
 
@@ -18,22 +18,22 @@ Backend-neutral knowledge base semantics.
 
 ## Main exports
 
-- `@emmassist/kb-core`
-- `@emmassist/kb-core/service`
-- `@emmassist/kb-core/store`
-- `@emmassist/kb-core/documents`
-- `@emmassist/kb-core/bm25`
-- `@emmassist/kb-core/relations`
-- `@emmassist/kb-core/snapshot-store`
+- `@emmassist-co/kb-core`
+- `@emmassist-co/kb-core/service`
+- `@emmassist-co/kb-core/store`
+- `@emmassist-co/kb-core/documents`
+- `@emmassist-co/kb-core/bm25`
+- `@emmassist-co/kb-core/relations`
+- `@emmassist-co/kb-core/snapshot-store`
 
 ## Typical use
 
 ```ts
-import { KnowledgeBaseService } from '@emmassist/kb-core';
+import { KnowledgeBaseService } from '@emmassist-co/kb-core';
 ```
 
 Pair it with:
 
-- `@emmassist/kb-storage-file` for local file-backed use
-- `@emmassist/kb-storage-cloudflare` for deployed Cloudflare-backed use
+- `@emmassist-co/kb-storage-file` for local file-backed use
+- `@emmassist-co/kb-storage-cloudflare` for deployed Cloudflare-backed use
 

@@ -1,10 +1,19 @@
 {
-  "name": "@emmassist/kb-storage-cloudflare",
+  "name": "@emmassist-co/kb-storage-cloudflare",
   "version": "0.1.0",
   "private": false,
   "type": "module",
+  "files": [
+    "src"
+  ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "@emmassist-co/kb-core": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@flue/sdk": "^0.3.10"
   },
   "exports": {
     ".": "./src/index.ts",

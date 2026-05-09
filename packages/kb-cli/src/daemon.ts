@@ -1,6 +1,6 @@
-import { KnowledgeBaseService, type KnowledgeBaseConfig } from '@emmassist/kb-core';
-import { startKnowledgeBaseNodeServer, type KnowledgeBaseNodeServerHandle } from '@emmassist/kb-http/node-server';
-import { FileKnowledgeStore } from '@emmassist/kb-storage-file';
+import { KnowledgeBaseService, type KnowledgeBaseConfig } from '@emmassist-co/kb-core';
+import { startKnowledgeBaseNodeServer, type KnowledgeBaseNodeServerHandle } from '@emmassist-co/kb-http/node-server';
+import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 import path from 'node:path';
 
 export interface KnowledgeBaseCliDaemonOptions {

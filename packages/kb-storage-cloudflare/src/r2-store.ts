@@ -3,13 +3,13 @@ import type {
   KnowledgeEntityRegistryEntry,
   KnowledgeEvent,
   KnowledgeLink
-} from '@emmassist/kb-core';
+} from '@emmassist-co/kb-core';
 import {
   clonePersistedKnowledgeState,
   createEmptyPersistedKnowledgeState,
   type PersistedKnowledgeState
-} from '@emmassist/kb-core/snapshot-store';
-import type { KnowledgeLinkOrigin } from '@emmassist/kb-core/store';
+} from '@emmassist-co/kb-core/snapshot-store';
+import type { KnowledgeLinkOrigin } from '@emmassist-co/kb-core/store';
 
 interface R2ObjectBodyLike {
   text(): Promise<string>;

@@ -2,7 +2,7 @@ import type {
   KnowledgeBaseService,
   KnowledgeRelationQueryInput,
   KnowledgeSearchInput
-} from '@emmassist/kb-core';
+} from '@emmassist-co/kb-core';
 import type { KnowledgeBaseHttpContext, KnowledgeBaseHttpRequest, KnowledgeBaseHttpResponseShape } from './types.js';
 
 type CaptureSourceInput = Parameters<KnowledgeBaseService['captureSource']>[0];

@@ -1,4 +1,4 @@
-# `@emmassist/kb-flue-adapter`
+# `@emmassist-co/kb-flue-adapter`
 
 Flue-specific KB integration layer.
 
@@ -17,5 +17,5 @@ Flue-specific KB integration layer.
 ## Notes
 
 - Existing workspace consumers should keep using the `kb` command through the runtime.
-- New local agents should prefer `@emmassist/kb-cli` or `@emmassist/kb-http`.
+- New local agents should prefer `@emmassist-co/kb-cli` or `@emmassist-co/kb-http`.
 

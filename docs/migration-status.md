@@ -4,11 +4,11 @@
 
 The following surfaces already work from the extracted `emmassist/kb` monorepo:
 
-- `@emmassist/kb-core`
-- `@emmassist/kb-storage-file`
-- `@emmassist/kb-http`
-- `@emmassist/kb-cli`
-- `@emmassist/kb-autoresearch` source tree copied into the repo
+- `@emmassist-co/kb-core`
+- `@emmassist-co/kb-storage-file`
+- `@emmassist-co/kb-http`
+- `@emmassist-co/kb-cli`
+- `@emmassist-co/kb-autoresearch` source tree copied into the repo
 
 Verified locally:
 
@@ -70,5 +70,5 @@ These should either:
 2. Extract KB-owned DO state logic from `state-cloudflare-do.ts`.
 3. Move KB sync logic into the KB repo and rewrite `kb-r2-sync`.
 4. Separate package tests from host integration tests.
-5. Publish the standalone packages under `@emmassist/*`.
+5. Publish the standalone packages under `@emmassist-co/*`.
 6. Switch `administrative` to consume the published packages.

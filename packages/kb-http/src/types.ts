@@ -2,7 +2,7 @@ import type {
   KnowledgeBaseService,
   KnowledgeLexicalBackend,
   KnowledgeSearchMode
-} from '@emmassist/kb-core';
+} from '@emmassist-co/kb-core';
 
 export interface KnowledgeBaseHttpContext {
   service: KnowledgeBaseService;

@@ -6,8 +6,8 @@ import {
   type KnowledgeEntityKind,
   type KnowledgeLexicalBackend,
   type KnowledgeSearchMode
-} from '@emmassist/kb-core';
-import { FileKnowledgeStore } from '@emmassist/kb-storage-file';
+} from '@emmassist-co/kb-core';
+import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 import { startKnowledgeBaseCliDaemon } from './daemon.js';
 
 type JsonObject = Record<string, unknown>;

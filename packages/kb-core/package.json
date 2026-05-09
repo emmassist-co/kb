@@ -1,10 +1,16 @@
 {
-  "name": "@emmassist/kb-core",
+  "name": "@emmassist-co/kb-core",
   "version": "0.1.0",
   "private": false,
   "type": "module",
+  "files": [
+    "src"
+  ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
   },
   "exports": {
     ".": "./src/index.ts",

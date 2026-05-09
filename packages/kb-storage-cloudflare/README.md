@@ -1,4 +1,4 @@
-# `@emmassist/kb-storage-cloudflare`
+# `@emmassist-co/kb-storage-cloudflare`
 
 Cloudflare-specific KB persistence and runtime adapters.
 

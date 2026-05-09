@@ -9,7 +9,7 @@ import type {
   KnowledgeStore,
   KnowledgeLink,
   KnowledgeLock
-} from '@emmassist/kb-core';
+} from '@emmassist-co/kb-core';
 
 interface FileStoreManifest {
   mode: KnowledgeBaseMode;

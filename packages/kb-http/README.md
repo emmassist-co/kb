@@ -1,4 +1,4 @@
-# `@emmassist/kb-http`
+# `@emmassist-co/kb-http`
 
 Canonical HTTP/JSON contract for the KB.
 
@@ -24,8 +24,8 @@ Canonical HTTP/JSON contract for the KB.
 
 ## Hosts
 
-- local Node daemon via `@emmassist/kb-http/node-server`
-- Cloudflare fetch adapter via `@emmassist/kb-http/cloudflare-worker`
+- local Node daemon via `@emmassist-co/kb-http/node-server`
+- Cloudflare fetch adapter via `@emmassist-co/kb-http/cloudflare-worker`
 
 ## Verification
 

@@ -1,4 +1,4 @@
-# `@emmassist/kb-storage-file`
+# `@emmassist-co/kb-storage-file`
 
 Local filesystem storage adapter for the KB.
 
@@ -10,8 +10,8 @@ Local filesystem storage adapter for the KB.
 ## Typical use
 
 ```ts
-import { KnowledgeBaseService } from '@emmassist/kb-core';
-import { FileKnowledgeStore } from '@emmassist/kb-storage-file';
+import { KnowledgeBaseService } from '@emmassist-co/kb-core';
+import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 
 const service = new KnowledgeBaseService(tenantId, config, new FileKnowledgeStore(rootDir, config.mode));
 ```

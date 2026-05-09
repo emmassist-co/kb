@@ -1,4 +1,4 @@
-# `@emmassist/kb-cli`
+# `@emmassist-co/kb-cli`
 
 Standalone KB CLI for local agents and HTTP-backed KB hosts.
 
