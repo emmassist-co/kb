@@ -30,6 +30,7 @@ npx kb-local inspect
 ## Modes
 
 - local in-process file-backed mode
+- local R2 mirror mode
 - local daemon mode
 - remote HTTP mode
 
@@ -55,6 +56,23 @@ In-process local:
 
 ```bash
 KB_TENANT_ID=workspace-template KB_ROOT_DIR=/tmp/kb npx kb-local inspect
+```
+
+R2 mirror local:
+
+```bash
+KB_BACKEND=r2-mirror \
+KB_TENANT_ID=workspace-template \
+KB_R2_MIRROR_ROOT=/tmp/kb-mirror \
+npx kb-local search --json '{"query":"billing"}'
+```
+
+Mirror operations:
+
+```bash
+KB_BACKEND=r2-mirror npx kb-local sync status
+KB_BACKEND=r2-mirror npx kb-local sync pull
+KB_BACKEND=r2-mirror npx kb-local daemon start
 ```
 
 Daemon:

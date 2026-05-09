@@ -14,7 +14,7 @@ import {
   resolveTenantKbMirrorRoot,
   resolveTenantKbManifestPath,
   type TenantKbSyncManifest
-} from '../src/lib/kb/r2-sync.js';
+} from '../packages/kb-cli/src/r2-sync-lib.js';
 import {
   parseKbR2SyncArgs,
   renderKbR2SyncHelp

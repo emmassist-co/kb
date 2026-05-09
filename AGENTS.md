@@ -1,0 +1,88 @@
+# KB Monorepo Agent Guide
+
+This repository is the source of truth for shared KB packages published under `@emmassist-co/*`.
+
+## Working Rules
+
+- Be terse and operational.
+- Prefer clear, easy-to-reason code over backward-compatibility unless explicitly requested.
+- Avoid touching generated artifacts unless the task requires it.
+- Prefer read-first investigation before risky writes.
+- Use test-first changes for behavior changes and bug fixes.
+
+## Package Ownership
+
+The packages in `packages/` are the canonical implementations. Do not land feature work only in downstream repos if the behavior belongs in one of these packages.
+
+- `packages/kb-core`
+- `packages/kb-storage-file`
+- `packages/kb-storage-cloudflare`
+- `packages/kb-http`
+- `packages/kb-cli`
+- `packages/kb-flue-adapter`
+- `packages/kb-autoresearch`
+
+If a downstream repo has copied package code, treat that copy as migration debt unless the downstream repo clearly documents a deliberate fork.
+
+## Semver
+
+Follow semantic versioning strictly for every published `@emmassist-co/*` package.
+
+- `patch`: bug fixes, internal refactors with no public behavior change, docs-only changes, dependency updates with no public API impact
+- `minor`: new backward-compatible commands, flags, exports, capabilities, skills, or behavior that existing consumers do not need to change for
+- `major`: breaking CLI changes, removed commands/flags/exports, changed defaults that can alter existing behavior, changed response shapes, changed package names, or required migration steps
+
+When unsure between `patch` and `minor`, prefer `minor`.
+When unsure whether something is breaking, treat it as breaking until proven otherwise.
+
+## Release Discipline
+
+Before changing a package version:
+
+1. Identify which package or packages changed.
+2. State the intended semver bump and why.
+3. Verify any dependent package ranges that also need updating.
+4. Update package docs if the public surface changed.
+5. Run the package-specific tests plus any affected integration tests.
+
+For public-surface changes, include a short release note in the commit or PR description covering:
+
+- what changed
+- who is affected
+- whether migration is required
+
+## Publishing
+
+Do not publish casually.
+
+Before publishing a package:
+
+1. Ensure the package version is bumped intentionally.
+2. Ensure dependent local packages reference the correct new version range.
+3. Ensure README / setup docs match the published behavior.
+4. Run `npm test` and `npm run typecheck`.
+5. Run targeted package tests for the changed surface.
+6. Confirm the package is ready for GitHub Packages release.
+
+If a downstream repo depends on a published package version, do not tell users a feature exists until the package has actually been released.
+
+## Local Vs Runtime Surfaces
+
+Be explicit about environment-specific command surfaces.
+
+- Local operator commands may exist only in `kb-cli`.
+- Runtime / worker-facing surfaces must stay narrower when appropriate.
+- Do not leak local-only commands into runtime help or runtime skills unless that is an intentional product decision.
+
+## Verification
+
+At minimum for package changes:
+
+- `npm test`
+- `npm run typecheck`
+
+Also run focused tests for touched packages, for example:
+
+- `npx tsx --test tests/kb-cli.test.ts`
+- `npx tsx --test tests/kb-cli-docs.test.ts`
+

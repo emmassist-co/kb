@@ -136,6 +136,32 @@ test('kb cli help makes the edge-writing split explicit', async () => {
   assert.match(result.stdout, /Use `kb relate` for explicit relation edges between existing entities/);
   assert.match(result.stdout, /Do not use `kb annotate` for relation edges/);
   assert.match(result.stdout, /Only use `record\.relations\[\]` when you are already creating or rewriting the entity/);
+  assert.match(result.stdout, /kb sync <pull\|status\|push>/);
+  assert.match(result.stdout, /kb daemon <start\|stop\|restart\|status\|logs\|once>/);
+});
+
+test('kb cli sync commands are rejected outside r2-mirror mode', async () => {
+  const result = await runKnowledgeBaseCli(['sync', 'status'], {
+    env: {
+      KB_BACKEND: 'file',
+      KB_TENANT_ID: 'acme'
+    }
+  });
+
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stderr, /only supported with KB_BACKEND=r2-mirror/i);
+});
+
+test('kb cli daemon commands are rejected outside r2-mirror mode', async () => {
+  const result = await runKnowledgeBaseCli(['daemon', 'status'], {
+    env: {
+      KB_BACKEND: 'http',
+      KB_BASE_URL: 'http://127.0.0.1:3001'
+    }
+  });
+
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stderr, /only supported with KB_BACKEND=r2-mirror/i);
 });
 
 test('kb cli validate reports all write payload issues before mutation', async () => {

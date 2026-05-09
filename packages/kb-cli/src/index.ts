@@ -9,6 +9,8 @@ import {
 } from '@emmassist-co/kb-core';
 import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 import { startKnowledgeBaseCliDaemon } from './daemon.js';
+import { executeKnowledgeBaseSyncCommand, renderKnowledgeBaseSyncHelp } from './sync.js';
+import { executeKnowledgeBaseSyncDaemonCommand, renderKnowledgeBaseSyncDaemonHelp } from './sync-daemon.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -32,6 +34,7 @@ export type KnowledgeBaseCliTransport =
       mode: 'local';
       tenantId: string;
       rootDir?: string;
+      backend?: 'file' | 'r2-mirror';
       config?: KnowledgeBaseConfig;
     }
   | {
@@ -115,6 +118,22 @@ export async function runKnowledgeBaseCli(
         exitCode: 0
       };
     }
+    if (command === 'sync') {
+      const result = await executeKnowledgeBaseSyncCommand(parsed.positionals.slice(1), options);
+      return {
+        stdout: `${renderOutput(result, 'json')}\n`,
+        stderr: '',
+        exitCode: 0
+      };
+    }
+    if (command === 'daemon') {
+      const result = await executeKnowledgeBaseSyncDaemonCommand(parsed.positionals.slice(1), options);
+      return {
+        stdout: result.stdout ? `${result.stdout}\n` : '',
+        stderr: result.stderr ? `${result.stderr}\n` : '',
+        exitCode: result.exitCode
+      };
+    }
     const executor = await createExecutor(options);
     const format = typeof parsed.flags.format === 'string' ? parsed.flags.format : 'json';
     const data = await executeCommand(executor, parsed, options);
@@ -154,7 +173,7 @@ async function createExecutor(options: KnowledgeBaseCliOptions): Promise<Knowled
   return {
     inspect: async () => ({
       tenantId: transport.tenantId,
-      backend: 'file',
+      backend: transport.backend ?? 'file',
       rootDir,
       mode: config.mode
     }),
@@ -290,9 +309,20 @@ function resolveTransport(options: KnowledgeBaseCliOptions): KnowledgeBaseCliTra
   if (baseUrl) {
     return { mode: 'http', baseUrl };
   }
+  const backend = readCliBackend(env.KB_BACKEND);
+  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  if (backend === 'r2-mirror') {
+    return {
+      mode: 'local',
+      tenantId,
+      backend,
+      rootDir: env.KB_ROOT_DIR ?? path.resolve(options.cwd ?? process.cwd(), env.KB_R2_MIRROR_ROOT ?? '.kb-r2', tenantId)
+    };
+  }
   return {
     mode: 'local',
-    tenantId: env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default',
+    tenantId,
+    backend,
     rootDir: env.KB_ROOT_DIR
   };
 }
@@ -468,6 +498,8 @@ function renderHelp(topic?: string): string {
     '  kb doctor',
     '  kb export',
     '  kb serve [--host 127.0.0.1] [--port 3001]',
+    '  kb sync <pull|status|push>',
+    '  kb daemon <start|stop|restart|status|logs|once>',
     '',
     'Notes:',
     '  - Use `kb record` for structured entities.',
@@ -476,7 +508,12 @@ function renderHelp(topic?: string): string {
     '  - Do not use `kb annotate` for relation edges; it is only for timeline/provenance updates.',
     '  - Use `kb remember` for facts, sources, corrections, and narrative evidence capture.',
     '  - Use `kb query-relations` for relation-shaped questions; `kb search` is lexical/hybrid retrieval.',
-    '  - Prefer `kb validate ... --json @file.json` before large write batches.'
+    '  - Prefer `kb validate ... --json @file.json` before large write batches.',
+    '  - `kb sync` and `kb daemon` are local-only mirror operations for `KB_BACKEND=r2-mirror`.',
+    '',
+    'Local Mirror Help:',
+    `  ${renderKnowledgeBaseSyncHelp()}`,
+    `  ${renderKnowledgeBaseSyncDaemonHelp()}`
   ].join('\n');
 }
 
@@ -764,6 +801,11 @@ function validateOptionalRecordArrayField(
     }
     validateEntry(entry as JsonObject, `${field}[${index}]`);
   });
+}
+
+function readCliBackend(value: string | undefined): 'file' | 'r2-mirror' {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === 'r2-mirror' ? 'r2-mirror' : 'file';
 }
 
 async function startServe(
