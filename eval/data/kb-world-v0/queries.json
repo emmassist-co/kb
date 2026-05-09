@@ -1,0 +1,521 @@
+[
+  {
+    "id": "q-company-domain",
+    "text": "what company domain does BrightMesa use for Google Workspace",
+    "relevant": ["company-brightmesa", "system-workspace-environment"],
+    "grades": {
+      "system-workspace-environment": 2,
+      "company-brightmesa": 1
+    }
+  },
+  {
+    "id": "q-company-offices",
+    "text": "where is the operations hub and which cities does the team work from",
+    "relevant": ["company-brightmesa"]
+  },
+  {
+    "id": "q-ceo-approvals",
+    "text": "what does Alexandre Portela need to approve",
+    "relevant": ["person-alexandre-portela"]
+  },
+  {
+    "id": "q-finance-tooling-approval",
+    "text": "who signs off on finance tooling changes",
+    "relevant": ["person-alexandre-portela"]
+  },
+  {
+    "id": "q-exec-calendar-owner",
+    "text": "who owns Alexandre's calendar triage",
+    "relevant": ["process-calendar-triage", "person-maya-chen"],
+    "grades": {
+      "process-calendar-triage": 2,
+      "person-maya-chen": 1
+    }
+  },
+  {
+    "id": "q-board-materials-owner",
+    "text": "who coordinates board materials and board deck prep",
+    "relevant": ["process-board-prep", "person-maya-chen"],
+    "grades": {
+      "person-maya-chen": 2,
+      "process-board-prep": 1
+    }
+  },
+  {
+    "id": "q-travel-approval-1500",
+    "text": "who approves travel over 1500 eur",
+    "relevant": ["process-travel-booking", "person-maya-chen"],
+    "grades": {
+      "process-travel-booking": 2,
+      "person-maya-chen": 1
+    }
+  },
+  {
+    "id": "q-travel-approval-3000",
+    "text": "who approves trips above 3000 eur",
+    "relevant": ["process-travel-booking", "person-alexandre-portela"],
+    "grades": {
+      "process-travel-booking": 2,
+      "person-alexandre-portela": 1
+    }
+  },
+  {
+    "id": "q-london-hotel-cap",
+    "text": "what is the hotel cap in london for company travel",
+    "relevant": ["process-travel-booking"]
+  },
+  {
+    "id": "q-premium-economy-rule",
+    "text": "when can someone book premium economy",
+    "relevant": ["process-travel-booking"]
+  },
+  {
+    "id": "q-finance-owner",
+    "text": "who owns accounts payable and stripe reconciliation",
+    "relevant": ["person-jonah-stein"]
+  },
+  {
+    "id": "q-billing-stripe",
+    "text": "who handles billing questions for stripe invoices",
+    "relevant": ["vendor-stripe", "person-jonah-stein"],
+    "grades": {
+      "vendor-stripe": 2,
+      "person-jonah-stein": 1
+    }
+  },
+  {
+    "id": "q-stripe-alias",
+    "text": "stripe inc billing contact",
+    "relevant": ["vendor-stripe"]
+  },
+  {
+    "id": "q-stripe-refunds",
+    "text": "which system is used to issue card refunds to customers",
+    "relevant": ["process-customer-refund", "vendor-stripe"],
+    "grades": {
+      "process-customer-refund": 2,
+      "vendor-stripe": 1
+    }
+  },
+  {
+    "id": "q-refund-under-5000",
+    "text": "who can approve a customer refund under 5000 eur",
+    "relevant": ["process-customer-refund", "person-jonah-stein"],
+    "grades": {
+      "process-customer-refund": 2,
+      "person-jonah-stein": 1
+    }
+  },
+  {
+    "id": "q-refund-over-5000",
+    "text": "who approves larger customer refunds above 5000 eur",
+    "relevant": ["process-customer-refund", "person-alexandre-portela"],
+    "grades": {
+      "process-customer-refund": 2,
+      "person-alexandre-portela": 1
+    }
+  },
+  {
+    "id": "q-refund-commercial-context",
+    "text": "who confirms the commercial reason before finance sends a refund",
+    "relevant": ["process-customer-refund", "person-rina-patel"],
+    "grades": {
+      "process-customer-refund": 2,
+      "person-rina-patel": 1
+    }
+  },
+  {
+    "id": "q-hiring-approval",
+    "text": "who must approve a hiring request before an offer is sent",
+    "relevant": ["process-hiring-approval", "person-lena-morales", "person-alexandre-portela"],
+    "grades": {
+      "process-hiring-approval": 2,
+      "person-lena-morales": 1,
+      "person-alexandre-portela": 1
+    }
+  },
+  {
+    "id": "q-offer-packet-owner",
+    "text": "who checks compensation bands and offer packet completeness",
+    "relevant": ["process-hiring-approval", "person-lena-morales"],
+    "grades": {
+      "person-lena-morales": 2,
+      "process-hiring-approval": 1
+    }
+  },
+  {
+    "id": "q-new-hire-lead-time",
+    "text": "how far in advance should new hire onboarding start",
+    "relevant": ["process-new-hire-onboarding"]
+  },
+  {
+    "id": "q-new-hire-groups",
+    "text": "what google groups should every new employee join on day one",
+    "relevant": ["process-new-hire-onboarding", "system-workspace-environment"],
+    "grades": {
+      "process-new-hire-onboarding": 2,
+      "system-workspace-environment": 1
+    }
+  },
+  {
+    "id": "q-people-drive",
+    "text": "where are signed employment documents stored",
+    "relevant": ["asset-shared-drive-map", "process-new-hire-onboarding"],
+    "grades": {
+      "asset-shared-drive-map": 2,
+      "process-new-hire-onboarding": 1
+    }
+  },
+  {
+    "id": "q-offboarding-sla",
+    "text": "how quickly should a departing employee's workspace account be suspended",
+    "relevant": ["process-offboarding"]
+  },
+  {
+    "id": "q-offboarding-forwarding",
+    "text": "can email forwarding stay on after offboarding and for how long",
+    "relevant": ["process-offboarding"]
+  },
+  {
+    "id": "q-offboarding-owner",
+    "text": "who removes google workspace access during offboarding",
+    "relevant": ["process-offboarding", "person-omar-haddad"],
+    "grades": {
+      "person-omar-haddad": 2,
+      "process-offboarding": 1
+    }
+  },
+  {
+    "id": "q-mfa-reset",
+    "text": "who handles mfa resets and sso issues",
+    "relevant": ["person-omar-haddad"]
+  },
+  {
+    "id": "q-security-escalation",
+    "text": "where should a suspected compromised account be reported",
+    "relevant": ["process-security-incident", "asset-groups-and-aliases"],
+    "grades": {
+      "process-security-incident": 2,
+      "asset-groups-and-aliases": 1
+    }
+  },
+  {
+    "id": "q-security-paging",
+    "text": "who gets paged if customer data or payment systems may be affected",
+    "relevant": ["process-security-incident", "person-maya-chen", "person-alexandre-portela"],
+    "grades": {
+      "process-security-incident": 2,
+      "person-maya-chen": 1,
+      "person-alexandre-portela": 1
+    }
+  },
+  {
+    "id": "q-incident-first-steps",
+    "text": "what are the first steps in the security incident playbook",
+    "relevant": ["process-security-incident"]
+  },
+  {
+    "id": "q-vendor-onboarding-steps",
+    "text": "what happens in the new vendor onboarding process",
+    "relevant": ["process-vendor-onboarding"]
+  },
+  {
+    "id": "q-vendor-security-review",
+    "text": "who does the security review for a new saas vendor",
+    "relevant": ["process-vendor-onboarding", "person-omar-haddad"],
+    "grades": {
+      "process-vendor-onboarding": 2,
+      "person-omar-haddad": 1
+    }
+  },
+  {
+    "id": "q-vendor-contract-signer",
+    "text": "who signs vendor contracts above 10000 eur annual value",
+    "relevant": ["process-vendor-onboarding", "person-alexandre-portela"],
+    "grades": {
+      "process-vendor-onboarding": 2,
+      "person-alexandre-portela": 1
+    }
+  },
+  {
+    "id": "q-vendor-payment-details",
+    "text": "who collects tax and payment details for vendors",
+    "relevant": ["process-vendor-onboarding", "person-jonah-stein"],
+    "grades": {
+      "process-vendor-onboarding": 2,
+      "person-jonah-stein": 1
+    }
+  },
+  {
+    "id": "q-agent-external-email",
+    "text": "can the workspace admin agent send external email on its own",
+    "relevant": ["policy-agent-action-policy", "system-workspace-admin-agent"],
+    "grades": {
+      "policy-agent-action-policy": 2,
+      "system-workspace-admin-agent": 1
+    }
+  },
+  {
+    "id": "q-agent-internal-updates",
+    "text": "what is the agent allowed to do without extra approval",
+    "relevant": ["policy-agent-action-policy", "system-workspace-admin-agent"],
+    "grades": {
+      "policy-agent-action-policy": 2,
+      "system-workspace-admin-agent": 1
+    }
+  },
+  {
+    "id": "q-agent-payroll-limit",
+    "text": "is the agent allowed to change payroll or benefits in rippling",
+    "relevant": ["policy-agent-action-policy", "vendor-rippling", "system-workspace-admin-agent"],
+    "grades": {
+      "policy-agent-action-policy": 2,
+      "vendor-rippling": 1,
+      "system-workspace-admin-agent": 1
+    }
+  },
+  {
+    "id": "q-agent-drive-delete",
+    "text": "can the agent delete files without asking a human",
+    "relevant": ["policy-agent-action-policy", "system-workspace-admin-agent"],
+    "grades": {
+      "policy-agent-action-policy": 2,
+      "system-workspace-admin-agent": 1
+    }
+  },
+  {
+    "id": "q-workspace-timezone",
+    "text": "what is the default google calendar timezone",
+    "relevant": ["system-workspace-environment"]
+  },
+  {
+    "id": "q-workspace-alias-domain",
+    "text": "does brightmesa have a secondary alias domain",
+    "relevant": ["system-workspace-environment"]
+  },
+  {
+    "id": "q-company-holidays-calendar",
+    "text": "what shared calendar shows company holidays",
+    "relevant": ["system-workspace-environment"]
+  },
+  {
+    "id": "q-lisbon-meeting-rooms",
+    "text": "what are the lisbon office meeting room names",
+    "relevant": ["system-workspace-environment"]
+  },
+  {
+    "id": "q-leadership-meeting-time",
+    "text": "when is the weekly leadership meeting",
+    "relevant": ["meeting-leadership-weekly"]
+  },
+  {
+    "id": "q-leadership-attendees",
+    "text": "who attends the monday leadership sync",
+    "relevant": ["meeting-leadership-weekly"]
+  },
+  {
+    "id": "q-brief-deadline",
+    "text": "when should the assistant prepare an external meeting brief",
+    "relevant": ["process-external-meeting-brief"]
+  },
+  {
+    "id": "q-brief-content",
+    "text": "what should go into a customer or investor meeting brief",
+    "relevant": ["process-external-meeting-brief"]
+  },
+  {
+    "id": "q-brief-location",
+    "text": "where are alexandre meeting briefs stored",
+    "relevant": ["process-external-meeting-brief", "asset-shared-drive-map"],
+    "grades": {
+      "process-external-meeting-brief": 2,
+      "asset-shared-drive-map": 1
+    }
+  },
+  {
+    "id": "q-board-deadlines",
+    "text": "when are draft and final board materials due",
+    "relevant": ["process-board-prep"]
+  },
+  {
+    "id": "q-board-folder",
+    "text": "where do board decks and source documents live",
+    "relevant": ["process-board-prep", "asset-shared-drive-map"],
+    "grades": {
+      "process-board-prep": 2,
+      "asset-shared-drive-map": 1
+    }
+  },
+  {
+    "id": "q-reimbursement-deadline",
+    "text": "when do employees need to submit personal reimbursements",
+    "relevant": ["process-expense-reimbursement"]
+  },
+  {
+    "id": "q-reimbursement-min-receipt",
+    "text": "above what amount is a receipt required for reimbursement",
+    "relevant": ["process-expense-reimbursement"]
+  },
+  {
+    "id": "q-reimbursement-payout-system",
+    "text": "how are reimbursements paid and on what schedule",
+    "relevant": ["process-expense-reimbursement", "vendor-rippling"],
+    "grades": {
+      "process-expense-reimbursement": 2,
+      "vendor-rippling": 1
+    }
+  },
+  {
+    "id": "q-primary-spend-platform",
+    "text": "what corporate card platform should employees use first",
+    "relevant": ["vendor-brex", "process-expense-reimbursement"],
+    "grades": {
+      "vendor-brex": 2,
+      "process-expense-reimbursement": 1
+    }
+  },
+  {
+    "id": "q-payroll-owner",
+    "text": "who owns rippling payroll operations",
+    "relevant": ["vendor-rippling", "person-lena-morales"],
+    "grades": {
+      "person-lena-morales": 2,
+      "vendor-rippling": 1
+    }
+  },
+  {
+    "id": "q-google-billing-owner",
+    "text": "who handles google workspace billing support",
+    "relevant": ["vendor-google-workspace", "person-omar-haddad"],
+    "grades": {
+      "vendor-google-workspace": 2,
+      "person-omar-haddad": 1
+    }
+  },
+  {
+    "id": "q-workspace-reseller-contact",
+    "text": "what email should we use for workspace billing with the reseller",
+    "relevant": ["vendor-google-workspace"]
+  },
+  {
+    "id": "q-brex-admin",
+    "text": "who administers brex card limits and spend policy settings",
+    "relevant": ["vendor-brex", "person-jonah-stein"],
+    "grades": {
+      "vendor-brex": 2,
+      "person-jonah-stein": 1
+    }
+  },
+  {
+    "id": "q-finance-alias",
+    "text": "what alias reaches jonah and the finance operations queue",
+    "relevant": ["asset-groups-and-aliases", "person-jonah-stein"],
+    "grades": {
+      "asset-groups-and-aliases": 2,
+      "person-jonah-stein": 1
+    }
+  },
+  {
+    "id": "q-people-alias",
+    "text": "which email alias routes to lena for people ops",
+    "relevant": ["asset-groups-and-aliases", "person-lena-morales"],
+    "grades": {
+      "asset-groups-and-aliases": 2,
+      "person-lena-morales": 1
+    }
+  },
+  {
+    "id": "q-support-escalation-alias",
+    "text": "what alias should be used for urgent customer escalations",
+    "relevant": ["asset-groups-and-aliases"]
+  },
+  {
+    "id": "q-office-alias",
+    "text": "what alias should people use for lisbon office questions",
+    "relevant": ["asset-groups-and-aliases", "person-nora-kim"],
+    "grades": {
+      "asset-groups-and-aliases": 2,
+      "person-nora-kim": 1
+    }
+  },
+  {
+    "id": "q-office-manager",
+    "text": "who handles courier deliveries and guest access in lisbon",
+    "relevant": ["person-nora-kim", "location-lisbon-office"],
+    "grades": {
+      "person-nora-kim": 2,
+      "location-lisbon-office": 1
+    }
+  },
+  {
+    "id": "q-office-address",
+    "text": "what is the lisbon office address",
+    "relevant": ["location-lisbon-office"]
+  },
+  {
+    "id": "q-office-wifi",
+    "text": "what is the guest wifi network at the lisbon office",
+    "relevant": ["location-lisbon-office"]
+  },
+  {
+    "id": "q-courier-instructions",
+    "text": "how should couriers deliver packages to brightmesa in lisbon",
+    "relevant": ["location-lisbon-office", "person-nora-kim"],
+    "grades": {
+      "location-lisbon-office": 2,
+      "person-nora-kim": 1
+    }
+  },
+  {
+    "id": "q-drive-finance-docs",
+    "text": "which shared drive contains vendor bills close packs and reimbursement evidence",
+    "relevant": ["asset-shared-drive-map", "process-month-end-close"],
+    "grades": {
+      "asset-shared-drive-map": 2,
+      "process-month-end-close": 1
+    }
+  },
+  {
+    "id": "q-drive-board-docs",
+    "text": "which shared drive stores board decks and executive meeting briefs",
+    "relevant": ["asset-shared-drive-map"]
+  },
+  {
+    "id": "q-month-end-deadline",
+    "text": "when does finance need to finish month end close",
+    "relevant": ["process-month-end-close"]
+  },
+  {
+    "id": "q-month-end-adjustments",
+    "text": "who reviews close adjustments above 2000 eur",
+    "relevant": ["process-month-end-close", "person-alexandre-portela"],
+    "grades": {
+      "process-month-end-close": 2,
+      "person-alexandre-portela": 1
+    }
+  },
+  {
+    "id": "q-month-end-folder",
+    "text": "where are stripe payouts and brex transactions reconciled",
+    "relevant": ["process-month-end-close", "asset-shared-drive-map"],
+    "grades": {
+      "process-month-end-close": 2,
+      "asset-shared-drive-map": 1
+    }
+  },
+  {
+    "id": "q-naming-standard",
+    "text": "what file naming convention should the workspace use",
+    "relevant": ["policy-document-naming"]
+  },
+  {
+    "id": "q-board-deck-name",
+    "text": "how should a board deck file be named",
+    "relevant": ["policy-document-naming"]
+  },
+  {
+    "id": "q-reimbursement-file-name",
+    "text": "what details should appear in reimbursement filenames",
+    "relevant": ["policy-document-naming"]
+  }
+]

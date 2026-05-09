@@ -1,0 +1,38 @@
+[
+  {
+    "id": "product-knowledge-base",
+    "path": "docs/product/knowledge-base.md",
+    "type": "product",
+    "tags": ["knowledge-base", "flue", "kb", "runtime"]
+  },
+  {
+    "id": "operations-harness",
+    "path": "docs/operations/harness.md",
+    "type": "operations",
+    "tags": ["harness", "eval", "runtime", "verification"]
+  },
+  {
+    "id": "product-deployment-model",
+    "path": "docs/product/deployment-model.md",
+    "type": "product",
+    "tags": ["deployment", "single-tenant", "cloudflare", "customer"]
+  },
+  {
+    "id": "product-agent-philosophy",
+    "path": "docs/product/agent-philosophy.md",
+    "type": "product",
+    "tags": ["philosophy", "runtime", "tenant", "policy"]
+  },
+  {
+    "id": "operations-slo",
+    "path": "docs/operations/slo.md",
+    "type": "operations",
+    "tags": ["slo", "latency", "availability"]
+  },
+  {
+    "id": "operations-kb-benchmark",
+    "path": "docs/operations/kb-benchmark.md",
+    "type": "operations",
+    "tags": ["benchmark", "kb", "gbrain", "eval"]
+  }
+]

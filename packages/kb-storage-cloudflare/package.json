@@ -1,0 +1,14 @@
+{
+  "name": "@emmassist/kb-storage-cloudflare",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./r2-store": "./src/r2-store.ts",
+    "./cloudflare-store": "./src/cloudflare-store.ts"
+  }
+}

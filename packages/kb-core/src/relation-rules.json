@@ -1,0 +1,203 @@
+[
+  {
+    "id": "owns",
+    "type": "owns",
+    "sourceKinds": ["company", "process", "project", "policy", "vendor", "decision", "system", "team", "meeting"],
+    "targetKinds": ["person", "team"],
+    "keywords": ["owner", "owns", "owned by", "relationship owner", "owner changed from"],
+    "negativeKeywords": ["unknown owner"],
+    "direction": "forward",
+    "confidence": 0.92,
+    "explicitReferenceBoost": 0.06
+  },
+  {
+    "id": "approves",
+    "type": "approves",
+    "sourceKinds": ["company", "process", "project", "policy", "vendor", "decision", "system", "team", "meeting"],
+    "targetKinds": ["person", "team"],
+    "keywords": ["approves", "approved by", "approval owner", "approval moved to", "signs off"],
+    "direction": "forward",
+    "confidence": 0.9,
+    "explicitReferenceBoost": 0.05
+  },
+  {
+    "id": "reviews",
+    "type": "reviews",
+    "sourceKinds": ["company", "process", "project", "policy", "vendor", "decision", "system", "team", "meeting"],
+    "targetKinds": ["person", "team"],
+    "keywords": ["reviews", "reviewed by", "review owner"],
+    "direction": "forward",
+    "confidence": 0.86,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "escalates_to",
+    "type": "escalates_to",
+    "sourceKinds": ["person", "team", "process"],
+    "targetKinds": ["person", "team"],
+    "keywords": ["escalate to", "escalates to", "escalation goes to", "contact", "handled through", "route via", "exception path"],
+    "direction": "forward",
+    "confidence": 0.88,
+    "explicitReferenceBoost": 0.06
+  },
+  {
+    "id": "supports",
+    "type": "supports",
+    "sourceKinds": ["vendor", "team", "person"],
+    "targetKinds": ["process", "project", "system", "policy"],
+    "keywords": ["supports", "support for", "handled by", "backstops"],
+    "direction": "forward",
+    "confidence": 0.82,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "member_of",
+    "type": "member_of",
+    "sourceKinds": ["person"],
+    "targetKinds": ["team", "company"],
+    "keywords": ["member of", "part of", "works at", "works on", "joined"],
+    "direction": "forward",
+    "confidence": 0.84,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "invested_in",
+    "type": "invested_in",
+    "sourceKinds": ["person", "company"],
+    "targetKinds": ["company", "project"],
+    "keywords": ["invested in", "backed", "investor in", "co-lead investor"],
+    "direction": "forward",
+    "confidence": 0.9,
+    "explicitReferenceBoost": 0.05
+  },
+  {
+    "id": "advises",
+    "type": "advises",
+    "sourceKinds": ["person", "company"],
+    "targetKinds": ["company", "project", "team"],
+    "keywords": ["advisor to", "advises", "serves as an advisor", "advisory relationship"],
+    "direction": "forward",
+    "confidence": 0.88,
+    "explicitReferenceBoost": 0.05
+  },
+  {
+    "id": "reports_to",
+    "type": "reports_to",
+    "sourceKinds": ["person"],
+    "targetKinds": ["person"],
+    "keywords": ["reports to", "managed by", "manager"],
+    "direction": "forward",
+    "confidence": 0.89,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "manages",
+    "type": "manages",
+    "sourceKinds": ["person"],
+    "targetKinds": ["team", "person", "project"],
+    "keywords": ["manages", "manager for", "lead for"],
+    "direction": "forward",
+    "confidence": 0.85,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "attends",
+    "type": "attends",
+    "sourceKinds": ["person", "team"],
+    "targetKinds": ["meeting"],
+    "keywords": ["attended", "attends", "participant", "joined the meeting", "join for", "sits in on"],
+    "direction": "forward",
+    "confidence": 0.9,
+    "explicitReferenceBoost": 0.05
+  },
+  {
+    "id": "uses_system",
+    "type": "uses_system",
+    "sourceKinds": ["process", "team", "person"],
+    "targetKinds": ["system", "vendor"],
+    "keywords": ["uses", "runs in", "handled in", "dashboard", "tooling"],
+    "direction": "forward",
+    "confidence": 0.8,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "depends_on",
+    "type": "depends_on",
+    "sourceKinds": ["process", "project", "system"],
+    "targetKinds": ["process", "project", "system", "vendor", "policy"],
+    "keywords": ["depends on", "blocked by", "requires", "blocked on", "runs through", "route via"],
+    "direction": "forward",
+    "confidence": 0.84,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "integrates_with",
+    "type": "integrates_with",
+    "sourceKinds": ["system", "vendor", "process"],
+    "targetKinds": ["system", "vendor"],
+    "keywords": ["integrates with", "syncs with", "connected to"],
+    "direction": "bidirectional",
+    "confidence": 0.82,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "applies_to",
+    "type": "applies_to",
+    "sourceKinds": ["policy", "process", "project", "team", "system", "decision"],
+    "targetKinds": ["policy", "process", "project", "team", "system", "decision"],
+    "keywords": ["applies to", "governs", "policy for", "covered by policy", "covered by"],
+    "direction": "forward",
+    "confidence": 0.88,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "requires",
+    "type": "requires",
+    "sourceKinds": ["policy", "process", "project"],
+    "targetKinds": ["system", "vendor", "team", "person", "policy"],
+    "keywords": ["requires", "must use", "must involve"],
+    "direction": "forward",
+    "confidence": 0.8,
+    "explicitReferenceBoost": 0.04
+  },
+  {
+    "id": "vendor_for",
+    "type": "vendor_for",
+    "sourceKinds": ["vendor"],
+    "targetKinds": ["process", "project", "system"],
+    "keywords": ["vendor for", "payment processor", "provider for", "handles"],
+    "direction": "forward",
+    "confidence": 0.9,
+    "explicitReferenceBoost": 0.05
+  },
+  {
+    "id": "renews_with",
+    "type": "renews_with",
+    "sourceKinds": ["team", "person", "process"],
+    "targetKinds": ["vendor"],
+    "keywords": ["renews with", "renewal with", "renewal contact", "renewal moved to"],
+    "direction": "forward",
+    "confidence": 0.83,
+    "explicitReferenceBoost": 0.05
+  },
+  {
+    "id": "contacts",
+    "type": "contacts",
+    "sourceKinds": ["team", "person", "process"],
+    "targetKinds": ["person", "vendor"],
+    "keywords": ["contact", "contacts", "reach out to", "billing goes to"],
+    "direction": "forward",
+    "confidence": 0.81,
+    "explicitReferenceBoost": 0.05
+  },
+  {
+    "id": "bills",
+    "type": "bills",
+    "sourceKinds": ["vendor"],
+    "targetKinds": ["process", "project", "team"],
+    "keywords": ["bills", "billing through", "invoice", "payment processor"],
+    "direction": "forward",
+    "confidence": 0.82,
+    "explicitReferenceBoost": 0.05
+  }
+]

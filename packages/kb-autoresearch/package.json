@@ -1,0 +1,13 @@
+{
+  "name": "@emmassist/kb-autoresearch",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  }
+}

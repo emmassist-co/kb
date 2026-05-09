@@ -1,0 +1,12 @@
+{
+  "name": "@emmassist/kb-storage-file",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

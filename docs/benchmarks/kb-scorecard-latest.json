@@ -1,0 +1,155 @@
+{
+  "suite": "kb:core-six",
+  "corpus": "kb-core-six",
+  "provenance": "deterministic-synthetic-fixtures",
+  "generatedAt": "2026-05-08T11:42:24.012Z",
+  "categories": [
+    {
+      "category": "retrieval",
+      "corpus": "kb-world-v0",
+      "provenance": "deterministic-synthetic-fixtures",
+      "caseCount": 72,
+      "metrics": {
+        "precisionAtK": 0.29999999999999966,
+        "recallAtK": 0.9444444444444444,
+        "mrrAtK": 0.9310185185185185,
+        "ndcgAtK": 0.8836861256879858,
+        "explainabilityRate": 1
+      },
+      "thresholds": {
+        "precisionAtK": 0.25,
+        "recallAtK": 0.5,
+        "mrrAtK": 0.5,
+        "ndcgAtK": 0.5,
+        "explainabilityRate": 1
+      },
+      "passed": true,
+      "failures": [
+        {
+          "caseId": "q-leadership-attendees",
+          "summary": "Retrieval result was empty or lacked explainable matched fields.",
+          "expected": [
+            "meeting-leadership-weekly"
+          ],
+          "actual": []
+        }
+      ],
+      "sampleSize": 10
+    },
+    {
+      "category": "temporal",
+      "corpus": "kb-core-six-v1",
+      "provenance": "deterministic-synthetic-fixtures",
+      "caseCount": 3,
+      "metrics": {
+        "exactAnswerAccuracy": 1,
+        "evidenceCorrectness": 1,
+        "temporalDisambiguationRate": 1
+      },
+      "thresholds": {
+        "exactAnswerAccuracy": 0.8,
+        "evidenceCorrectness": 0.66,
+        "temporalDisambiguationRate": 0.8
+      },
+      "passed": true,
+      "failures": [],
+      "sampleSize": 3
+    },
+    {
+      "category": "identity",
+      "corpus": "kb-core-six-v1",
+      "provenance": "deterministic-synthetic-fixtures",
+      "caseCount": 5,
+      "metrics": {
+        "recallAtK": 1,
+        "mrrAtK": 1,
+        "ambiguitySafePrecision": 1,
+        "falseMergeRate": 0
+      },
+      "thresholds": {
+        "recallAtK": 0.8,
+        "mrrAtK": 0.7,
+        "ambiguitySafePrecision": 0.8,
+        "falseMergeRate": 0
+      },
+      "passed": true,
+      "failures": [],
+      "sampleSize": 5
+    },
+    {
+      "category": "provenance",
+      "corpus": "kb-core-six-v1",
+      "provenance": "deterministic-synthetic-fixtures",
+      "caseCount": 4,
+      "metrics": {
+        "sourceHitRate": 1,
+        "exactEvidenceMatch": 1,
+        "unsupportedClaimRefusalRate": 1,
+        "overclaimRate": 0
+      },
+      "thresholds": {
+        "sourceHitRate": 0.75,
+        "exactEvidenceMatch": 0.75,
+        "unsupportedClaimRefusalRate": 0.75,
+        "overclaimRate": 0
+      },
+      "passed": true,
+      "failures": [],
+      "sampleSize": 4
+    },
+    {
+      "category": "contradictions",
+      "corpus": "kb-core-six-v1",
+      "provenance": "deterministic-synthetic-fixtures",
+      "caseCount": 2,
+      "metrics": {
+        "contradictionDetectionRate": 1,
+        "correctWinnerSelectionRate": 1,
+        "uncertaintyPreservationRate": 1,
+        "falseCertaintyRate": 0
+      },
+      "thresholds": {
+        "contradictionDetectionRate": 1,
+        "correctWinnerSelectionRate": 0.5,
+        "uncertaintyPreservationRate": 1,
+        "falseCertaintyRate": 0
+      },
+      "passed": true,
+      "failures": [],
+      "sampleSize": 2
+    },
+    {
+      "category": "fuzzy",
+      "corpus": "kb-core-six-v1",
+      "provenance": "deterministic-synthetic-fixtures",
+      "caseCount": 4,
+      "metrics": {
+        "recallAtK": 1,
+        "mrrAtK": 0.875,
+        "explanationAvailability": 1,
+        "confidenceCalibration": 1
+      },
+      "thresholds": {
+        "recallAtK": 0.75,
+        "mrrAtK": 0.6,
+        "explanationAvailability": 1,
+        "confidenceCalibration": 0.75
+      },
+      "passed": true,
+      "failures": [],
+      "sampleSize": 4
+    }
+  ],
+  "overall": {
+    "passed": true,
+    "categoryPassRate": 1,
+    "metrics": {
+      "retrieval:pass": 1,
+      "temporal:pass": 1,
+      "identity:pass": 1,
+      "provenance:pass": 1,
+      "contradictions:pass": 1,
+      "fuzzy:pass": 1
+    }
+  }
+}

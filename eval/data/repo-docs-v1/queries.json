@@ -1,0 +1,36 @@
+[
+  {
+    "id": "repo-kb-goal",
+    "text": "what is the goal of the flue knowledge base and how is it scoped",
+    "relevant": ["product-knowledge-base"]
+  },
+  {
+    "id": "repo-harness-purpose",
+    "text": "what is the harness for and what runtime path should it exercise",
+    "relevant": ["operations-harness"]
+  },
+  {
+    "id": "repo-deployment-model",
+    "text": "what is the expected customer deployment model and is it single tenant",
+    "relevant": ["product-deployment-model"]
+  },
+  {
+    "id": "repo-agent-philosophy",
+    "text": "what does runtime over prompt theater mean in this repo",
+    "relevant": ["product-agent-philosophy"]
+  },
+  {
+    "id": "repo-slo-latency",
+    "text": "what are the user visible latency and completion rate targets",
+    "relevant": ["operations-slo"]
+  },
+  {
+    "id": "repo-gbrain-benchmark",
+    "text": "how does the kb benchmark relate to gbrain world and what metrics does it use",
+    "relevant": ["operations-kb-benchmark"],
+    "grades": {
+      "operations-kb-benchmark": 2,
+      "product-knowledge-base": 1
+    }
+  }
+]

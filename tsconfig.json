@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "forceConsistentCasingInFileNames": true,
+    "declaration": false,
+    "outDir": "dist-ts",
+    "rootDir": ".",
+    "paths": {
+      "@emmassist/kb-core": ["packages/kb-core/src/index.ts"],
+      "@emmassist/kb-core/*": ["packages/kb-core/src/*"],
+      "@emmassist/kb-storage-file": ["packages/kb-storage-file/src/index.ts"],
+      "@emmassist/kb-storage-file/*": ["packages/kb-storage-file/src/*"],
+      "@emmassist/kb-storage-cloudflare": ["packages/kb-storage-cloudflare/src/index.ts"],
+      "@emmassist/kb-storage-cloudflare/*": ["packages/kb-storage-cloudflare/src/*"],
+      "@emmassist/kb-http": ["packages/kb-http/src/index.ts"],
+      "@emmassist/kb-http/*": ["packages/kb-http/src/*"],
+      "@emmassist/kb-cli": ["packages/kb-cli/src/index.ts"],
+      "@emmassist/kb-cli/*": ["packages/kb-cli/src/*"],
+      "@emmassist/kb-flue-adapter": ["packages/kb-flue-adapter/src/index.ts"],
+      "@emmassist/kb-flue-adapter/*": ["packages/kb-flue-adapter/src/*"],
+      "@emmassist/kb-autoresearch": ["packages/kb-autoresearch/src/index.ts"],
+      "@emmassist/kb-autoresearch/*": ["packages/kb-autoresearch/src/*"]
+    }
+  },
+  "include": [
+    "packages/kb-core/src/**/*.ts",
+    "packages/kb-storage-file/src/**/*.ts",
+    "packages/kb-http/src/**/*.ts",
+    "packages/kb-cli/src/**/*.ts",
+    "packages/kb-flue-adapter/src/**/*.ts",
+    "packages/kb-autoresearch/src/**/*.ts"
+  ],
+  "exclude": [
+    "packages/kb-storage-cloudflare/**",
+    "scripts/**",
+    "tests/**",
+    "eval/**"
+  ]
+}

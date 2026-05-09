@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist-ts/packages/kb-storage-cloudflare",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*.ts"]
+}

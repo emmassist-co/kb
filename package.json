@@ -1,0 +1,26 @@
+{
+  "name": "@emmassist/kb-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "compile": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/**/*.test.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.908.0",
+    "@flue/sdk": "^0.3.10",
+    "just-bash": "^2.14.4",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.8.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.87.0"
+  }
+}

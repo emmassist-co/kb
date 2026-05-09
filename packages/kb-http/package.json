@@ -1,0 +1,14 @@
+{
+  "name": "@emmassist/kb-http",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./node-server": "./src/node-server.ts",
+    "./cloudflare-worker": "./src/cloudflare-worker.ts"
+  }
+}

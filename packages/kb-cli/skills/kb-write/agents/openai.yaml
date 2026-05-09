@@ -1,0 +1,7 @@
+interface:
+  display_name: "KB Write"
+  short_description: "Write and validate durable KB facts and entities"
+  default_prompt: "Use $kb-write to validate a KB payload and write the right command for this knowledge update."
+
+policy:
+  allow_implicit_invocation: true

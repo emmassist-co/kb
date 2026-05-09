@@ -1,0 +1,313 @@
+[
+  {
+    "id": "company-brightmesa",
+    "type": "company",
+    "title": "BrightMesa Analytics",
+    "aliases": ["BrightMesa", "BrightMesa Analytics Ltd.", "brightmesa.io"],
+    "handles": ["hello@brightmesa.io", "@brightmesa"],
+    "tags": ["company", "workspace", "operations", "smb"],
+    "compiledTruth": "BrightMesa Analytics is a single-tenant B2B software company that sells scheduling and operations analytics to field service teams. The company runs on Google Workspace under the primary domain brightmesa.io and supports a remote team across Lisbon, London, and New York. The Lisbon office is the operational hub for finance, executive operations, and People Ops.",
+    "timeline": "2026-01-10: Operating handbook updated to reflect Lisbon as the primary operations hub.\n2026-03-01: brightmesa.io confirmed as the primary Google Workspace domain."
+  },
+  {
+    "id": "person-alexandre-portela",
+    "type": "person",
+    "title": "Alexandre Portela",
+    "aliases": ["Alex Portela", "Alexandre"],
+    "handles": ["alexandre@brightmesa.io", "@alexandre"],
+    "tags": ["ceo", "approver", "executive"],
+    "compiledTruth": "Alexandre Portela is the founder and CEO of BrightMesa Analytics. He is the final approver for hiring plans, annual budget exceptions, finance tooling changes, enterprise contracts, and customer refunds above 5000 EUR. He must approve hiring requests before an offer is sent, and he is paged during security incidents that may affect customer data or payment systems. Maya Chen manages his calendar, travel priorities, and board preparation workflow.",
+    "timeline": "2026-02-14: Reconfirmed as final approver for hiring and budget exceptions.\n2026-04-22: Delegated day-to-day calendar triage to Maya Chen."
+  },
+  {
+    "id": "person-maya-chen",
+    "type": "person",
+    "title": "Maya Chen",
+    "aliases": ["Maya", "Chief of Staff Maya Chen"],
+    "handles": ["maya@brightmesa.io", "exec@brightmesa.io"],
+    "tags": ["chief-of-staff", "calendar", "board"],
+    "compiledTruth": "Maya Chen is the chief of staff and primary owner of executive operations. She manages Alexandre's calendar, leadership meeting agendas, board material collection, board deck prep, and travel approvals up to 3000 EUR. She is the escalation point when scheduling conflicts affect customers, investors, or the weekly leadership meeting, and she is paged during security incidents that may affect customer data or payment systems.",
+    "timeline": "2026-01-17: Took ownership of board material collection.\n2026-04-22: Took over executive calendar triage as primary owner."
+  },
+  {
+    "id": "person-jonah-stein",
+    "type": "person",
+    "title": "Jonah Stein",
+    "aliases": ["Jonah", "Finance Manager Jonah Stein"],
+    "handles": ["jonah@brightmesa.io", "finance@brightmesa.io"],
+    "tags": ["finance", "billing", "brex", "stripe"],
+    "compiledTruth": "Jonah Stein is the finance manager. He owns accounts payable, accounts receivable, Stripe reconciliation, Brex administration, month-end close, vendor payment details, and the finance shared drive. The finance alias finance@brightmesa.io routes to Jonah and the finance operations queue. He approves standard customer refunds up to 5000 EUR and is the main contact for invoice, payout, card spend, and reimbursement review questions.",
+    "timeline": "2026-01-08: Finance ownership document moved Brex and Stripe administration to Jonah.\n2026-03-29: Refund policy updated to let Jonah approve refunds up to 5000 EUR."
+  },
+  {
+    "id": "person-lena-morales",
+    "type": "person",
+    "title": "Lena Morales",
+    "aliases": ["Lena", "People Ops Lena"],
+    "handles": ["lena@brightmesa.io", "people@brightmesa.io"],
+    "tags": ["people-ops", "hiring", "onboarding", "rippling"],
+    "compiledTruth": "Lena Morales leads People Ops. She owns hiring packets, compensation band checks, new-hire onboarding checklists, offboarding coordination, and Rippling payroll operations. The people alias people@brightmesa.io routes to Lena. All offer letters and hiring requests route through Lena before Alexandre gives final signoff.",
+    "timeline": "2026-02-02: Compensation review checklist moved under Lena.\n2026-04-10: Rippling payroll operations ownership reconfirmed."
+  },
+  {
+    "id": "person-omar-haddad",
+    "type": "person",
+    "title": "Omar Haddad",
+    "aliases": ["Omar", "IT Admin Omar Haddad"],
+    "handles": ["omar@brightmesa.io", "security@brightmesa.io"],
+    "tags": ["it", "workspace-admin", "security", "mfa"],
+    "compiledTruth": "Omar Haddad is the IT admin and Google Workspace administrator. He owns account provisioning, group membership, SSO, MFA resets, device inventory, security reviews for new vendors, Google Workspace billing escalations with the reseller, and access removal during offboarding. Any compromised-account response starts with Omar plus the security alias.",
+    "timeline": "2026-01-05: Workspace admin responsibilities centralized under Omar.\n2026-03-18: MFA reset procedure updated and routed to Omar."
+  },
+  {
+    "id": "person-rina-patel",
+    "type": "person",
+    "title": "Rina Patel",
+    "aliases": ["Rina", "Sales Ops Rina Patel"],
+    "handles": ["rina@brightmesa.io", "revenue-ops@brightmesa.io"],
+    "tags": ["sales-ops", "crm", "refunds", "customers"],
+    "compiledTruth": "Rina Patel leads Sales Operations. She owns CRM hygiene, order form routing, revenue operations reporting, and commercial review for customer credits and refunds. When a refund is requested, Rina or the account owner confirms the customer-facing reason before finance processes the money movement.",
+    "timeline": "2026-02-09: Revenue operations reporting moved to Rina.\n2026-03-29: Refund workflow updated to require commercial confirmation from Rina or the account owner."
+  },
+  {
+    "id": "person-nora-kim",
+    "type": "person",
+    "title": "Nora Kim",
+    "aliases": ["Nora", "Office Manager Nora Kim"],
+    "handles": ["nora@brightmesa.io", "office@brightmesa.io"],
+    "tags": ["office", "facilities", "shipping"],
+    "compiledTruth": "Nora Kim is the Lisbon office manager. She handles badges, guest access, office deliveries, catering, desk setup, and local vendor coordination for the Lisbon office. Courier deliveries and in-person visitor questions should go to Nora or office@brightmesa.io.",
+    "timeline": "2026-01-12: Lisbon facilities duties consolidated under Nora.\n2026-04-04: Courier instructions updated for the Lisbon office."
+  },
+  {
+    "id": "system-workspace-admin-agent",
+    "type": "system",
+    "title": "Workspace Admin Agent",
+    "aliases": ["admin assistant agent", "workspace assistant", "BrightMesa admin agent"],
+    "tags": ["agent", "capabilities", "limits", "workspace"],
+    "compiledTruth": "The Workspace Admin Agent is a Google Workspace-connected administrative assistant. It can read calendar, Drive, Gmail, contacts, and document context; draft emails and briefs; propose calendar changes; prepare folders and documents; and execute routine internal operations with an auditable summary. It should not send external email, change payroll, approve HR decisions, commit funds, delete records, or suspend accounts without human approval.",
+    "timeline": "2026-02-20: Agent capabilities documented for internal rollout.\n2026-04-28: High-risk actions list expanded to include payroll and account suspension."
+  },
+  {
+    "id": "policy-agent-action-policy",
+    "type": "policy",
+    "title": "Agent Action Policy",
+    "aliases": ["agent policy", "assistant permissions", "high-risk actions"],
+    "tags": ["policy", "approval", "risk"],
+    "compiledTruth": "The agent may search Gmail, Drive, Calendar, Contacts, and internal docs; draft content; create internal notes; schedule or reschedule internal meetings after confirming constraints; and send routine internal updates when a workflow explicitly allows it. The agent must request human approval before sending external email, changing payroll or benefits, creating vendor commitments, issuing refunds, deleting files, changing security settings, or taking actions with legal or HR consequences.",
+    "timeline": "2026-03-03: Policy approved for internal operations rollout.\n2026-04-28: External email and security-setting changes explicitly marked as approval-gated."
+  },
+  {
+    "id": "system-workspace-environment",
+    "type": "system",
+    "title": "Workspace Environment",
+    "aliases": ["google workspace setup", "workspace config", "brightmesa workspace"],
+    "handles": ["all@brightmesa.io", "company-holidays@brightmesa.io"],
+    "tags": ["workspace", "calendar", "domain", "groups"],
+    "compiledTruth": "BrightMesa runs Google Workspace on the primary domain brightmesa.io with brightmesa.co as a secondary alias domain. The default calendar timezone is Europe/Lisbon. All employees are members of all@brightmesa.io, and the shared company holiday calendar is company-holidays@brightmesa.io. The Lisbon meeting rooms are named lisbon-harbor-1 and lisbon-harbor-2.",
+    "timeline": "2026-01-03: brightmesa.co retained as alias domain only.\n2026-02-11: Europe/Lisbon confirmed as default calendar timezone."
+  },
+  {
+    "id": "process-calendar-triage",
+    "type": "process",
+    "title": "Executive Calendar Triage",
+    "aliases": ["calendar triage", "exec calendar rules", "calendar routing"],
+    "tags": ["calendar", "executive", "scheduling"],
+    "compiledTruth": "Maya Chen owns executive calendar triage for Alexandre. The agent may place tentative holds, protect deep-work blocks, and suggest reschedules, but it should not move investor, board, or customer escalation meetings without Maya's approval. Executive travel days should keep a 30-minute buffer before and after external meetings.",
+    "timeline": "2026-04-22: Maya made primary owner of executive calendar triage.\n2026-04-24: Travel-day calendar buffer increased to 30 minutes."
+  },
+  {
+    "id": "process-external-meeting-brief",
+    "type": "process",
+    "title": "External Meeting Brief",
+    "aliases": ["meeting brief", "exec brief", "customer meeting prep"],
+    "tags": ["briefing", "meetings", "crm", "email"],
+    "compiledTruth": "For external meetings, the agent should prepare a one-page brief at least 24 hours in advance. The brief should include attendee names and roles, the last five email touchpoints, current open commercial items, contract or renewal status, notable support issues, and the proposed objective for the meeting. Briefs for Alexandre live in the Executive Ops shared drive under Briefs/Upcoming Meetings.",
+    "timeline": "2026-02-26: External meeting brief template finalized.\n2026-04-08: CRM open-items section added to the template."
+  },
+  {
+    "id": "process-travel-booking",
+    "type": "process",
+    "title": "Travel Booking",
+    "aliases": ["travel policy", "book flights", "travel approvals"],
+    "tags": ["travel", "budget", "approval"],
+    "compiledTruth": "The agent may research itineraries and hold cancellable options, but travel is only booked after written approval from the budget owner. Flights under six hours should be economy; flights over six hours may use premium economy. Hotel caps are 180 EUR per night in Lisbon, 220 EUR in London, and 275 USD in New York. Trips above 1500 EUR require Maya's approval, and trips above 3000 EUR require Alexandre's approval.",
+    "timeline": "2026-01-20: Travel spend thresholds reviewed for 2026.\n2026-03-11: New York hotel cap raised to 275 USD."
+  },
+  {
+    "id": "process-expense-reimbursement",
+    "type": "process",
+    "title": "Expense Reimbursement",
+    "aliases": ["expense policy", "reimbursement", "submit receipts"],
+    "tags": ["expenses", "receipts", "payroll", "brex"],
+    "compiledTruth": "Employees should use Brex for company spend whenever possible. Personal reimbursements are the exception path and must be submitted by the fifth business day of the month following the purchase. Receipts are required for expenses above 25 EUR. Approved reimbursements are paid through Rippling payroll on the fifteenth of the month, and Jonah Stein reviews reimbursement completeness before the reimbursement payout runs.",
+    "timeline": "2026-01-07: Brex reaffirmed as the primary spend method.\n2026-04-01: Reimbursement deadline set to the fifth business day."
+  },
+  {
+    "id": "process-vendor-onboarding",
+    "type": "process",
+    "title": "Vendor Onboarding",
+    "aliases": ["new vendor process", "procurement intake", "saas onboarding"],
+    "tags": ["vendor", "security", "finance", "contract"],
+    "compiledTruth": "New vendor onboarding starts with an intake form from the requester. Omar Haddad completes the security review, Jonah Stein collects tax and payment details, and Alexandre signs contracts above 10000 EUR annual value or any agreement with unusual data protection terms. The agent can gather documents and track status, but it cannot accept terms or activate paid subscriptions without approval.",
+    "timeline": "2026-02-13: Security review step made mandatory for all new SaaS vendors.\n2026-03-21: Signature threshold confirmed at 10000 EUR annual value."
+  },
+  {
+    "id": "process-hiring-approval",
+    "type": "process",
+    "title": "Hiring Approval",
+    "aliases": ["offer approval", "headcount approval", "hiring workflow"],
+    "tags": ["hiring", "people-ops", "approval"],
+    "compiledTruth": "Before an offer is sent, the department lead must approve the role, Lena Morales must confirm the compensation band and packet completeness, and Alexandre Portela must give final signoff. The agent may coordinate interviews and assemble documents, but it cannot issue an offer without the required approvals.",
+    "timeline": "2026-02-02: Lena added as compensation-band checkpoint.\n2026-04-12: Final offer signoff reconfirmed as Alexandre."
+  },
+  {
+    "id": "process-new-hire-onboarding",
+    "type": "process",
+    "title": "New Hire Onboarding",
+    "aliases": ["employee onboarding", "new starter checklist", "workspace provisioning"],
+    "tags": ["onboarding", "workspace", "people", "it"],
+    "compiledTruth": "New-hire onboarding starts at least five business days before the start date. Lena Morales owns the checklist, Omar Haddad creates the Google Workspace account and group memberships, Nora Kim handles desk and badge setup for Lisbon hires, and the signed documents are stored in the People shared drive. Every new employee is added to all@brightmesa.io and their team alias on day one.",
+    "timeline": "2026-01-29: Five-business-day lead time added to onboarding SOP.\n2026-03-14: Day-one group membership requirements documented."
+  },
+  {
+    "id": "process-offboarding",
+    "type": "process",
+    "title": "Offboarding",
+    "aliases": ["employee offboarding", "termination checklist", "account removal"],
+    "tags": ["offboarding", "security", "people", "workspace"],
+    "compiledTruth": "Lena Morales confirms the departure date and manager handoff plan. Omar Haddad suspends the Google Workspace account within 30 minutes of the departure time, removes group access, revokes SSO sessions, and transfers Drive files to the manager or archive folder. Email forwarding may remain active for up to 30 days if the manager requests it. Brex cards, Slack access, and local office access should also be closed on the last day.",
+    "timeline": "2026-02-06: Workspace suspension SLA set to 30 minutes from departure time.\n2026-04-15: Optional 30-day forwarding window added for managed transitions."
+  },
+  {
+    "id": "process-security-incident",
+    "type": "process",
+    "title": "Security Incident Response",
+    "aliases": ["security incident", "compromised account", "account breach"],
+    "handles": ["security@brightmesa.io"],
+    "tags": ["security", "incident", "mfa", "workspace"],
+    "compiledTruth": "Suspected security incidents should be reported immediately to security@brightmesa.io and Omar Haddad. If customer data, executive accounts, or payment systems may be affected, Maya Chen and Alexandre Portela must be paged as well. The first steps are to preserve evidence, reset the compromised account, review recent logins, and avoid making external statements until an approved response exists.",
+    "timeline": "2026-01-15: Incident escalation matrix approved.\n2026-03-18: Compromised-account playbook updated to preserve login evidence before broader messaging."
+  },
+  {
+    "id": "process-month-end-close",
+    "type": "process",
+    "title": "Month-End Close",
+    "aliases": ["finance close", "monthly close", "book close"],
+    "tags": ["finance", "close", "stripe", "brex"],
+    "compiledTruth": "Month-end close is owned by Jonah Stein and should be completed by the fifth business day of the new month. Stripe payouts, Brex transactions, and vendor invoices are reconciled in the Finance shared drive under Finance/Close/<year>-<month>. Adjustments above 2000 EUR require Alexandre's review before the books are locked.",
+    "timeline": "2026-01-06: Close deadline standardized to the fifth business day.\n2026-02-27: Material adjustment threshold set to 2000 EUR."
+  },
+  {
+    "id": "process-customer-refund",
+    "type": "process",
+    "title": "Customer Refund",
+    "aliases": ["refund workflow", "credit request", "return money to customer"],
+    "tags": ["refunds", "finance", "customers", "stripe"],
+    "compiledTruth": "Support or the account owner gathers the reason for the refund. Rina Patel or the account owner confirms the commercial context, Jonah Stein approves refunds up to 5000 EUR, and Alexandre Portela approves larger refunds. Card refunds are issued in Stripe, and the CRM account record must note the amount, reason, and approver.",
+    "timeline": "2026-03-29: Refund workflow simplified around Rina, Jonah, and Alexandre.\n2026-04-03: CRM note requirement added to completed refunds."
+  },
+  {
+    "id": "process-board-prep",
+    "type": "process",
+    "title": "Board Prep",
+    "aliases": ["board deck prep", "board materials", "investor update packet"],
+    "tags": ["board", "executive", "documents"],
+    "compiledTruth": "Maya Chen coordinates board preparation. The draft board deck is due 72 hours before the meeting, final materials are sent 48 hours before the meeting, and all source documents live in the Executive Ops shared drive under Board/<year>/<quarter>. The agent can assemble links, KPI snapshots, and prior decisions, but Maya reviews the packet before it is sent externally.",
+    "timeline": "2026-01-25: Board materials folder structure standardized by quarter.\n2026-04-16: Draft and final deadlines reset to 72 and 48 hours before the board meeting."
+  },
+  {
+    "id": "asset-shared-drive-map",
+    "type": "asset",
+    "title": "Shared Drive Map",
+    "aliases": ["drive map", "shared drives", "where docs live"],
+    "tags": ["drive", "folders", "documents"],
+    "compiledTruth": "The main shared drives are Executive Ops, Finance, People, Revenue, and Shared Templates. Board decks and executive meeting briefs live in Executive Ops. Vendor bills, close packs, reimbursement evidence, and the folder where Stripe payouts and Brex transactions are reconciled live in Finance. Offer letters, signed employment docs, and onboarding packets live in People. Order forms and renewal trackers live in Revenue.",
+    "timeline": "2026-01-18: Shared drive ownership audit completed.\n2026-04-09: Revenue drive updated to include renewal trackers."
+  },
+  {
+    "id": "asset-groups-and-aliases",
+    "type": "asset",
+    "title": "Groups and Aliases",
+    "aliases": ["email aliases", "google groups", "distribution lists"],
+    "handles": [
+      "finance@brightmesa.io",
+      "people@brightmesa.io",
+      "security@brightmesa.io",
+      "support-escalations@brightmesa.io",
+      "exec@brightmesa.io",
+      "office@brightmesa.io"
+    ],
+    "tags": ["groups", "aliases", "email"],
+    "compiledTruth": "finance@brightmesa.io routes to Jonah Stein and the finance operations queue. people@brightmesa.io routes to Lena Morales. security@brightmesa.io routes to Omar Haddad and the incident log mailbox and is the main security escalation alias for a suspected compromised account. support-escalations@brightmesa.io is used for urgent customer issues that need executive awareness. exec@brightmesa.io reaches Maya Chen for executive operations matters, and office@brightmesa.io reaches Nora Kim for Lisbon office questions.",
+    "timeline": "2026-02-05: Alias routing table reviewed.\n2026-04-07: support-escalations@brightmesa.io added for urgent customer issues."
+  },
+  {
+    "id": "policy-document-naming",
+    "type": "policy",
+    "title": "Document Naming Convention",
+    "aliases": ["file naming", "naming convention", "document format"],
+    "tags": ["documents", "drive", "conventions"],
+    "compiledTruth": "Standard documents should use the format YYYY-MM-DD__counterparty-or-topic__doc-type__short-title.ext. Board decks use YYYY-Q#__board-deck__brightmesa.pdf. Signed contracts should include the counterparty and effective date. Reimbursement files should include the purchase date, employee surname, and expense type so finance can reconcile them quickly.",
+    "timeline": "2026-01-09: Standard naming convention published.\n2026-04-01: Reimbursement file naming guidance added."
+  },
+  {
+    "id": "vendor-google-workspace",
+    "type": "vendor",
+    "title": "Google Workspace",
+    "aliases": ["Google", "Workspace", "Google Admin"],
+    "handles": ["workspace@novacloud.pt"],
+    "tags": ["workspace", "licenses", "reseller", "billing"],
+    "compiledTruth": "Google Workspace is BrightMesa's email, calendar, Drive, and directory platform. Omar Haddad owns admin configuration and license assignments. Billing support is handled through the reseller Nova Cloud at workspace@novacloud.pt, not through the employee-facing aliases.",
+    "timeline": "2026-01-03: Workspace billing confirmed through Nova Cloud reseller.\n2026-03-05: License administration ownership reconfirmed under Omar."
+  },
+  {
+    "id": "vendor-rippling",
+    "type": "vendor",
+    "title": "Rippling",
+    "aliases": ["Rippling payroll", "payroll system"],
+    "handles": ["people@brightmesa.io"],
+    "tags": ["payroll", "hris", "onboarding"],
+    "compiledTruth": "Rippling is used for payroll, HRIS records, and reimbursement payouts. Lena Morales is the operational owner, and payroll changes must be approved by a human before they are entered. Reimbursements are paid through Rippling payroll on the fifteenth of the month. The agent may gather data or draft reminders, but it must not change payroll or benefits directly.",
+    "timeline": "2026-02-02: Rippling owner reconfirmed as Lena Morales.\n2026-04-28: Payroll changes explicitly blocked for autonomous agent actions."
+  },
+  {
+    "id": "vendor-brex",
+    "type": "vendor",
+    "title": "Brex",
+    "aliases": ["Brex cards", "corporate card platform"],
+    "handles": ["finance@brightmesa.io"],
+    "tags": ["cards", "expenses", "travel", "finance"],
+    "compiledTruth": "Brex is the primary corporate card and spend management platform. Jonah Stein administers card limits and policy settings. Employees should use Brex for travel and company purchases whenever possible so finance does not have to reimburse personal spend later.",
+    "timeline": "2026-01-07: Brex reaffirmed as default spend platform.\n2026-03-02: Card policy review assigned to Jonah Stein."
+  },
+  {
+    "id": "vendor-stripe",
+    "type": "vendor",
+    "title": "Stripe",
+    "aliases": ["Stripe Inc.", "payment processor"],
+    "handles": ["billing@stripe.com", "@stripe"],
+    "tags": ["payments", "billing", "refunds"],
+    "compiledTruth": "Stripe is BrightMesa's payment processor and the system used to issue card refunds to customers. Jonah Stein owns the Stripe relationship and payout reconciliation. Billing questions go to billing@stripe.com, while operational disputes are handled through the Stripe dashboard rather than a general alias.",
+    "timeline": "2026-01-11: Finance confirmed Stripe as the active payment processor.\n2026-03-29: Refund workflow updated to issue card refunds through Stripe."
+  },
+  {
+    "id": "meeting-leadership-weekly",
+    "type": "meeting",
+    "title": "Weekly Leadership Meeting",
+    "aliases": ["leadership sync", "weekly leadership", "LT meeting"],
+    "tags": ["meeting", "leadership", "recurring"],
+    "compiledTruth": "The weekly leadership meeting happens every Monday at 09:00 Europe/Lisbon. Regular attendees are Alexandre Portela, Maya Chen, Jonah Stein, Lena Morales, Omar Haddad, and Rina Patel. Agenda topics usually cover revenue, hiring, finance risks, customer escalations, and staffing decisions.",
+    "timeline": "2026-01-04: Weekly leadership cadence confirmed for Mondays.\n2026-02-11: Meeting time standardized at 09:00 Europe/Lisbon."
+  },
+  {
+    "id": "location-lisbon-office",
+    "type": "location",
+    "title": "Lisbon Office",
+    "aliases": ["BrightMesa Lisbon", "Lisbon HQ", "Harbor Building office"],
+    "handles": ["office@brightmesa.io"],
+    "tags": ["office", "address", "wifi", "visitors"],
+    "compiledTruth": "BrightMesa's Lisbon office is in Harbor Building, Rua da Boavista 118, 4th floor, 1200-067 Lisbon. Guest Wi-Fi is BrightMesa-Guest, and visitor access should be coordinated with Nora Kim. Couriers should deliver to reception and mention BrightMesa on the fourth floor.",
+    "timeline": "2026-01-12: Office access instructions documented.\n2026-04-04: Courier delivery instructions updated for reception handoff."
+  }
+]

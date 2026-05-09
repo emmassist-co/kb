@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist-ts/packages/kb-autoresearch",
+    "rootDir": "."
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}
