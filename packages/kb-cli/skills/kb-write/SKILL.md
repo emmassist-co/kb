@@ -97,5 +97,5 @@ With a payload like:
 From this repo path:
 
 ```bash
-npx skills add https://github.com/alexandrempsantos/administrative/tree/main/packages/kb-cli/skills/kb-write
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write
 ```

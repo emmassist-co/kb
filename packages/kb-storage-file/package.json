@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-storage-file",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "files": [
@@ -10,7 +10,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@emmassist-co/kb-core": "^0.1.0"
+    "@emmassist-co/kb-core": "^0.1.1"
   },
   "exports": {
     ".": "./src/index.ts"
