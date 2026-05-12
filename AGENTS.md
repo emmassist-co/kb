@@ -10,6 +10,28 @@ This repository is the source of truth for shared KB packages published under `@
 - Prefer read-first investigation before risky writes.
 - Use test-first changes for behavior changes and bug fixes.
 
+## Changelog Discipline
+
+Keep [CHANGELOG.md](/Users/alexandre/dev/personal/agents/administrative-ai/kb/CHANGELOG.md) current.
+
+When work is merged to `main`, the responsible agent must append or update an entry immediately. Do not treat release follow-through as complete until the entry exists.
+
+Each entry must record:
+
+- feature summary
+- customer-visible impact, or `none`
+- deployment status
+- human testing status
+- iteration status
+
+`Human testing` requires a real person to manually exercise the changed CLI flow, HTTP flow, adapter path, or operator workflow. Automated tests, CI, and typecheck do not satisfy that field by themselves.
+
+Before deployment or release communication, review `CHANGELOG.md` for entries still marked:
+
+- `Deployment status: pending`
+- `Human testing status: pending`
+- `Needs iteration: yes`
+
 ## Package Ownership
 
 The packages in `packages/` are the canonical implementations. Do not land feature work only in downstream repos if the behavior belongs in one of these packages.
@@ -85,4 +107,3 @@ Also run focused tests for touched packages, for example:
 
 - `npx tsx --test tests/kb-cli.test.ts`
 - `npx tsx --test tests/kb-cli-docs.test.ts`
-
