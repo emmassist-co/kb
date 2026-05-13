@@ -10,6 +10,23 @@ export interface KnowledgeBaseRuntimeLike {
 
 export interface CreateKbCommandOptions {
   runtime?: KnowledgeBaseRuntimeLike;
+  telemetry?: {
+    log(event: KbRuntimeTelemetryEvent): void;
+  };
+}
+
+export interface KbRuntimeTelemetryEvent {
+  type: 'kb_runtime_query';
+  operation: 'search' | 'query-relations';
+  query: string;
+  mode: string;
+  resultCount: number;
+  resultIds: string[];
+  payloadBytes: number;
+  estimatedTokens: number;
+  durationMs: number;
+  relationType?: string;
+  anchorId?: string;
 }
 
 export interface WorkspaceFsLike {
@@ -41,7 +58,7 @@ export function createKbCommand(
           env: Object.fromEntries(
             Object.entries(env).map(([key, value]) => [key, value == null ? undefined : String(value)])
           ),
-          executor: options.runtime ? await createRuntimeExecutor(options.runtime) : undefined,
+          executor: options.runtime ? await createRuntimeExecutor(options.runtime, options.telemetry) : undefined,
           readFile: async (target) => {
             const resolved = target.startsWith('/workspace/')
               ? target
@@ -100,7 +117,8 @@ function shouldUsePackageCli(commandName: string): boolean {
 }
 
 async function createRuntimeExecutor(
-  runtime: KnowledgeBaseRuntimeLike
+  runtime: KnowledgeBaseRuntimeLike,
+  telemetry?: CreateKbCommandOptions['telemetry']
 ): Promise<KnowledgeBaseCliExecutor> {
   let servicePromise: Promise<KnowledgeBaseService> | null = null;
   const getService = async () => {
@@ -112,8 +130,43 @@ async function createRuntimeExecutor(
     list: async () => (await getService()).list(),
     get: async (id) => (await getService()).get(id),
     delete: async (id) => (await getService()).deleteRecord(id),
-    search: async (input) => (await getService()).search(input as unknown as Parameters<KnowledgeBaseService['search']>[0]),
-    queryRelations: async (input) => (await getService()).queryRelations(input as unknown as Parameters<KnowledgeBaseService['queryRelations']>[0]),
+    search: async (input) => {
+      const startedAt = Date.now();
+      const result = await (await getService()).search(input as unknown as Parameters<KnowledgeBaseService['search']>[0]);
+      emitQueryTelemetry(
+        telemetry,
+        {
+          operation: 'search',
+          query: result.query,
+          mode: result.mode,
+          resultCount: result.results.length,
+          resultIds: result.results.map((entry) => entry.id)
+        },
+        result,
+        startedAt
+      );
+      return result;
+    },
+    queryRelations: async (input) => {
+      const startedAt = Date.now();
+      const typedInput = input as unknown as Parameters<KnowledgeBaseService['queryRelations']>[0];
+      const result = await (await getService()).queryRelations(typedInput);
+      emitQueryTelemetry(
+        telemetry,
+        {
+          operation: 'query-relations',
+          query: result.query,
+          mode: typedInput.mode ?? 'graph-first-hybrid',
+          resultCount: result.results.length,
+          resultIds: result.results.map((entry) => entry.id),
+          relationType: result.classification.relationType ?? undefined,
+          anchorId: result.classification.anchorId ?? undefined
+        },
+        result,
+        startedAt
+      );
+      return result;
+    },
     remember: async (input) => (await getService()).remember(input as Parameters<KnowledgeBaseService['remember']>[0]),
     record: async (input) => (await getService()).record(input as Parameters<KnowledgeBaseService['record']>[0]),
     relate: async (input) => (await getService()).relate(input as Parameters<KnowledgeBaseService['relate']>[0]),
@@ -128,6 +181,28 @@ async function createRuntimeExecutor(
       throw new Error('Serve is not supported through the Flue adapter.');
     }
   };
+}
+
+function emitQueryTelemetry(
+  telemetry: CreateKbCommandOptions['telemetry'] | undefined,
+  event: Omit<KbRuntimeTelemetryEvent, 'type' | 'payloadBytes' | 'estimatedTokens' | 'durationMs'>,
+  payload: unknown,
+  startedAt: number
+): void {
+  const serialized = JSON.stringify(payload);
+  const payloadBytes = Buffer.byteLength(serialized, 'utf8');
+  const record: KbRuntimeTelemetryEvent = {
+    type: 'kb_runtime_query',
+    ...event,
+    payloadBytes,
+    estimatedTokens: Math.ceil(payloadBytes / 4),
+    durationMs: Date.now() - startedAt
+  };
+  if (telemetry) {
+    telemetry.log(record);
+    return;
+  }
+  console.log(JSON.stringify(record));
 }
 
 function parseSimpleArgs(argv: string[]): { positionals: string[]; flags: Record<string, string | boolean> } {
