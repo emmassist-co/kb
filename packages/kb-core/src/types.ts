@@ -32,6 +32,7 @@ export type KnowledgeEntityKind =
   | 'meeting';
 
 export type KnowledgeConfidence = 'low' | 'medium' | 'high';
+export type KnowledgeFreshnessStatus = 'fresh' | 'needs_review' | 'stale';
 export type KnowledgeSourceKind = 'note' | 'research' | 'workspace' | 'chat';
 export type KnowledgeLinkEvidenceKind = 'direct' | 'timeline' | 'summary' | 'mention' | 'structured';
 export type KnowledgeLinkDirection = 'forward' | 'reverse' | 'bidirectional';
@@ -105,6 +106,9 @@ export interface EntityFrontmatter {
   sources: string[];
   updatedAt: string;
   confidence: KnowledgeConfidence;
+  supersedes?: string[];
+  freshnessStatus?: KnowledgeFreshnessStatus;
+  lastReviewedAt?: string;
 }
 
 export interface EntityDocument {
@@ -125,6 +129,10 @@ export interface SourceFrontmatter {
   tags: string[];
   linkedEntities: string[];
   createdAt: string;
+  rawSourceRef?: string;
+  supersedes?: string[];
+  freshnessStatus?: KnowledgeFreshnessStatus;
+  lastReviewedAt?: string;
 }
 
 export interface SourceDocument {

@@ -294,6 +294,41 @@ test('kb cli validate reports all write payload issues before mutation', async (
   assert.match(nested.stderr, /entity\.handles/);
 });
 
+test('kb cli remember rejects bare json file paths with an @file hint', async () => {
+  const result = await runKnowledgeBaseCli(['remember', '--json', '/workspace/kb_payload.json']);
+
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stderr, /@file\.json/);
+  assert.match(result.stderr, /looks like a file path/i);
+});
+
+test('kb cli remember rejects structured content objects with a validation error', async () => {
+  const result = await runKnowledgeBaseCli([
+    'remember',
+    '--json',
+    '{"intent":"source_capture","summary":"Cloudflare invoice","content":{"type":"expense","vendor":"Cloudflare"}}'
+  ]);
+
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stderr, /content/i);
+  assert.match(result.stderr, /string/i);
+});
+
+test('kb cli remember rejects field flags without --json payload transport', async () => {
+  const result = await runKnowledgeBaseCli([
+    'remember',
+    '--intent',
+    'source_capture',
+    '--summary',
+    'Cloudflare invoice',
+    '--source',
+    'gmail'
+  ]);
+
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stderr, /remember accepts payloads only through --json/i);
+  assert.match(result.stderr, /--json @payload\.json/);
+});
 
 test('kb cli delete removes test entities cleanly', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-delete-'));

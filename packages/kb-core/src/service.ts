@@ -308,6 +308,10 @@ export class KnowledgeBaseService {
       kind?: 'note' | 'research' | 'workspace' | 'chat';
       authors?: string[];
       citations?: string[];
+      rawSourceRef?: string;
+      supersedes?: string[];
+      freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+      lastReviewedAt?: string;
     };
     effectiveAt?: string;
     confidence?: 'low' | 'medium' | 'high';
@@ -340,6 +344,10 @@ export class KnowledgeBaseService {
         url: input.source?.url,
         authors: input.source?.authors ?? [],
         citations: input.source?.citations ?? [],
+        rawSourceRef: input.source?.rawSourceRef,
+        supersedes: input.source?.supersedes,
+        freshnessStatus: input.source?.freshnessStatus,
+        lastReviewedAt: input.source?.lastReviewedAt,
         linkedEntities,
         summary: input.summary,
         content: resolveRememberSourceContent(input.summary, input.content, input.source?.url)
@@ -416,6 +424,9 @@ export class KnowledgeBaseService {
       currentTruth?: string;
       openQuestions?: string[];
       timeline?: string[];
+      supersedes?: string[];
+      freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+      lastReviewedAt?: string;
     };
     relatedEntities?: Array<{
       id: string;
@@ -440,6 +451,10 @@ export class KnowledgeBaseService {
       citations?: string[];
       summary?: string;
       content?: string;
+      rawSourceRef?: string;
+      supersedes?: string[];
+      freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+      lastReviewedAt?: string;
     }>;
     events?: Array<{
       summary: string;
@@ -477,6 +492,10 @@ export class KnowledgeBaseService {
         url: source.url,
         authors: source.authors ?? [],
         citations: source.citations ?? [],
+        rawSourceRef: source.rawSourceRef,
+        supersedes: source.supersedes,
+        freshnessStatus: source.freshnessStatus,
+        lastReviewedAt: source.lastReviewedAt,
         linkedEntities: uniqueStrings([primary.meta.id, ...relatedIds]),
         summary: source.summary ?? source.title,
         content: source.content ?? source.summary ?? source.title
@@ -902,9 +921,21 @@ export class KnowledgeBaseService {
       for (const sourceId of entity.sources) {
         if (!sourceIds.has(sourceId)) issues.push(`${entity.meta.id}: missing source reference ${sourceId}`);
       }
+      if (entity.meta.freshnessStatus === 'fresh' && !entity.meta.lastReviewedAt) {
+        issues.push(`${entity.meta.id}: freshnessStatus=fresh requires lastReviewedAt`);
+      }
+      for (const targetId of entity.meta.supersedes ?? []) {
+        if (!entityIds.has(targetId)) issues.push(`${entity.meta.id}: missing supersession target ${targetId}`);
+      }
     }
     for (const source of sources) {
       for (const issue of validateSourceDocument(source)) issues.push(`${source.meta.id}: ${issue}`);
+      if (source.meta.freshnessStatus === 'fresh' && !source.meta.lastReviewedAt) {
+        issues.push(`${source.meta.id}: freshnessStatus=fresh requires lastReviewedAt`);
+      }
+      for (const targetId of source.meta.supersedes ?? []) {
+        if (!sourceIds.has(targetId)) issues.push(`${source.meta.id}: missing supersession target ${targetId}`);
+      }
     }
     for (const event of events) {
       if (!event.entityIds.length) issues.push(`${event.id}: event has no entityIds`);
@@ -946,6 +977,14 @@ export class KnowledgeBaseService {
       if (targets.size > 1) {
         issues.push(`contradictory active facts for ${key}: ${[...targets].join(', ')}`);
       }
+    }
+
+    const supersessionCycles = detectSupersessionCycles([
+      ...entities.map((entity) => ({ id: entity.meta.id, supersedes: entity.meta.supersedes ?? [] })),
+      ...sources.map((source) => ({ id: source.meta.id, supersedes: source.meta.supersedes ?? [] }))
+    ]);
+    for (const cycle of supersessionCycles) {
+      issues.push(`supersession cycle detected: ${cycle.join(' -> ')}`);
     }
 
     return {
@@ -1307,6 +1346,9 @@ export class KnowledgeBaseService {
     currentTruth?: string;
     openQuestions?: string[];
     timeline?: string[];
+    supersedes?: string[];
+    freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+    lastReviewedAt?: string;
   }): Promise<EntityDocument> {
     const currentMarkdown = await this.store.getEntityMarkdown(input.id);
     const current = currentMarkdown ? parseEntityDocument(currentMarkdown) : null;
@@ -1322,6 +1364,9 @@ export class KnowledgeBaseService {
       owners: uniqueStrings([...(current?.meta.owners ?? []), ...(input.owners ?? [])]),
       sources: uniqueStrings([...(current?.sources ?? []), ...(input.sources ?? [])]),
       confidence: input.confidence ?? current?.meta.confidence,
+      supersedes: uniqueStrings([...(current?.meta.supersedes ?? []), ...(input.supersedes ?? [])]),
+      freshnessStatus: input.freshnessStatus ?? current?.meta.freshnessStatus,
+      lastReviewedAt: input.lastReviewedAt ?? current?.meta.lastReviewedAt,
       currentTruth: input.currentTruth ?? current?.currentTruth,
       openQuestions: uniqueStrings([...(current?.openQuestions ?? []), ...(input.openQuestions ?? [])]),
       timeline: uniqueStrings([...(current?.timeline ?? []), ...(input.timeline ?? [])])
@@ -1343,6 +1388,10 @@ export class KnowledgeBaseService {
     linkedEntities?: string[];
     summary?: string;
     content?: string;
+    rawSourceRef?: string;
+    supersedes?: string[];
+    freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+    lastReviewedAt?: string;
   }): Promise<SourceDocument> {
     const id = input.id ?? buildId('src');
     const currentMarkdown = await this.store.getSourceMarkdown(id);
@@ -1357,6 +1406,10 @@ export class KnowledgeBaseService {
       tags: current?.meta.tags ?? [],
       linkedEntities: uniqueStrings([...(current?.meta.linkedEntities ?? []), ...(input.linkedEntities ?? [])]),
       createdAt: current?.meta.createdAt,
+      rawSourceRef: input.rawSourceRef ?? current?.meta.rawSourceRef,
+      supersedes: uniqueStrings([...(current?.meta.supersedes ?? []), ...(input.supersedes ?? [])]),
+      freshnessStatus: input.freshnessStatus ?? current?.meta.freshnessStatus,
+      lastReviewedAt: input.lastReviewedAt ?? current?.meta.lastReviewedAt,
       summary: input.summary ?? current?.summary,
       content: input.content ?? current?.content,
       citations: uniqueStrings([...(current?.citations ?? []), ...(input.citations ?? []), ...(input.url ? [input.url] : [])])
@@ -1644,4 +1697,48 @@ function replayJaccard(previous: string[], current: string[], limit: number): nu
   const intersection = [...left].filter((value) => right.has(value)).length;
   const union = new Set([...left, ...right]).size;
   return union === 0 ? 1 : intersection / union;
+}
+
+function detectSupersessionCycles(records: Array<{ id: string; supersedes: string[] }>): string[][] {
+  const graph = new Map(records.map((record) => [record.id, record.supersedes]));
+  const cycles: string[][] = [];
+  const seenKeys = new Set<string>();
+
+  for (const record of records) {
+    const stack: string[] = [];
+    const onStack = new Set<string>();
+    walkSupersession(record.id, graph, stack, onStack, cycles, seenKeys);
+  }
+
+  return cycles;
+}
+
+function walkSupersession(
+  currentId: string,
+  graph: Map<string, string[]>,
+  stack: string[],
+  onStack: Set<string>,
+  cycles: string[][],
+  seenKeys: Set<string>
+): void {
+  stack.push(currentId);
+  onStack.add(currentId);
+
+  for (const nextId of graph.get(currentId) ?? []) {
+    if (onStack.has(nextId)) {
+      const startIndex = stack.indexOf(nextId);
+      const cycle = [...stack.slice(startIndex), nextId];
+      const key = cycle.join('->');
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        cycles.push(cycle);
+      }
+      continue;
+    }
+    if (!graph.has(nextId)) continue;
+    walkSupersession(nextId, graph, stack, onStack, cycles, seenKeys);
+  }
+
+  stack.pop();
+  onStack.delete(currentId);
 }

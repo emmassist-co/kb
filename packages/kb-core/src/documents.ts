@@ -2,6 +2,7 @@ import YAML from 'yaml';
 import type {
   EntityDocument,
   EntityFrontmatter,
+  KnowledgeFreshnessStatus,
   KnowledgeEntityKind,
   KnowledgeSourceKind,
   SourceDocument,
@@ -22,6 +23,7 @@ const ENTITY_KINDS = new Set<KnowledgeEntityKind>([
 ]);
 const SOURCE_KINDS = new Set<KnowledgeSourceKind>(['note', 'research', 'workspace', 'chat']);
 const CONFIDENCE_VALUES = new Set(['low', 'medium', 'high']);
+const FRESHNESS_VALUES = new Set<KnowledgeFreshnessStatus>(['fresh', 'needs_review', 'stale']);
 
 export function createEmptyEntity(input: {
   id: string;
@@ -39,6 +41,9 @@ export function createEmptyEntity(input: {
   currentTruth?: string;
   openQuestions?: string[];
   timeline?: string[];
+  supersedes?: string[];
+  freshnessStatus?: KnowledgeFreshnessStatus;
+  lastReviewedAt?: string;
 }): EntityDocument {
   return {
     meta: {
@@ -53,7 +58,10 @@ export function createEmptyEntity(input: {
       owners: uniqueStrings(input.owners ?? []),
       sources: uniqueStrings(input.sources ?? []),
       updatedAt: input.updatedAt ?? new Date().toISOString(),
-      confidence: input.confidence ?? 'medium'
+      confidence: input.confidence ?? 'medium',
+      supersedes: uniqueStrings(input.supersedes ?? []),
+      freshnessStatus: optionalFreshness(input.freshnessStatus),
+      lastReviewedAt: optionalString(input.lastReviewedAt)
     },
     currentTruth: normalizeBlock(input.currentTruth ?? ''),
     openQuestions: uniqueStrings(input.openQuestions ?? []),
@@ -75,6 +83,10 @@ export function createSourceDocument(input: {
   summary?: string;
   content?: string;
   citations?: string[];
+  rawSourceRef?: string;
+  supersedes?: string[];
+  freshnessStatus?: KnowledgeFreshnessStatus;
+  lastReviewedAt?: string;
 }): SourceDocument {
   return {
     meta: {
@@ -86,7 +98,11 @@ export function createSourceDocument(input: {
       authors: uniqueStrings(input.authors ?? []),
       tags: uniqueStrings(input.tags ?? []),
       linkedEntities: uniqueStrings(input.linkedEntities ?? []),
-      createdAt: input.createdAt ?? new Date().toISOString()
+      createdAt: input.createdAt ?? new Date().toISOString(),
+      rawSourceRef: optionalString(input.rawSourceRef),
+      supersedes: uniqueStrings(input.supersedes ?? []),
+      freshnessStatus: optionalFreshness(input.freshnessStatus),
+      lastReviewedAt: optionalString(input.lastReviewedAt)
     },
     summary: normalizeBlock(input.summary ?? ''),
     content: normalizeBlock(input.content ?? ''),
@@ -107,7 +123,10 @@ export function renderEntityDocument(doc: EntityDocument): string {
     owners: doc.meta.owners,
     sources: doc.meta.sources,
     updatedAt: doc.meta.updatedAt,
-    confidence: doc.meta.confidence
+    confidence: doc.meta.confidence,
+    supersedes: doc.meta.supersedes,
+    freshnessStatus: doc.meta.freshnessStatus,
+    lastReviewedAt: doc.meta.lastReviewedAt
   }).trim();
 
   return [
@@ -144,7 +163,11 @@ export function renderSourceDocument(doc: SourceDocument): string {
     authors: doc.meta.authors,
     tags: doc.meta.tags,
     linkedEntities: doc.meta.linkedEntities,
-    createdAt: doc.meta.createdAt
+    createdAt: doc.meta.createdAt,
+    rawSourceRef: doc.meta.rawSourceRef,
+    supersedes: doc.meta.supersedes,
+    freshnessStatus: doc.meta.freshnessStatus,
+    lastReviewedAt: doc.meta.lastReviewedAt
   }).trim();
 
   return [
@@ -233,7 +256,10 @@ function normalizeEntityFrontmatter(frontmatter: Record<string, unknown>): Entit
     owners: stringList(frontmatter.owners),
     sources: stringList(frontmatter.sources),
     updatedAt: stringField(frontmatter.updatedAt),
-    confidence: (optionalString(frontmatter.confidence) ?? 'medium') as EntityFrontmatter['confidence']
+    confidence: (optionalString(frontmatter.confidence) ?? 'medium') as EntityFrontmatter['confidence'],
+    supersedes: stringList(frontmatter.supersedes),
+    freshnessStatus: optionalFreshness(frontmatter.freshnessStatus),
+    lastReviewedAt: optionalString(frontmatter.lastReviewedAt)
   };
 }
 
@@ -247,7 +273,11 @@ function normalizeSourceFrontmatter(frontmatter: Record<string, unknown>): Sourc
     authors: stringList(frontmatter.authors),
     tags: stringList(frontmatter.tags),
     linkedEntities: stringList(frontmatter.linkedEntities),
-    createdAt: stringField(frontmatter.createdAt)
+    createdAt: stringField(frontmatter.createdAt),
+    rawSourceRef: optionalString(frontmatter.rawSourceRef),
+    supersedes: stringList(frontmatter.supersedes),
+    freshnessStatus: optionalFreshness(frontmatter.freshnessStatus),
+    lastReviewedAt: optionalString(frontmatter.lastReviewedAt)
   };
 }
 
@@ -286,6 +316,14 @@ function stringField(value: unknown): string {
 function optionalString(value: unknown): string | undefined {
   const text = stringField(value);
   return text === '' ? undefined : text;
+}
+
+function optionalFreshness(value: unknown): KnowledgeFreshnessStatus | undefined {
+  const text = optionalString(value);
+  if (!text) return undefined;
+  return FRESHNESS_VALUES.has(text as KnowledgeFreshnessStatus)
+    ? (text as KnowledgeFreshnessStatus)
+    : undefined;
 }
 
 function stringList(value: unknown): string[] {

@@ -756,6 +756,9 @@ function validatePayload(command: SchemaCommand, value: unknown): string[] {
         errors.push('Invalid value for intent. Expected one of: source_capture, fact_update, correction, company_profile, person_profile');
       }
       if (!readString(input.summary)) errors.push('Missing required field: summary');
+      if (input.content !== undefined && typeof input.content !== 'string') {
+        errors.push('Invalid field: content. Expected a string.');
+      }
       return errors;
     }
     case 'record': {

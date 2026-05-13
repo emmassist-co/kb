@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-05-13 - Provenance Freshness And Supersession Metadata
+
+- Area: package, CLI command, adapter, subsystem
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added raw source provenance, supersession links, freshness metadata, and review timestamps across `kb-core`, CLI validation, and the Flue adapter; doctor checks now flag missing supersession targets, supersession cycles, and `fresh` records that lack a review timestamp.
+- Customer-visible impact: operators and downstream agents can track which records supersede older facts, preserve source provenance, and enforce freshness hygiene through the existing write and doctor surfaces.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: write one entity and one source with freshness metadata and supersession targets, then run the doctor flow and confirm valid metadata passes while broken references or missing review timestamps are reported.
+- Automated coverage: `npm test`; `npm run typecheck`
+- Needs iteration: no
+- Follow-up: bump and publish the affected KB packages, then verify one real metadata round-trip from a downstream consumer.
+
 ## 2026-05-13 - Compact Sync And Daemon Output
 
 - Area: CLI command
