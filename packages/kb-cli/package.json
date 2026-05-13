@@ -1,15 +1,15 @@
 {
   "name": "@emmassist-co/kb-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "type": "module",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@emmassist-co/kb-core": "^0.1.1",
-    "@emmassist-co/kb-http": "^0.1.1",
-    "@emmassist-co/kb-storage-file": "^0.1.1",
+    "@emmassist-co/kb-core": "^0.2.0",
+    "@emmassist-co/kb-http": "^0.1.2",
+    "@emmassist-co/kb-storage-file": "^0.1.2",
     "tsx": "^4.21.0"
   },
   "files": [
