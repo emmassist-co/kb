@@ -12,10 +12,67 @@ interface KnowledgeBaseSyncDaemonResult {
   exitCode: number;
 }
 
+interface KnowledgeBaseSyncDaemonSummaryOptions {
+  action?: string;
+  verbose?: boolean;
+  logs?: boolean;
+  stats?: boolean;
+}
+
 type KnowledgeBaseSyncDaemonAction = 'start' | 'stop' | 'restart' | 'status' | 'logs' | 'once' | 'run-internal';
 
 export function renderKnowledgeBaseSyncDaemonHelp(): string {
-  return 'kb daemon <start|stop|restart|status|logs|once>';
+  return 'kb daemon <start|stop|restart|status|logs|once> [--verbose] [--logs] [--stats]';
+}
+
+export function summarizeKnowledgeBaseSyncDaemonResult(
+  result: KnowledgeBaseSyncDaemonResult,
+  options: KnowledgeBaseSyncDaemonSummaryOptions = {}
+): Record<string, unknown> {
+  if (options.verbose) {
+    return {
+      ok: result.exitCode === 0,
+      command: 'daemon',
+      action: options.action ?? 'status',
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode
+    };
+  }
+  const action = options.action ?? 'status';
+  if (action === 'logs') {
+    const lineCount = result.stdout.trim() ? result.stdout.trim().split('\n').length : 0;
+    const summary: Record<string, unknown> = {
+      ok: result.exitCode === 0,
+      command: 'daemon',
+      action: 'logs',
+      state: result.exitCode === 0 ? 'ok' : 'error',
+      counts: {
+        lines: lineCount
+      },
+      hints: ['use_verbose_for_log_lines']
+    };
+    if (options.logs) summary.logs = result.stdout;
+    return summary;
+  }
+
+  const status = parseDaemonStatusPayload(result.stdout);
+  const hints = compactHints([
+    result.stdout.includes('running') ? 'running' : 'not_running',
+    status?.detail === 'failed; see log' ? 'check_logs' : null
+  ]);
+  const summary: Record<string, unknown> = {
+    ok: result.exitCode === 0,
+    command: 'daemon',
+    action,
+    state: status?.state ?? (result.exitCode === 0 ? 'ok' : 'error'),
+    counts: {},
+    hints
+  };
+  if (options.stats && status) {
+    summary.stats = status;
+  }
+  return summary;
 }
 
 export async function executeKnowledgeBaseSyncDaemonCommand(
@@ -243,4 +300,19 @@ function isDaemonAction(value: string): value is KnowledgeBaseSyncDaemonAction {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseDaemonStatusPayload(stdout: string): Record<string, unknown> | null {
+  const lines = stdout.trim().split('\n').map((line) => line.trim()).filter(Boolean);
+  const lastLine = lines.at(-1);
+  if (!lastLine?.startsWith('{')) return null;
+  try {
+    return JSON.parse(lastLine) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function compactHints(values: Array<string | null>): string[] {
+  return values.filter((value): value is string => Boolean(value));
 }

@@ -9,8 +9,16 @@ import {
 } from '@emmassist-co/kb-core';
 import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 import { startKnowledgeBaseCliDaemon } from './daemon.js';
-import { executeKnowledgeBaseSyncCommand, renderKnowledgeBaseSyncHelp } from './sync.js';
-import { executeKnowledgeBaseSyncDaemonCommand, renderKnowledgeBaseSyncDaemonHelp } from './sync-daemon.js';
+import {
+  executeKnowledgeBaseSyncCommand,
+  renderKnowledgeBaseSyncHelp,
+  summarizeKnowledgeBaseSyncResult
+} from './sync.js';
+import {
+  executeKnowledgeBaseSyncDaemonCommand,
+  renderKnowledgeBaseSyncDaemonHelp,
+  summarizeKnowledgeBaseSyncDaemonResult
+} from './sync-daemon.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -119,17 +127,30 @@ export async function runKnowledgeBaseCli(
       };
     }
     if (command === 'sync') {
-      const result = await executeKnowledgeBaseSyncCommand(parsed.positionals.slice(1), options);
+      const result = await executeKnowledgeBaseSyncCommand(buildSubcommandArgv(parsed, 1), options);
       return {
-        stdout: `${renderOutput(result, 'json')}\n`,
+        stdout: `${renderOutput(summarizeKnowledgeBaseSyncResult(result, {
+          verbose: parsed.flags.verbose === true,
+          changes: parsed.flags.changes === true,
+          conflicts: parsed.flags.conflicts === true,
+          stats: parsed.flags.stats === true
+        }), 'json')}\n`,
         stderr: '',
         exitCode: 0
       };
     }
     if (command === 'daemon') {
-      const result = await executeKnowledgeBaseSyncDaemonCommand(parsed.positionals.slice(1), options);
+      const result = await executeKnowledgeBaseSyncDaemonCommand(buildSubcommandArgv(parsed, 1), options);
+      const action = parsed.positionals[1] ?? 'status';
       return {
-        stdout: result.stdout ? `${result.stdout}\n` : '',
+        stdout: result.stdout
+          ? `${renderOutput(summarizeKnowledgeBaseSyncDaemonResult(result, {
+            action,
+            verbose: parsed.flags.verbose === true,
+            logs: parsed.flags.logs === true,
+            stats: parsed.flags.stats === true
+          }), 'json')}\n`
+          : '',
         stderr: result.stderr ? `${result.stderr}\n` : '',
         exitCode: result.exitCode
       };
@@ -272,6 +293,7 @@ async function executeCommand(
     case 'query-relations':
       return executor.queryRelations(await loadJsonPayload(parsed, options));
     case 'remember':
+      assertRememberUsesJsonPayload(parsed);
       return executor.remember(coerceRememberInput(await loadJsonPayload(parsed, options)));
     case 'record':
       return executor.record(coerceRecordInput(await loadJsonPayload(parsed, options)));
@@ -355,6 +377,9 @@ async function readJsonInput(raw: string, options: KnowledgeBaseCliOptions): Pro
     const target = path.resolve(options.cwd ?? process.cwd(), raw.slice(1));
     if (options.readFile) return options.readFile(target);
     return readFile(target, 'utf8');
+  }
+  if (looksLikeJsonFilePath(raw)) {
+    throw new Error('JSON value for --json looks like a file path. Use `--json @file.json` to read from disk or `--json -` for stdin.');
   }
   return raw;
 }
@@ -543,6 +568,16 @@ function parseArgs(argv: string[]): ParsedArgs {
   return { positionals, flags };
 }
 
+export function buildSubcommandArgv(parsed: ParsedArgs, commandIndex: number): string[] {
+  const argv = parsed.positionals.slice(commandIndex);
+  for (const [key, value] of Object.entries(parsed.flags)) {
+    if (key === 'help' || key === 'format') continue;
+    argv.push(`--${key}`);
+    if (value !== true) argv.push(String(value));
+  }
+  return argv;
+}
+
 function requireString(value: unknown, field: string): string {
   const parsed = readString(value);
   if (!parsed) throw new Error(`Missing required field: ${field}`);
@@ -557,6 +592,22 @@ function requireEnum<T extends string>(value: unknown, field: string, options: r
 
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function looksLikeJsonFilePath(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed === '-') return false;
+  return /^([/.]|[A-Za-z]:[\\/])/.test(trimmed) && /\.json$/i.test(trimmed);
+}
+
+function assertRememberUsesJsonPayload(parsed: ParsedArgs): void {
+  if (typeof parsed.flags.json === 'string') return;
+  const rememberFieldFlags = ['intent', 'summary', 'content', 'entities', 'relations', 'source', 'effectiveAt', 'effective_at', 'confidence'];
+  if (rememberFieldFlags.some((flag) => flag in parsed.flags)) {
+    throw new Error(
+      'kb remember accepts payloads only through --json. Use `kb remember --json @payload.json`, `kb remember --json \'{"intent":"source_capture","summary":"..."}\'`, or `kb remember --json -`.'
+    );
+  }
 }
 
 function readNumber(value: unknown): number | undefined {

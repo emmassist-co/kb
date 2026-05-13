@@ -31,6 +31,7 @@ import {
   writeTenantKbBaseFile,
   writeTenantKbConflictFile,
   writeTenantKbSyncManifest,
+  type TenantKbStatusEntry,
   type TenantKbRemoteObject,
   type TenantKbSyncManifest
 } from './r2-sync-lib.js';
@@ -47,6 +48,13 @@ interface ParsedKnowledgeBaseSyncArgs {
   mergeConflicts: boolean;
 }
 
+interface KnowledgeBaseSyncSummaryOptions {
+  verbose?: boolean;
+  changes?: boolean;
+  conflicts?: boolean;
+  stats?: boolean;
+}
+
 interface KnowledgeBaseRemoteStore {
   list(prefix: string): Promise<TenantKbRemoteObject[]>;
   get(objectKey: string): Promise<Uint8Array>;
@@ -55,7 +63,18 @@ interface KnowledgeBaseRemoteStore {
 }
 
 export function renderKnowledgeBaseSyncHelp(): string {
-  return 'kb sync <pull|status|push>';
+  return 'kb sync <pull|status|push> [--verbose] [--changes] [--conflicts] [--stats]';
+}
+
+export function summarizeKnowledgeBaseSyncResult(
+  result: Record<string, unknown>,
+  options: KnowledgeBaseSyncSummaryOptions = {}
+): Record<string, unknown> {
+  if (options.verbose) return result;
+  const action = String(result.command ?? 'status');
+  if (action === 'status') return summarizeStatusResult(result, options);
+  if (action === 'pull') return summarizePullResult(result, options);
+  return summarizePushResult(result, options);
 }
 
 export async function executeKnowledgeBaseSyncCommand(
@@ -369,6 +388,10 @@ function parseFlags(argv: string[]): Record<string, string | boolean> {
     const token = argv[index];
     if (!token.startsWith('--')) throw new Error(`Unexpected argument: ${token}`);
     const key = token.slice(2);
+    if (isOutputFlag(key)) {
+      flags[key] = true;
+      continue;
+    }
     const next = argv[index + 1];
     if (!next || next.startsWith('--')) {
       flags[key] = true;
@@ -389,4 +412,157 @@ function assertR2MirrorBackend(env: Record<string, string | undefined>): void {
   if (env.KB_BACKEND?.trim().toLowerCase() !== 'r2-mirror') {
     throw new Error('`kb sync` is only supported with KB_BACKEND=r2-mirror.');
   }
+}
+
+function summarizeStatusResult(
+  result: Record<string, unknown>,
+  options: KnowledgeBaseSyncSummaryOptions
+): Record<string, unknown> {
+  const entries = Array.isArray(result.entries) ? result.entries as TenantKbStatusEntry[] : [];
+  const changes = {
+    modifiedLocal: filterPaths(entries, 'modified-local'),
+    modifiedRemote: filterPaths(entries, 'modified-remote'),
+    addedLocal: filterPaths(entries, 'added-local'),
+    addedRemote: filterPaths(entries, 'added-remote'),
+    deletedLocal: filterPaths(entries, 'deleted-local'),
+    deletedRemote: filterPaths(entries, 'deleted-remote'),
+    conflicts: filterPaths(entries, 'conflict')
+  };
+  const changedCount =
+    changes.modifiedLocal.length +
+    changes.modifiedRemote.length +
+    changes.addedLocal.length +
+    changes.addedRemote.length +
+    changes.deletedLocal.length +
+    changes.deletedRemote.length +
+    changes.conflicts.length;
+  const hints = compactHints([
+    changes.modifiedLocal.length || changes.addedLocal.length || changes.deletedLocal.length ? 'has_local_changes' : null,
+    changes.modifiedRemote.length || changes.addedRemote.length || changes.deletedRemote.length ? 'needs_pull' : null,
+    changes.conflicts.length ? 'has_conflicts' : null
+  ]);
+  const summary: Record<string, unknown> = {
+    ok: result.ok === true,
+    command: 'sync',
+    action: 'status',
+    state: changes.conflicts.length > 0 ? 'conflict' : changedCount > 0 ? 'drift' : 'in_sync',
+    counts: {
+      changed: changedCount,
+      conflicts: changes.conflicts.length
+    },
+    hints
+  };
+  if (options.changes || options.conflicts) {
+    summary.changes = filterEmptyChangeSets({
+      modifiedLocal: changes.modifiedLocal,
+      modifiedRemote: changes.modifiedRemote,
+      addedLocal: changes.addedLocal,
+      addedRemote: changes.addedRemote,
+      deletedLocal: changes.deletedLocal,
+      deletedRemote: changes.deletedRemote,
+      conflicts: options.conflicts ? changes.conflicts : []
+    });
+  }
+  if (options.stats) {
+    summary.stats = {
+      totalEntries: entries.length
+    };
+  }
+  return summary;
+}
+
+function summarizePullResult(
+  result: Record<string, unknown>,
+  options: KnowledgeBaseSyncSummaryOptions
+): Record<string, unknown> {
+  const downloaded = readCount(result.downloaded);
+  const deleted = readCount(result.deletedLocal);
+  const conflicts = readStringArray(result.conflicts);
+  const hints = compactHints([
+    conflicts.length > 0 ? 'has_conflicts' : null,
+    downloaded === 0 && deleted === 0 && conflicts.length === 0 ? 'in_sync' : null
+  ]);
+  const summary: Record<string, unknown> = {
+    ok: result.ok === true,
+    command: 'sync',
+    action: 'pull',
+    state: conflicts.length > 0 ? 'conflict' : downloaded > 0 || deleted > 0 ? 'updated' : 'in_sync',
+    counts: {
+      downloaded,
+      deleted,
+      conflicts: conflicts.length
+    },
+    hints
+  };
+  if (options.conflicts && conflicts.length > 0) {
+    summary.conflicts = conflicts;
+  }
+  if (options.stats) {
+    summary.stats = {
+      mirrorRoot: result.mirrorRoot,
+      manifestPath: result.manifestPath
+    };
+  }
+  return summary;
+}
+
+function summarizePushResult(
+  result: Record<string, unknown>,
+  options: KnowledgeBaseSyncSummaryOptions
+): Record<string, unknown> {
+  const uploaded = readCount(result.uploaded);
+  const deleted = readCount(result.deletedRemote);
+  const skipped = readStringArray(result.skippedDeletions);
+  const hints = compactHints([
+    skipped.length > 0 ? 'delete_skipped' : null,
+    uploaded === 0 && deleted === 0 ? 'in_sync' : null
+  ]);
+  const summary: Record<string, unknown> = {
+    ok: result.ok === true,
+    command: 'sync',
+    action: 'push',
+    state: uploaded > 0 || deleted > 0 ? 'updated' : 'in_sync',
+    counts: {
+      uploaded,
+      deleted,
+      skippedDeletions: skipped.length
+    },
+    hints
+  };
+  if (options.changes && skipped.length > 0) {
+    summary.changes = {
+      skippedDeletions: skipped
+    };
+  }
+  if (options.stats) {
+    summary.stats = {
+      mirrorRoot: result.mirrorRoot,
+      manifestPath: result.manifestPath
+    };
+  }
+  return summary;
+}
+
+function filterPaths(entries: TenantKbStatusEntry[], state: TenantKbStatusEntry['state']): string[] {
+  return entries.filter((entry) => entry.state === state).map((entry) => entry.path);
+}
+
+function filterEmptyChangeSets(input: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(input).filter(([, paths]) => paths.length > 0));
+}
+
+function compactHints(values: Array<string | null>): string[] {
+  return values.filter((value): value is string => Boolean(value));
+}
+
+function readCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+function isOutputFlag(key: string): boolean {
+  return key === 'verbose' || key === 'changes' || key === 'conflicts' || key === 'stats';
 }

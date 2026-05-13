@@ -7,7 +7,9 @@ import { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
 import { startKnowledgeBaseCliDaemon } from '../packages/kb-cli/src/daemon.js';
 import { FileKnowledgeStore } from '../packages/kb-storage-file/src/file-store.js';
 import { startKnowledgeBaseNodeServer } from '../packages/kb-http/src/node-server.js';
-import { runKnowledgeBaseCli } from '../packages/kb-cli/src/index.js';
+import { buildSubcommandArgv, runKnowledgeBaseCli } from '../packages/kb-cli/src/index.js';
+import { summarizeKnowledgeBaseSyncResult } from '../packages/kb-cli/src/sync.js';
+import { summarizeKnowledgeBaseSyncDaemonResult } from '../packages/kb-cli/src/sync-daemon.js';
 
 test('kb cli local mode can record and search in-process', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-local-'));
@@ -136,8 +138,8 @@ test('kb cli help makes the edge-writing split explicit', async () => {
   assert.match(result.stdout, /Use `kb relate` for explicit relation edges between existing entities/);
   assert.match(result.stdout, /Do not use `kb annotate` for relation edges/);
   assert.match(result.stdout, /Only use `record\.relations\[\]` when you are already creating or rewriting the entity/);
-  assert.match(result.stdout, /kb sync <pull\|status\|push>/);
-  assert.match(result.stdout, /kb daemon <start\|stop\|restart\|status\|logs\|once>/);
+  assert.match(result.stdout, /kb sync <pull\|status\|push> \[--verbose] \[--changes] \[--conflicts] \[--stats]/);
+  assert.match(result.stdout, /kb daemon <start\|stop\|restart\|status\|logs\|once> \[--verbose] \[--logs] \[--stats]/);
 });
 
 test('kb cli sync commands are rejected outside r2-mirror mode', async () => {
@@ -164,6 +166,109 @@ test('kb cli daemon commands are rejected outside r2-mirror mode', async () => {
   assert.match(result.stderr, /only supported with KB_BACKEND=r2-mirror/i);
 });
 
+test('kb cli rebuilds subcommand argv with trailing flags intact', () => {
+  assert.deepEqual(
+    buildSubcommandArgv({
+      positionals: ['sync', 'status'],
+      flags: { changes: true, verbose: true, lines: '20' }
+    }, 1),
+    ['status', '--changes', '--verbose', '--lines', '20']
+  );
+});
+
+test('kb sync status defaults to a compact aggregate-only envelope', () => {
+  const summary = summarizeKnowledgeBaseSyncResult({
+    ok: true,
+    command: 'status',
+    tenantId: 'acme',
+    mirrorRoot: '/tmp/acme',
+    prefix: '.kb/acme/',
+    entries: [
+      { path: 'entities/vendor-acme.md', state: 'unchanged' },
+      { path: 'entities/vendor-globex.md', state: 'modified-local' },
+      { path: 'entities/vendor-initech.md', state: 'added-remote' }
+    ]
+  });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'sync',
+    action: 'status',
+    state: 'drift',
+    counts: {
+      changed: 2,
+      conflicts: 0
+    },
+    hints: ['has_local_changes', 'needs_pull']
+  });
+});
+
+test('kb sync status can disclose changed paths on demand', () => {
+  const summary = summarizeKnowledgeBaseSyncResult({
+    ok: true,
+    command: 'status',
+    tenantId: 'acme',
+    mirrorRoot: '/tmp/acme',
+    prefix: '.kb/acme/',
+    entries: [
+      { path: 'entities/vendor-globex.md', state: 'modified-local' },
+      { path: 'entities/vendor-initech.md', state: 'added-remote' }
+    ]
+  }, { changes: true });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'sync',
+    action: 'status',
+    state: 'drift',
+    counts: {
+      changed: 2,
+      conflicts: 0
+    },
+    hints: ['has_local_changes', 'needs_pull'],
+    changes: {
+      modifiedLocal: ['entities/vendor-globex.md'],
+      addedRemote: ['entities/vendor-initech.md']
+    }
+  });
+});
+
+test('kb daemon status defaults to a compact health envelope', () => {
+  const summary = summarizeKnowledgeBaseSyncDaemonResult({
+    stdout: 'kb daemon running (pid 123)\n{"state":"idle","action":"pull","detail":"ok","updatedAt":"2026-05-13T10:00:00.000Z"}',
+    stderr: '',
+    exitCode: 0
+  });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'daemon',
+    action: 'status',
+    state: 'idle',
+    counts: {},
+    hints: ['running']
+  });
+});
+
+test('kb daemon logs remain opt-in and compact by default', () => {
+  const summary = summarizeKnowledgeBaseSyncDaemonResult({
+    stdout: '[2026-05-13T10:00:00.000Z] kb sync pull\n[2026-05-13T10:00:05.000Z] {"ok":true}',
+    stderr: '',
+    exitCode: 0
+  }, { action: 'logs' });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'daemon',
+    action: 'logs',
+    state: 'ok',
+    counts: {
+      lines: 2
+    },
+    hints: ['use_verbose_for_log_lines']
+  });
+});
+
 test('kb cli validate reports all write payload issues before mutation', async () => {
   const remember = await runKnowledgeBaseCli(['validate', 'remember', '--json', '{"intent":"wrong"}']);
   assert.equal(remember.exitCode, 1);
@@ -188,6 +293,7 @@ test('kb cli validate reports all write payload issues before mutation', async (
   assert.equal(nested.exitCode, 1);
   assert.match(nested.stderr, /entity\.handles/);
 });
+
 
 test('kb cli delete removes test entities cleanly', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-delete-'));

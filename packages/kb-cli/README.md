@@ -72,7 +72,10 @@ Mirror operations:
 ```bash
 KB_BACKEND=r2-mirror npx kb-local sync status
 KB_BACKEND=r2-mirror npx kb-local sync pull
+KB_BACKEND=r2-mirror npx kb-local sync status --changes
+KB_BACKEND=r2-mirror npx kb-local sync pull --verbose
 KB_BACKEND=r2-mirror npx kb-local daemon start
+KB_BACKEND=r2-mirror npx kb-local daemon status --stats
 ```
 
 Daemon:
