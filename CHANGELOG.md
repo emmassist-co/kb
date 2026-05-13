@@ -32,17 +32,37 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-05-13 - Runtime Query Telemetry
+
+- Area: adapter
+- Merged to `main`: yes
+- Commit / PR: `0115b4d`
+- Feature summary: the Flue adapter now emits structured runtime telemetry for KB search and relation-query executions, including result ids, payload size, estimated token count, and duration.
+- Customer-visible impact: none
+- Deployment status: deployed
+- Deployment date: 2026-05-13
+- Deployment environment: GitHub Packages
+- Deployment evidence: release tag `v1.0.1`; GitHub Actions publish run `25809920094`; published `@emmassist-co/kb-flue-adapter@0.3.0`.
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: run one downstream Flue KB search and one relation query with runtime telemetry capture enabled and confirm telemetry records the expected query shape and result ids.
+- Automated coverage: `npm test`; `npm run typecheck`
+- Needs iteration: no
+- Follow-up: verify one downstream runtime consumer records and routes the telemetry fields as expected.
+
 ## 2026-05-13 - Provenance Freshness And Supersession Metadata
 
 - Area: package, CLI command, adapter, subsystem
-- Merged to `main`: no
-- Commit / PR: pending
+- Merged to `main`: yes
+- Commit / PR: `0bb31c1`
 - Feature summary: added raw source provenance, supersession links, freshness metadata, and review timestamps across `kb-core`, CLI validation, and the Flue adapter; doctor checks now flag missing supersession targets, supersession cycles, and `fresh` records that lack a review timestamp.
 - Customer-visible impact: operators and downstream agents can track which records supersede older facts, preserve source provenance, and enforce freshness hygiene through the existing write and doctor surfaces.
-- Deployment status: pending
-- Deployment date:
-- Deployment environment:
-- Deployment evidence:
+- Deployment status: deployed
+- Deployment date: 2026-05-13
+- Deployment environment: GitHub Packages
+- Deployment evidence: release tag `v1.0.1`; GitHub Actions publish run `25809920094`; published `@emmassist-co/kb-core@0.2.0`, `@emmassist-co/kb-storage-file@0.1.2`, `@emmassist-co/kb-storage-cloudflare@0.1.2`, and `@emmassist-co/kb-http@0.1.2`.
 - Human testing status: pending
 - Human tester:
 - Human test date:
@@ -55,14 +75,14 @@ Use this file as the merged-work ledger for `kb/`.
 ## 2026-05-13 - Compact Sync And Daemon Output
 
 - Area: CLI command
-- Merged to `main`: no
-- Commit / PR: pending
+- Merged to `main`: yes
+- Commit / PR: `0e38c44`
 - Feature summary: `kb sync` and `kb daemon` now default to compact JSON envelopes for agents, with opt-in detail via `--verbose`, `--changes`, `--conflicts`, `--stats`, and `--logs`; subcommand flags are forwarded correctly to sync/daemon handlers.
 - Customer-visible impact: operators and agents get lower-token default output and explicit progressive-disclosure flags; consumers relying on the previous raw default payload must switch to `--verbose`.
-- Deployment status: pending
-- Deployment date:
-- Deployment environment:
-- Deployment evidence:
+- Deployment status: deployed
+- Deployment date: 2026-05-13
+- Deployment environment: GitHub Packages
+- Deployment evidence: release tag `v1.0.1`; GitHub Actions publish run `25809920094`; published `@emmassist-co/kb-cli@1.0.1`.
 - Human testing status: pending
 - Human tester:
 - Human test date:
