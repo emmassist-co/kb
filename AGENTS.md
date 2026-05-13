@@ -67,6 +67,14 @@ Before changing a package version:
 4. Update package docs if the public surface changed.
 5. Run the package-specific tests plus any affected integration tests.
 
+For any change to a published package under `packages/`:
+
+1. Treat the version bump as part of the implementation, not optional release cleanup.
+2. Do not consider the work complete until the changed package version is updated in its `package.json`.
+3. If local packages depend on the changed package, update their dependency ranges in the same work.
+4. If downstream repos are part of the rollout, update them to the released version after publish. Do not leave them on `file:` links unless that is an explicit temporary local-dev choice.
+5. If a public change lands without a version bump, fix that before any release communication or downstream upgrade.
+
 For public-surface changes, include a short release note in the commit or PR description covering:
 
 - what changed
