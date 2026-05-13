@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { runRetrievalCategory } from './cat1-retrieval.js';
 import { runTemporalCategory } from './cat2-temporal.js';
@@ -138,7 +139,9 @@ function inferScorecardProvenance(categories: EvalCategoryResult[]): EvalScoreca
   return values.length === 1 ? values[0] : 'mixed';
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

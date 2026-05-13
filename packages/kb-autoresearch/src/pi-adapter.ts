@@ -170,10 +170,11 @@ function prepareIsolatedPiHome(promptDir: string, model: string | undefined, pro
   const homeDir = path.join(promptDir, 'pi-home');
   mkdirSync(homeDir, { recursive: true });
   const sourceAuthPath = resolveBestPiAuthSource(path.join(homeDir, 'auth.json'));
-  if (!sourceAuthPath) {
-    throw new Error(`Pi auth not found. Run \`./node_modules/.bin/pi\` and \`/login\` first.`);
+  if (sourceAuthPath) {
+    copyFileSync(sourceAuthPath, path.join(homeDir, 'auth.json'));
+  } else {
+    writeFileSync(path.join(homeDir, 'auth.json'), '{}', 'utf8');
   }
-  copyFileSync(sourceAuthPath, path.join(homeDir, 'auth.json'));
   const settings = {
     defaultProvider: provider ?? 'openai-codex',
     defaultModel: model ?? 'gpt-5.3-codex-spark',

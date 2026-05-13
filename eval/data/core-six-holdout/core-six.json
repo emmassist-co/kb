@@ -1,0 +1,24 @@
+{
+  "corpusName": "kb-core-six-holdout-v1",
+  "provenance": "deterministic-synthetic-fixtures",
+  "extends": "../core-six/core-six.json",
+  "pick": {
+    "temporal": [
+      "temporal-range-review"
+    ],
+    "identity": [
+      "identity-ambiguous-smith-finance",
+      "identity-ambiguous-smith-ops"
+    ],
+    "provenance": [
+      "prov-unsupported-phone"
+    ],
+    "contradictions": [
+      "contradiction-refund-unresolved"
+    ],
+    "fuzzy": [
+      "fuzzy-dispute-doc",
+      "fuzzy-legacy-processor"
+    ]
+  }
+}

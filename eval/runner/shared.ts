@@ -2,9 +2,9 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { mkdtempSync } from 'node:fs';
-import { resolveProductConfig } from '../../src/lib/product-config.js';
-import { createKnowledgeBaseService } from '../../src/lib/kb/service.js';
-import type { KnowledgeBaseService } from '../../packages/kb-core/src/service.js';
+import { KnowledgeBaseService } from '../../packages/kb-core/src/service.js';
+import type { KnowledgeBaseConfig } from '../../packages/kb-core/src/types.js';
+import { FileKnowledgeStore } from '../../packages/kb-storage-file/src/file-store.js';
 import type { EntityDraft, KnowledgeEntityKind, KnowledgeEvent, KnowledgeExportSnapshot, KnowledgeSearchResult } from '../../packages/kb-core/src/types.js';
 import type { EvalCategoryResult, EvalPage, EvalScorecard } from './types.js';
 
@@ -49,7 +49,7 @@ export async function withSeededKnowledgeBase<T>(
     KB_ROOT_DIR: kbRootDir,
     WORKSPACE_TENANT_ID: 'workspace-template'
   };
-  const config = resolveProductConfig(env).knowledgeBase;
+  const config = createEvalKnowledgeBaseConfig();
   const service = createKnowledgeBaseService(env, 'workspace-template', config);
 
   try {
@@ -132,6 +132,37 @@ export async function withSeededKnowledgeBase<T>(
   } finally {
     rmSync(kbRootDir, { force: true, recursive: true });
   }
+}
+
+function createEvalKnowledgeBaseConfig(): KnowledgeBaseConfig {
+  return {
+    enabled: true,
+    mode: 'basic',
+    writePolicy: 'mixed',
+    persistence: {
+      backend: 'file',
+      cacheRefreshPolicy: 'per-run',
+      rootDir: '.kb'
+    },
+    ingest: {
+      agentTurns: false,
+      userCorrections: false,
+      workspaceSignals: false,
+      externalResearch: false
+    }
+  };
+}
+
+function createKnowledgeBaseService(env: Record<string, unknown>, tenantId: string, config: KnowledgeBaseConfig): KnowledgeBaseService {
+  const configuredRoot = config.persistence.rootDir || '.kb';
+  const rootDir = typeof env.KB_ROOT_DIR === 'string' && env.KB_ROOT_DIR !== ''
+    ? env.KB_ROOT_DIR
+    : path.resolve(process.cwd(), configuredRoot, tenantId);
+  return new KnowledgeBaseService(
+    tenantId,
+    config,
+    new FileKnowledgeStore(rootDir, config.mode)
+  );
 }
 
 export function searchResultDocs(results: KnowledgeSearchResult[]): Array<{

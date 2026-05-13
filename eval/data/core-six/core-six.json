@@ -1,0 +1,315 @@
+{
+  "corpusName": "kb-core-six-v1",
+  "provenance": "deterministic-synthetic-fixtures",
+  "seed": {
+    "entities": [
+      {
+        "id": "vendor-stripe",
+        "kind": "vendor",
+        "title": "Stripe",
+        "aliases": ["Stripe Inc."],
+        "handles": ["billing@stripe.com", "disputes@stripe.com", "@stripe"],
+        "tags": ["payments", "invoices", "billing"],
+        "sources": ["src_migration_memo", "src_vendor_note", "src_uncertain_owner", "src_confirmed_owner"],
+        "currentTruth": "Stripe currently handles customer invoice payments. Jane Smith owns the Stripe relationship and disputes escalate to disputes@stripe.com.",
+        "timeline": [
+          "2026-02-01: Adyen handled invoice payments before the migration.",
+          "2026-04-15: Stripe pilot started for invoice payments.",
+          "2026-05-01: Stripe replaced Adyen for invoice payments."
+        ]
+      },
+      {
+        "id": "vendor-adyen",
+        "kind": "vendor",
+        "title": "Adyen",
+        "aliases": ["Adyen NV"],
+        "handles": ["ops@adyen.com"],
+        "tags": ["payments", "legacy"],
+        "sources": ["src_old_runbook"],
+        "currentTruth": "Adyen was the legacy processor before the Stripe migration.",
+        "timeline": [
+          "2026-02-01: Adyen handled invoice payments and dispute processing."
+        ]
+      },
+      {
+        "id": "person-jane-smith",
+        "kind": "person",
+        "title": "Jane Smith",
+        "aliases": ["J. Smith", "Jane S."],
+        "handles": ["jane@acme.com", "@jane-finance"],
+        "tags": ["finance", "payments"],
+        "sources": ["src_finance_review", "src_confirmed_owner"],
+        "currentTruth": "Jane Smith leads finance operations and owns the Stripe relationship."
+      },
+      {
+        "id": "person-john-smith",
+        "kind": "person",
+        "title": "John Smith",
+        "aliases": ["John S."],
+        "handles": ["john@acme.com", "@john-ops"],
+        "tags": ["ops", "programs"],
+        "sources": ["src_finance_review"],
+        "currentTruth": "John Smith leads operations programs."
+      },
+      {
+        "id": "process-invoice-dispute-workflow",
+        "kind": "process",
+        "title": "Invoice Dispute Workflow",
+        "aliases": ["dispute handling runbook"],
+        "tags": ["disputes", "billing", "workflow"],
+        "sources": ["src_finance_review", "src_vendor_note", "src_old_runbook"],
+        "currentTruth": "Finance triages invoice disputes and escalates confirmed processor issues to Stripe.",
+        "timeline": [
+          "2026-05-04: Finance and ops reviewed the dispute workflow after the Stripe migration."
+        ]
+      },
+      {
+        "id": "decision-finance-ops-payments-review",
+        "kind": "decision",
+        "title": "Finance Ops Payments Review",
+        "aliases": ["payments review meeting"],
+        "tags": ["meeting", "finance", "ops", "invoices"],
+        "sources": ["src_finance_review"],
+        "currentTruth": "Finance and ops reviewed the Stripe migration and invoice dispute handling."
+      },
+      {
+        "id": "policy-refund-sla",
+        "kind": "policy",
+        "title": "Refund SLA",
+        "aliases": ["refund response policy"],
+        "tags": ["refunds", "sla", "policy"],
+        "sources": ["src_refund_sla_old", "src_refund_sla_new", "src_refund_sla_conflict"],
+        "currentTruth": "Refund SLA remains unresolved. One source states 24 hours while another still states 48 hours.",
+        "openQuestions": ["Resolve the final approved refund SLA."],
+        "timeline": [
+          "2026-04-01: Legacy refund policy documented a 48 hour review target.",
+          "2026-04-20: Updated policy draft proposed a 24 hour review target.",
+          "2026-04-21: Support references still mentioned a 48 hour review target."
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "src_old_runbook",
+        "kind": "workspace",
+        "title": "Legacy payments runbook",
+        "linkedEntities": ["vendor-adyen", "process-invoice-dispute-workflow"],
+        "summary": "Legacy payment processor instructions",
+        "content": "Adyen handles invoice payments and dispute processing in the legacy workflow.",
+        "createdAt": "2026-02-01T09:00:00Z"
+      },
+      {
+        "id": "src_migration_memo",
+        "kind": "workspace",
+        "title": "Payments migration memo",
+        "linkedEntities": ["vendor-stripe", "vendor-adyen"],
+        "summary": "Stripe migration completed",
+        "content": "Starting on 2026-05-01, Stripe replaced Adyen as the processor for customer invoices.",
+        "createdAt": "2026-05-01T10:00:00Z"
+      },
+      {
+        "id": "src_vendor_note",
+        "kind": "research",
+        "title": "Stripe vendor contact note",
+        "linkedEntities": ["vendor-stripe", "process-invoice-dispute-workflow"],
+        "summary": "Dispute escalation contact",
+        "content": "Finance confirmed disputes@stripe.com as the escalation contact for invoice disputes.",
+        "createdAt": "2026-05-03T12:00:00Z"
+      },
+      {
+        "id": "src_finance_review",
+        "kind": "workspace",
+        "title": "Finance ops review notes",
+        "linkedEntities": ["person-jane-smith", "person-john-smith", "process-invoice-dispute-workflow", "decision-finance-ops-payments-review"],
+        "summary": "Finance and ops reviewed payments and disputes",
+        "content": "Jane Smith and John Smith reviewed the invoice dispute workflow and the Stripe migration.",
+        "createdAt": "2026-05-04T15:00:00Z"
+      },
+      {
+        "id": "src_uncertain_owner",
+        "kind": "chat",
+        "title": "Open question about Stripe owner",
+        "linkedEntities": ["vendor-stripe", "person-jane-smith"],
+        "summary": "Ownership still unconfirmed",
+        "content": "The current Stripe account owner may be Jane Smith, but this remains unconfirmed.",
+        "createdAt": "2026-05-05T10:00:00Z"
+      },
+      {
+        "id": "src_confirmed_owner",
+        "kind": "workspace",
+        "title": "Confirmed Stripe owner note",
+        "linkedEntities": ["vendor-stripe", "person-jane-smith"],
+        "summary": "Jane Smith confirmed as owner",
+        "content": "Confirmed: Jane Smith is the current Stripe account owner.",
+        "createdAt": "2026-05-06T11:00:00Z"
+      },
+      {
+        "id": "src_refund_sla_old",
+        "kind": "workspace",
+        "title": "Legacy refund SLA",
+        "linkedEntities": ["policy-refund-sla"],
+        "summary": "Refund SLA at 48 hours",
+        "content": "Refund requests are reviewed within 48 hours.",
+        "createdAt": "2026-04-01T09:00:00Z"
+      },
+      {
+        "id": "src_refund_sla_new",
+        "kind": "workspace",
+        "title": "Updated refund SLA draft",
+        "linkedEntities": ["policy-refund-sla"],
+        "summary": "Refund SLA at 24 hours",
+        "content": "The updated refund policy draft proposes review within 24 hours.",
+        "createdAt": "2026-04-20T09:00:00Z"
+      },
+      {
+        "id": "src_refund_sla_conflict",
+        "kind": "chat",
+        "title": "Support still quoting old refund SLA",
+        "linkedEntities": ["policy-refund-sla"],
+        "summary": "Support still mentions 48 hours",
+        "content": "Support macros still say refund review takes 48 hours.",
+        "createdAt": "2026-04-21T09:00:00Z"
+      }
+    ]
+  },
+  "temporal": [
+    {
+      "id": "temporal-as-of-pre-migration",
+      "prompt": "Who handled invoice payments as of 2026-04-20?",
+      "entityId": "vendor-stripe",
+      "mode": "as-of",
+      "queryDate": "2026-04-20",
+      "expectedAnswer": "Adyen",
+      "expectedSources": ["src_old_runbook"]
+    },
+    {
+      "id": "temporal-latest-provider",
+      "prompt": "Who handles invoice payments now?",
+      "entityId": "vendor-stripe",
+      "mode": "latest",
+      "expectedAnswer": "Stripe",
+      "expectedSources": ["src_migration_memo"]
+    },
+    {
+      "id": "temporal-range-review",
+      "prompt": "What changed between 2026-05-01 and 2026-05-04?",
+      "entityId": "process-invoice-dispute-workflow",
+      "mode": "range",
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-04",
+      "expectedAnswer": "reviewed the dispute workflow",
+      "expectedSources": ["src_finance_review"]
+    }
+  ],
+  "identity": [
+    {
+      "id": "identity-company-alias",
+      "prompt": "Resolve Stripe Inc.",
+      "query": "Stripe Inc.",
+      "relevant": ["vendor-stripe"]
+    },
+    {
+      "id": "identity-company-handle",
+      "prompt": "Resolve billing@stripe.com",
+      "query": "billing@stripe.com",
+      "relevant": ["vendor-stripe"]
+    },
+    {
+      "id": "identity-finance-handle",
+      "prompt": "Resolve @jane-finance",
+      "query": "@jane-finance",
+      "relevant": ["person-jane-smith"]
+    },
+    {
+      "id": "identity-ambiguous-smith-finance",
+      "prompt": "Resolve J. Smith from finance",
+      "query": "J. Smith finance",
+      "relevant": ["person-jane-smith"],
+      "disallowed": ["person-john-smith"]
+    },
+    {
+      "id": "identity-ambiguous-smith-ops",
+      "prompt": "Resolve Smith from ops",
+      "query": "Smith ops",
+      "relevant": ["person-john-smith"],
+      "disallowed": ["person-jane-smith"]
+    }
+  ],
+  "provenance": [
+    {
+      "id": "prov-disputes-email",
+      "prompt": "Find source for Stripe dispute escalations",
+      "claim": "What email handles Stripe dispute escalations?",
+      "expectedSourceIds": ["src_vendor_note"],
+      "evidenceMode": "paraphrased-summary"
+    },
+    {
+      "id": "prov-review-attendees",
+      "prompt": "Find source for who reviewed the invoice dispute workflow",
+      "claim": "Who reviewed the invoice dispute workflow?",
+      "expectedSourceIds": ["src_finance_review"],
+      "evidenceMode": "direct-quote"
+    },
+    {
+      "id": "prov-owner-confirmed",
+      "prompt": "Find sources for current Stripe owner confirmation",
+      "claim": "Who is the current Stripe account owner and when was it confirmed?",
+      "expectedSourceIds": ["src_uncertain_owner", "src_confirmed_owner"],
+      "evidenceMode": "multi-source-synthesis"
+    },
+    {
+      "id": "prov-unsupported-phone",
+      "prompt": "Unsupported claim should not be sourced",
+      "claim": "What is Stripe's phone number extension 77?",
+      "expectedSourceIds": [],
+      "evidenceMode": "direct-quote",
+      "unsupported": true
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "contradiction-owner-resolved",
+      "prompt": "Stripe owner uncertainty later resolved",
+      "entityId": "vendor-stripe",
+      "expectedStatus": "resolved",
+      "winningSourceIds": ["src_confirmed_owner"],
+      "losingSourceIds": ["src_uncertain_owner"],
+      "requiredMentions": ["unconfirmed", "confirmed", "jane smith"]
+    },
+    {
+      "id": "contradiction-refund-unresolved",
+      "prompt": "Refund SLA remains unresolved",
+      "entityId": "policy-refund-sla",
+      "expectedStatus": "uncertain",
+      "requiredMentions": ["24 hours", "48 hours", "unresolved"]
+    }
+  ],
+  "fuzzy": [
+    {
+      "id": "fuzzy-payments-vendor-person",
+      "prompt": "Find the person from the payments vendor",
+      "query": "who owns the stripe relationship",
+      "relevant": ["person-jane-smith"]
+    },
+    {
+      "id": "fuzzy-finance-ops-invoices-meeting",
+      "prompt": "Find that meeting where finance and ops talked about invoices",
+      "query": "that meeting where finance and ops talked about invoices",
+      "relevant": ["decision-finance-ops-payments-review", "src_finance_review"],
+      "allowAmbiguous": true
+    },
+    {
+      "id": "fuzzy-dispute-doc",
+      "prompt": "Find the doc about dispute handling",
+      "query": "the doc about dispute handling",
+      "relevant": ["process-invoice-dispute-workflow", "src_vendor_note"],
+      "allowAmbiguous": true
+    },
+    {
+      "id": "fuzzy-legacy-processor",
+      "prompt": "Find the legacy processor before Stripe",
+      "query": "legacy processor before stripe",
+      "relevant": ["vendor-adyen"]
+    }
+  ]
+}

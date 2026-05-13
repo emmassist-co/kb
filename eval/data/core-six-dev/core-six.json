@@ -1,0 +1,28 @@
+{
+  "corpusName": "kb-core-six-dev-v1",
+  "provenance": "deterministic-synthetic-fixtures",
+  "extends": "../core-six/core-six.json",
+  "pick": {
+    "temporal": [
+      "temporal-as-of-pre-migration",
+      "temporal-latest-provider"
+    ],
+    "identity": [
+      "identity-company-alias",
+      "identity-company-handle",
+      "identity-finance-handle"
+    ],
+    "provenance": [
+      "prov-disputes-email",
+      "prov-review-attendees",
+      "prov-owner-confirmed"
+    ],
+    "contradictions": [
+      "contradiction-owner-resolved"
+    ],
+    "fuzzy": [
+      "fuzzy-payments-vendor-person",
+      "fuzzy-finance-ops-invoices-meeting"
+    ]
+  }
+}

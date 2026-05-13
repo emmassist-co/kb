@@ -9,7 +9,12 @@
   "scripts": {
     "compile": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/**/*.test.ts"
+    "test": "tsx --test tests/**/*.test.ts",
+    "eval:kb": "tsx eval/runner/kb-benchmark.ts",
+    "eval:kb:all": "tsx eval/runner/kb-eval.ts",
+    "eval:kb:cat": "tsx eval/runner/kb-eval.ts",
+    "eval:kb:repo-docs": "tsx eval/runner/kb-benchmark.ts --repo-docs eval/data/repo-docs-v1",
+    "eval:kb:gbrain-world": "tsx eval/runner/kb-benchmark.ts --gbrain-world eval/data/gbrain-world-v1 --side-by-side"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.908.0",
