@@ -4,6 +4,7 @@ import {
   KnowledgeBaseService,
   type KnowledgeBaseConfig,
   type KnowledgeEntityKind,
+  type KnowledgeWorkspaceCapabilities,
   type KnowledgeLexicalBackend,
   type KnowledgeSearchMode
 } from '@emmassist-co/kb-core';
@@ -21,6 +22,7 @@ import {
 } from './sync-daemon.js';
 
 type JsonObject = Record<string, unknown>;
+type KnowledgeRelationsFilter = NonNullable<Parameters<KnowledgeBaseService['listRelations']>[0]>;
 
 export interface KnowledgeBaseCliResult {
   stdout: string;
@@ -61,6 +63,17 @@ interface KnowledgeBaseCliExecutor {
   list(): Promise<unknown>;
   get(id: string): Promise<unknown>;
   delete(id: string): Promise<unknown>;
+  captureSource(input: JsonObject): Promise<unknown>;
+  listEvents(): Promise<unknown>;
+  getEvent(id: string): Promise<unknown>;
+  deleteEvent(id: string): Promise<unknown>;
+  listDrafts(): Promise<unknown>;
+  getDraft(entityId: string): Promise<unknown>;
+  putDraft(input: JsonObject): Promise<unknown>;
+  deleteDraft(entityId: string): Promise<unknown>;
+  listRelations(input: JsonObject): Promise<unknown>;
+  replaceRelations(input: JsonObject): Promise<unknown>;
+  clearRelations(input: JsonObject): Promise<unknown>;
   search(input: JsonObject): Promise<unknown>;
   queryRelations(input: JsonObject): Promise<unknown>;
   remember(input: JsonObject): Promise<unknown>;
@@ -191,16 +204,26 @@ async function createExecutor(options: KnowledgeBaseCliOptions): Promise<Knowled
     config,
     new FileKnowledgeStore(rootDir, config.mode)
   );
+  const capabilities = buildLocalCapabilities(transport, config.mode, rootDir);
   return {
     inspect: async () => ({
-      tenantId: transport.tenantId,
-      backend: transport.backend ?? 'file',
-      rootDir,
-      mode: config.mode
+      ...capabilities,
+      summary: await service.list()
     }),
     list: () => service.list(),
     get: (id) => service.get(id),
     delete: (id) => service.deleteRecord(id),
+    captureSource: (input) => service.captureSource(coerceCaptureSourceInput(input)),
+    listEvents: () => service.listEvents(),
+    getEvent: (id) => service.getEvent(id),
+    deleteEvent: (id) => service.deleteEvent(id),
+    listDrafts: () => service.listDrafts(),
+    getDraft: (entityId) => service.getDraft(entityId),
+    putDraft: (input) => service.updateEntityDraft(coerceDraftInput(input)),
+    deleteDraft: (entityId) => service.deleteDraft(entityId),
+    listRelations: (input) => service.listRelations(coerceRelationsFilterInput(input)),
+    replaceRelations: (input) => service.replaceRelations(coerceReplaceRelationsInput(input)),
+    clearRelations: (input) => service.clearRelations(coerceOriginInput(input)),
     search: (input) => service.search(coerceSearchInput(input)),
     queryRelations: (input) => service.queryRelations(coerceRelationInput(input)),
     remember: (input) => service.remember(input as Parameters<KnowledgeBaseService['remember']>[0]),
@@ -250,10 +273,27 @@ function createHttpExecutor(
     return payload.data ?? payload;
   };
   return {
-    inspect: () => request('/v1/capabilities'),
+    inspect: async () => {
+      const payload = await request('/v1/inspect') as { data?: unknown; capabilities?: unknown };
+      return payload.data ?? payload.capabilities ?? payload;
+    },
     list: () => request('/v1/entities'),
     get: (id) => request(`/v1/entities/${encodeURIComponent(id)}`),
     delete: (id) => request(`/v1/entities/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    captureSource: (input) => request('/v1/capture-source', { method: 'POST', body: coerceCaptureSourceInput(input) }),
+    listEvents: () => request('/v1/events'),
+    getEvent: (id) => request(`/v1/events/${encodeURIComponent(id)}`),
+    deleteEvent: (id) => request(`/v1/events/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    listDrafts: () => request('/v1/drafts'),
+    getDraft: (entityId) => request(`/v1/drafts/${encodeURIComponent(entityId)}`),
+    putDraft: (input) => {
+      const payload = coerceDraftInput(input);
+      return request(`/v1/drafts/${encodeURIComponent(payload.entityId)}`, { method: 'PUT', body: payload });
+    },
+    deleteDraft: (entityId) => request(`/v1/drafts/${encodeURIComponent(entityId)}`, { method: 'DELETE' }),
+    listRelations: (input) => request(buildRelationsPath(coerceRelationsFilterInput(input))),
+    replaceRelations: (input) => request('/v1/relations', { method: 'PUT', body: coerceReplaceRelationsInput(input) }),
+    clearRelations: (input) => request(buildClearRelationsPath(coerceOriginInput(input)), { method: 'DELETE' }),
     search: (input) => request('/v1/search', { method: 'POST', body: coerceSearchInput(input) }),
     queryRelations: (input) => request('/v1/query-relations', { method: 'POST', body: coerceRelationInput(input) }),
     remember: (input) => request('/v1/remember', { method: 'POST', body: input }),
@@ -288,6 +328,28 @@ async function executeCommand(
       return executor.get(readId(parsed));
     case 'delete':
       return executor.delete(readId(parsed));
+    case 'capture-source':
+      return executor.captureSource(await loadJsonPayload(parsed, options));
+    case 'events':
+      return executor.listEvents();
+    case 'get-event':
+      return executor.getEvent(readId(parsed));
+    case 'delete-event':
+      return executor.deleteEvent(readId(parsed));
+    case 'drafts':
+      return executor.listDrafts();
+    case 'get-draft':
+      return executor.getDraft(readId(parsed));
+    case 'put-draft':
+      return executor.putDraft(await loadJsonPayload(parsed, options));
+    case 'delete-draft':
+      return executor.deleteDraft(readId(parsed));
+    case 'relations':
+      return executor.listRelations(buildRelationsFilterPayload(parsed));
+    case 'replace-relations':
+      return executor.replaceRelations(await loadJsonPayload(parsed, options));
+    case 'clear-relations':
+      return executor.clearRelations(buildOriginPayload(parsed));
     case 'search':
       return executor.search(await loadJsonPayload(parsed, options));
     case 'query-relations':
@@ -333,6 +395,11 @@ function resolveTransport(options: KnowledgeBaseCliOptions): KnowledgeBaseCliTra
   }
   const backend = readCliBackend(env.KB_BACKEND);
   const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  if (backend === 'cloudflare' || backend === 'r2' || backend === 'http') {
+    throw new Error(
+      `KB_BACKEND=${backend} is not a direct local CLI workspace. Use KB_BASE_URL to target the canonical deployed kb-http surface, or use KB_BACKEND=file|r2-mirror for support workspaces.`
+    );
+  }
   if (backend === 'r2-mirror') {
     return {
       mode: 'local',
@@ -402,6 +469,23 @@ function coerceSearchInput(input: JsonObject): Parameters<KnowledgeBaseService['
   };
 }
 
+function coerceCaptureSourceInput(input: JsonObject): Parameters<KnowledgeBaseService['captureSource']>[0] {
+  return {
+    id: readString(input.id),
+    kind: readString(input.kind) as Parameters<KnowledgeBaseService['captureSource']>[0]['kind'],
+    title: requireString(input.title, 'title'),
+    url: readString(input.url),
+    authors: readStringArray(input.authors),
+    tags: readStringArray(input.tags),
+    linkedEntities: readStringArray(input.linkedEntities) ?? readStringArray(input.linked_entities),
+    summary: readString(input.summary),
+    content: requireString(input.content, 'content'),
+    citations: readStringArray(input.citations),
+    extractEntities: readBoolean(input.extractEntities) ?? readBoolean(input.extract_entities),
+    createdAt: readString(input.createdAt) ?? readString(input.created_at)
+  };
+}
+
 function coerceRecordInput(input: JsonObject): Parameters<KnowledgeBaseService['record']>[0] {
   const errors = validatePayload('record', input);
   if (errors.length > 0) throw new Error(renderValidationErrors('record', errors));
@@ -438,6 +522,62 @@ function coerceAnnotateInput(input: JsonObject): Parameters<KnowledgeBaseService
   };
 }
 
+function coerceDraftInput(input: JsonObject): Parameters<KnowledgeBaseService['updateEntityDraft']>[0] {
+  return {
+    entityId: requireString(input.entityId ?? input.entity_id, 'entityId'),
+    title: readString(input.title),
+    kind: readString(input.kind) as KnowledgeEntityKind | undefined,
+    summary: readString(input.summary),
+    openQuestions: readStringArray(input.openQuestions) ?? readStringArray(input.open_questions),
+    sourceIds: readStringArray(input.sourceIds) ?? readStringArray(input.source_ids),
+    timelineNotes: readStringArray(input.timelineNotes) ?? readStringArray(input.timeline_notes)
+  };
+}
+
+function coerceRelationsFilterInput(input: JsonObject): KnowledgeRelationsFilter {
+  return {
+    entityId: readString(input.entityId) ?? readString(input.entity_id),
+    originKind: (readString(input.originKind) ?? readString(input.origin_kind)) as KnowledgeRelationsFilter['originKind'],
+    originId: readString(input.originId) ?? readString(input.origin_id),
+    type: readString(input.type)
+  };
+}
+
+function coerceReplaceRelationsInput(input: JsonObject): Parameters<KnowledgeBaseService['replaceRelations']>[0] {
+  const origin = input.origin;
+  if (!origin || typeof origin !== 'object' || Array.isArray(origin)) {
+    throw new Error('Missing required field: origin');
+  }
+  if (!Array.isArray(input.links)) {
+    throw new Error('Missing required field: links');
+  }
+  return {
+    origin: coerceOriginInput(origin as JsonObject),
+    links: input.links.map((entry, index) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        throw new Error(`Invalid relation link at index ${index}`);
+      }
+      const link = entry as JsonObject;
+      return {
+        type: requireString(link.type, `links[${index}].type`),
+        fromId: requireString(link.fromId ?? link.from_id, `links[${index}].fromId`),
+        toId: requireString(link.toId ?? link.to_id, `links[${index}].toId`),
+        sourceIds: readStringArray(link.sourceIds) ?? readStringArray(link.source_ids),
+        confidence: readNumber(link.confidence),
+        evidenceKind: (readString(link.evidenceKind) ?? readString(link.evidence_kind)) as Parameters<KnowledgeBaseService['replaceRelations']>[0]['links'][number]['evidenceKind'],
+        createdAt: readString(link.createdAt) ?? readString(link.created_at)
+      };
+    })
+  };
+}
+
+function coerceOriginInput(input: JsonObject): Parameters<KnowledgeBaseService['clearRelations']>[0] {
+  return {
+    kind: requireEnum(input.kind ?? input.originKind ?? input.origin_kind, 'origin.kind', ['entity', 'source', 'event', 'seed']),
+    id: requireString(input.id ?? input.originId ?? input.origin_id, 'origin.id')
+  };
+}
+
 function coerceRememberInput(input: JsonObject): Parameters<KnowledgeBaseService['remember']>[0] {
   const errors = validatePayload('remember', input);
   if (errors.length > 0) throw new Error(renderValidationErrors('remember', errors));
@@ -460,6 +600,22 @@ function buildTraversePayload(parsed: ParsedArgs): JsonObject {
     depth: typeof parsed.flags.depth === 'string' ? Number.parseInt(parsed.flags.depth, 10) : undefined,
     explicitOnly: readBoolean(parsed.flags['explicit-only']),
     originKind: readString(parsed.flags['origin-kind'])
+  };
+}
+
+function buildRelationsFilterPayload(parsed: ParsedArgs): JsonObject {
+  return {
+    entityId: readString(parsed.flags['entity-id']) ?? readString(parsed.flags.entityId),
+    originKind: readString(parsed.flags['origin-kind']) ?? readString(parsed.flags.originKind),
+    originId: readString(parsed.flags['origin-id']) ?? readString(parsed.flags.originId),
+    type: readString(parsed.flags.type)
+  };
+}
+
+function buildOriginPayload(parsed: ParsedArgs): JsonObject {
+  return {
+    originKind: readString(parsed.flags['origin-kind']) ?? readString(parsed.flags.originKind),
+    originId: readString(parsed.flags['origin-id']) ?? readString(parsed.flags.originId)
   };
 }
 
@@ -498,10 +654,31 @@ function renderHelp(topic?: string): string {
       ...Object.entries(schema.enums).map(([key, values]) => `${key}: ${values.join(', ')}`)
     ].join('\n');
   }
+  if (topic === 'operator') {
+    return [
+      'kb operator surface',
+      '',
+      'Repair and inspection commands:',
+      '  kb capture-source --json @payload.json',
+      '  kb events',
+      '  kb get-event --id EVENT_ID',
+      '  kb delete-event --id EVENT_ID',
+      '  kb drafts',
+      '  kb get-draft --id ENTITY_ID',
+      '  kb put-draft --json @payload.json',
+      '  kb delete-draft --id ENTITY_ID',
+      '  kb relations [--entity-id ENTITY_ID] [--origin-kind entity|source|event|seed] [--origin-id ORIGIN_ID] [--type RELATION]',
+      '  kb replace-relations --json @payload.json',
+      '  kb clear-relations --origin-kind entity|source|event|seed --origin-id ORIGIN_ID',
+      '',
+      'Use these only for direct KB repair, cleanup, or inspection.',
+      'Default agent work should stay on `search`, `query-relations`, `remember`, `record`, `relate`, and `annotate`.'
+    ].join('\n');
+  }
   return [
     'kb <command> [flags]',
     '',
-    'Commands:',
+    'Default agent surface:',
     '  kb inspect',
     '  kb list',
     '  kb get <id>',
@@ -525,6 +702,7 @@ function renderHelp(topic?: string): string {
     '  kb serve [--host 127.0.0.1] [--port 3001]',
     '  kb sync <pull|status|push>',
     '  kb daemon <start|stop|restart|status|logs|once>',
+    '  kb help operator',
     '',
     'Notes:',
     '  - Use `kb record` for structured entities.',
@@ -533,6 +711,8 @@ function renderHelp(topic?: string): string {
     '  - Do not use `kb annotate` for relation edges; it is only for timeline/provenance updates.',
     '  - Use `kb remember` for facts, sources, corrections, and narrative evidence capture.',
     '  - Use `kb query-relations` for relation-shaped questions; `kb search` is lexical/hybrid retrieval.',
+    '  - `kb inspect` must tell you tenant, backend, canonicality, and whether you are on a production or support surface before writes.',
+    '  - Operator-only repair surfaces are intentionally hidden from the default help. Run `kb help operator` only when you need direct state repair or inspection.',
     '  - Prefer `kb validate ... --json @file.json` before large write batches.',
     '  - `kb sync` and `kb daemon` are local-only mirror operations for `KB_BACKEND=r2-mirror`.',
     '',
@@ -576,6 +756,41 @@ export function buildSubcommandArgv(parsed: ParsedArgs, commandIndex: number): s
     if (value !== true) argv.push(String(value));
   }
   return argv;
+}
+
+function buildLocalCapabilities(
+  transport: Extract<KnowledgeBaseCliTransport, { mode: 'local' }>,
+  mode: KnowledgeBaseConfig['mode'],
+  rootDir: string
+): KnowledgeWorkspaceCapabilities {
+  const backend = transport.backend ?? 'file';
+  return {
+    tenantId: transport.tenantId,
+    backend,
+    transport: 'local',
+    mode,
+    canonical: false,
+    workspaceRole: backend === 'r2-mirror' ? 'mirror-support' : 'local-development',
+    rootDir
+  };
+}
+
+function buildRelationsPath(input: KnowledgeRelationsFilter): string {
+  const params = new URLSearchParams();
+  if (input.entityId) params.set('entityId', input.entityId);
+  if (input.originKind) params.set('originKind', input.originKind);
+  if (input.originId) params.set('originId', input.originId);
+  if (input.type) params.set('type', input.type);
+  const query = params.toString();
+  return query ? `/v1/relations?${query}` : '/v1/relations';
+}
+
+function buildClearRelationsPath(origin: Parameters<KnowledgeBaseService['clearRelations']>[0]): string {
+  const params = new URLSearchParams({
+    originKind: origin.kind,
+    originId: origin.id
+  });
+  return `/v1/relations?${params.toString()}`;
 }
 
 function requireString(value: unknown, field: string): string {
@@ -857,9 +1072,20 @@ function validateOptionalRecordArrayField(
   });
 }
 
-function readCliBackend(value: string | undefined): 'file' | 'r2-mirror' {
+function readCliBackend(value: string | undefined): 'file' | 'r2-mirror' | 'cloudflare' | 'r2' | 'http' {
   const normalized = value?.trim().toLowerCase();
-  return normalized === 'r2-mirror' ? 'r2-mirror' : 'file';
+  switch (normalized) {
+    case 'r2-mirror':
+      return 'r2-mirror';
+    case 'cloudflare':
+      return 'cloudflare';
+    case 'r2':
+      return 'r2';
+    case 'http':
+      return 'http';
+    default:
+      return 'file';
+  }
 }
 
 async function startServe(

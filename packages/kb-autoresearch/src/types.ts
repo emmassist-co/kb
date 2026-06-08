@@ -21,6 +21,14 @@ export interface KbAutoresearchRunConfig extends KbAutoresearchCliOptions {
   createdAt: string;
   baseBranch: string;
   allowlist: string[];
+  kbRuntime: {
+    tenantId: string;
+    backend: 'file' | 'r2-mirror' | 'cloudflare';
+    transport: 'local' | 'http';
+    canonical: boolean;
+    workspaceRole: 'canonical-production' | 'local-development' | 'mirror-support';
+    endpoint?: string;
+  };
   protectedMetrics: Array<'falseCertaintyRate' | 'overclaimRate' | 'falseMergeRate'>;
   benchmarkPolicy: {
     screening: string[];
@@ -188,6 +196,14 @@ export interface ExperimentLedgerEntry {
 export interface AgentPromptContext {
   iteration: number;
   allowlist: string[];
+  kbRuntime: {
+    tenantId: string;
+    backend: 'file' | 'r2-mirror' | 'cloudflare';
+    transport: 'local' | 'http';
+    canonical: boolean;
+    workspaceRole: 'canonical-production' | 'local-development' | 'mirror-support';
+    endpoint?: string;
+  };
   focus: {
     targetCategories: string[];
     targetCases: string[];

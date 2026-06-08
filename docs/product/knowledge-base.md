@@ -2,271 +2,118 @@
 
 ## Goal
 
-Add a compounding, company-scoped knowledge base to the Flue runtime so:
+Make KB the durable memory layer for company-scoped agent work:
 
-- one agent can keep getting smarter over time
-- multiple agents can contribute to the same tenant knowledge base
-- knowledge stays inside the company boundary
-- the harness can expose and verify knowledge write and read behavior end to end
+- one agent gets better over time
+- multiple agents contribute to the same tenant truth
+- corrections persist across sessions
+- deployed behavior is verifiable end to end
 
-This should not be treated as generic chat memory. It is part of the runtime contract.
+This is not generic chat memory. It is part of the runtime contract.
 
-## Patterns Worth Stealing
+## Core Product Claim
 
-### From `gbrain`
+The KB compounds when the runtime follows a disciplined loop:
 
-- Treat the knowledge base as an operational brain, not "chat with your notes".
-- Keep a read-write loop: agent reads before acting, then writes back durable learnings.
-- Separate current synthesis from evidence:
-  - compiled truth = current best understanding
-  - timeline = append-only evidence trail
-- Make enrichment automatic on every signal path. If ingestion depends on the model remembering to do it, it will drift.
-- Keep the repo or markdown layer human-readable, but back it with structured retrieval.
-- Make corrections first-class writes.
+1. read durable knowledge before acting on tenant-specific facts
+2. produce work
+3. write back new evidence, corrections, and links
+4. verify that later runs can reuse what changed
 
-### From `gstack`
+If any step depends on model goodwill instead of explicit surfaces, the system drifts.
 
-- Separate persistence layers by job:
-  - learnings = durable institutional knowledge
-  - timeline = what happened
-  - checkpoints = in-progress work state
-  - health = quality trend
-- Prefer append-only writes where possible.
-- Resolve duplicates and freshness at read time instead of making writes fragile.
+## Architectural Split
 
-## What Fits This Repo
+Keep the split sharp:
 
-The repo philosophy already points in the right direction:
+- Flue session state:
+  - current conversation
+  - active task state
+  - pending confirmations
+  - temporary working notes
+- KB state:
+  - durable company facts
+  - durable process knowledge
+  - people, vendors, projects, policies, and decisions
+  - evidence and corrections that must survive sessions
 
-- runtime over prompt theater
-- tenant isolation by design
-- Flue session primitives for short-horizon state
-- harness as the structured execution layer and eval surface
+Do not let session persistence become the knowledge base.
 
-That implies a clean split:
+## Knowledge Model
 
-- Flue session store:
-  - short-horizon conversational state
-  - task state
-  - turn continuity
-- company knowledge base:
-  - durable cross-session knowledge
-  - company facts, people, vendors, processes, decisions
-  - operational learnings and corrections
+### 1. Canonical entities
 
-Do not overload session persistence to become the knowledge base.
-
-## Recommended Knowledge Model
-
-Use three layers.
-
-### 1. Raw facts/events
-
-Append-only records from real activity:
-
-- emails processed
-- meetings summarized
-- chat requests
-- documents reviewed
-- user corrections
-- external research notes
-
-Each record should include:
-
-- `tenantId`
-- `source`
-- `ts`
-- `entityRefs`
-- `summary`
-- `evidence`
-- `provenance`
-
-### 2. Durable entity pages
-
-Company-scoped canonical records for:
+Durable markdown or document-backed records for:
 
 - people
-- companies/vendors/customers
+- companies and vendors
 - projects
-- processes
 - systems
-- recurring concepts/policies
+- processes
+- policies and recurring concepts
 
-Each page should have:
+Each entity should expose:
 
-- frontmatter with stable ID, type, tenant, tags, aliases
-- compiled truth at the top
-- append-only timeline below
+- stable ID
+- tenant scope
+- aliases and tags
+- current compiled truth
+- explicit source or evidence trail
 
-This is the `gbrain` pattern that matters most here.
+### 2. Events and sources
 
-### 3. Retrieval index
+Append-friendly records of what happened and where it came from:
 
-Search over the durable layer using hybrid retrieval:
+- incoming requests
+- operator notes
+- user corrections
+- extracted document facts
+- external research notes
 
-- keyword search for exact names and policy phrases
-- semantic search for fuzzy recall
-- explicit links between entities when possible
+These should carry provenance, timestamps, and entity references.
 
-The retrieval layer is not the source of truth. It is the acceleration layer.
+### 3. Links and traversable structure
 
-## Recommended Storage Shape
+Knowledge should not stay flat. Links between entities, sources, and events should be queryable so the system can traverse relationships rather than only keyword-match isolated documents.
 
-For this product stage, keep it simple and single-tenant per deployment.
+## Cloudflare-First Runtime Shape
 
-### Source of truth
+Production should default to Cloudflare:
 
-Start with tenant-scoped markdown plus a small structured sidecar:
+- `kb-http` as the Worker-hosted JSON contract
+- `kb-storage-cloudflare` as the deployment-specific persistence adapter
+- canonical tenant state stored in Cloudflare-managed durable storage
+- deployed smoke checks against the same `kb-http` contract used locally
 
-- `/workspace/.kb/entities/*.md`
-- `/workspace/.kb/events/*.json`
-- `/workspace/.kb/index/*.json`
+Local file-backed flows still matter, but they are portability and development tools. They are not the product center of gravity.
 
-In local dev and harness runs, this can live in the Flue workspace FS.
-In deployed environments, the same logical shape should persist in a durable tenant store, not only process memory.
+## Why Cloudflare First
 
-### Why this shape
+- single-tenant deployments stay simple
+- the Worker adapter keeps the HTTP contract narrow and reproducible
+- Cloudflare storage gives a clear production home for durable tenant state
+- deployment shape matches the existing repo direction instead of requiring a second backend story
 
-- easy for agents to read and write
-- easy for humans to inspect
-- consistent with the repo's skill-first runtime philosophy
-- good enough before adding pgvector or a larger external brain system
+## Runtime Integration Rules
 
-## How To Wire It Into Flue
+When KB is wired into Flue or another runtime, the operating rules should be explicit:
 
-The key is to make KB access a first-class runtime surface, like `gws`.
+- read KB before answering tenant-specific factual questions
+- write KB after meaningful new information or user correction
+- separate evidence from synthesized truth
+- preserve tenant isolation at every layer
 
-### Add a `kb` command surface
+These rules belong in runtime surfaces and verification, not only in prose.
 
-Expose a runtime command with operations like:
+## Verification Expectations
 
-- `kb search --json '{...}'`
-- `kb get --id ...`
-- `kb remember --json '{...}'`
-- `kb record --json '{...}'`
-- `kb annotate --json '{...}'`
-- `kb related --id ...`
+The harness and eval layer should keep checking:
 
-This matches the existing philosophy:
+- read-before-answer behavior
+- correction persistence and reuse
+- cross-session recall
+- multi-agent contribution
+- tenant isolation
+- deployed `kb-http` health and contract truth
 
-- commands over descriptions
-- inspectable
-- reproducible
-- auditable
-
-### Add KB instructions to runtime context
-
-The generated workspace instructions should hard-code rules like:
-
-- before answering company-specific factual questions, search the KB first
-- after meaningful new information or user corrections, write to the KB
-- when evidence is weak or conflicting, separate fact from assumption
-
-This rule belongs in runtime-generated context, not only docs.
-
-### Keep Flue sessions for short-term state
-
-Session state should track:
-
-- current conversation
-- active task
-- pending confirmations
-- temporary working notes
-
-The KB should track:
-
-- durable company knowledge
-- durable process knowledge
-- multi-agent shared understanding
-
-## Harness Changes Needed
-
-The harness should verify KB behavior explicitly, not indirectly.
-
-Add tests/prompts for:
-
-- read before answer:
-  - seed a company fact into the KB
-  - ask the agent about it
-  - verify it used KB retrieval
-- write after correction:
-  - give a wrong fact, correct it, then ask again
-  - verify the correction persisted
-- cross-session reuse:
-  - write in one session
-  - ask in a new session
-  - verify recall
-- multi-agent contribution:
-  - one skill or role writes a note
-  - another role retrieves and uses it
-- tenant isolation:
-  - verify no cross-tenant reads are possible
-
-This is fully aligned with `docs/operations/harness.md`: the harness is the runtime layer that exposes the KB surface and the eval surface that checks routing, policy, and state.
-
-## Minimal Implementation Path
-
-### Phase 1
-
-- add a tenant-scoped `kb` runtime command
-- store markdown entity pages plus append-only event JSON
-- inject KB operating rules into generated runtime instructions
-- add harness checks for KB read/write/correction behavior
-
-### Phase 2
-
-- add hybrid search indexing
-- add link extraction between entities
-- add automatic enrichment on selected skill paths
-  - email triage
-  - meeting prep
-  - docs ingestion
-  - support or ops workflows
-
-### Phase 3
-
-- move backing storage from workspace-only files to durable tenant storage
-- add background consolidation jobs
-- rewrite compiled truth from accumulated evidence
-
-## Recommended First-Class Page Types
-
-Keep the initial schema narrow:
-
-- `company`
-- `person`
-- `process`
-- `project`
-- `policy`
-- `vendor`
-- `decision`
-
-Do not start with a generic "note" bucket as the primary abstraction. It will rot quickly.
-
-## Design Rule
-
-The knowledge base should be company memory, not agent autobiography.
-
-Good KB entries:
-
-- "Vendor X requires invoices to be emailed to finance@..."
-- "Hiring approvals require Alexandre plus department lead approval."
-- "Customer Y prefers WhatsApp and invoices on the first business day."
-
-Bad KB entries:
-
-- "The agent tried three commands and one failed."
-- "This conversation felt ambiguous."
-
-Those belong in operational traces, not the company brain.
-
-## Bottom Line
-
-Flue is a good place to do this if the knowledge base becomes part of the runtime harness surface:
-
-- `gws` handles actions on external systems
-- Flue sessions handle short-term continuity
-- a new `kb` surface handles durable shared company knowledge
-- the harness verifies the full read/write loop
-
-That keeps the system aligned with the repo philosophy and avoids turning "memory" into a vague prompt-level feature.
+Compounding is only real if it is measurable.

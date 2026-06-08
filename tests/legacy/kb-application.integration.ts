@@ -297,7 +297,10 @@ test('kb help shows only the new public write surface', async () => {
   assert.equal(help.exitCode, 0);
   assert.match(help.stdout, /kb remember --json/);
   assert.match(help.stdout, /kb record --json/);
+  assert.match(help.stdout, /kb relate --json/);
   assert.match(help.stdout, /kb annotate --json/);
+  assert.match(help.stdout, /kb help runtime/);
+  assert.match(help.stdout, /kb help operator/);
   assert.doesNotMatch(help.stdout, /kb capture-source --json/);
   assert.doesNotMatch(help.stdout, /kb create-entity --json/);
   assert.doesNotMatch(help.stdout, /kb update-entity-draft --json/);
@@ -374,10 +377,13 @@ test('kb flue command exposes relate for explicit edge writes', async () => {
 
 test('kb runtime and package skill text reflect the new write workflow', () => {
   const runtimeSkill = readFileSync(path.resolve(process.cwd(), '.flue/runtime-skills/kb-write/SKILL.md'), 'utf8');
+  assert.match(runtimeSkill, /kb help runtime/);
+  assert.match(runtimeSkill, /kb help operator/);
   assert.match(runtimeSkill, /kb schema remember/);
   assert.match(runtimeSkill, /kb schema relate/);
   assert.match(runtimeSkill, /kb delete --id/);
   assert.match(runtimeSkill, /Default to `kb relate` for explicit edges/);
+  assert.match(runtimeSkill, /Use `kb help runtime` as the compact contract/);
   assert.doesNotMatch(runtimeSkill, /Use `kb record` for canonical structured entities and explicit relation edges/);
   assert.doesNotMatch(runtimeSkill, /kb capture-source/);
   assert.doesNotMatch(runtimeSkill, /kb create-entity/);
@@ -386,6 +392,7 @@ test('kb runtime and package skill text reflect the new write workflow', () => {
   assert.match(packageSkill, /kb-local validate record/);
   assert.match(packageSkill, /kb-local validate relate/);
   assert.match(packageSkill, /Default to `relate` for explicit edges/);
+  assert.match(packageSkill, /kb help runtime/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-write/agents/openai.yaml')));
 });
 

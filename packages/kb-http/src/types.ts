@@ -1,12 +1,13 @@
 import type {
   KnowledgeBaseService,
+  KnowledgeWorkspaceCapabilities,
   KnowledgeLexicalBackend,
   KnowledgeSearchMode
 } from '@emmassist-co/kb-core';
 
 export interface KnowledgeBaseHttpContext {
   service: KnowledgeBaseService;
-  capabilities?: Record<string, unknown>;
+  capabilities?: KnowledgeWorkspaceCapabilities;
   rebuild?: () => Promise<unknown>;
 }
 

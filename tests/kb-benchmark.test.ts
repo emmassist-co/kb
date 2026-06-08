@@ -58,7 +58,7 @@ test('repo docs loader builds retrieval corpus from real local docs', () => {
   assert.equal(loaded.provenance, 'first-party-repo-docs');
   assert.equal(loaded.queries.length, 6);
   assert.ok(loaded.pages.some((page) => page.id === 'product-knowledge-base'));
-  assert.ok(loaded.pages.some((page) => page.compiledTruth.includes('Add a compounding, company-scoped knowledge base to the Flue runtime')));
+  assert.ok(loaded.pages.some((page) => page.compiledTruth.includes('Make KB the durable memory layer for company-scoped agent work')));
 });
 
 test('admin world loader exposes relation-rich corpus and derived queries', () => {

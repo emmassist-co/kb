@@ -744,6 +744,7 @@ function buildBootstrapPromptContext(config: KbAutoresearchRunConfig, repoRoot: 
   return {
     iteration: 0,
     allowlist: config.allowlist,
+    kbRuntime: config.kbRuntime,
     focus: {
       targetCategories: ['typecheck-repair'],
       targetCases: ['baseline-typecheck'],
@@ -836,6 +837,7 @@ function buildPromptContext(
   return {
     iteration,
     allowlist: config.allowlist,
+    kbRuntime: config.kbRuntime,
     focus: {
       targetCategories,
       targetCases,

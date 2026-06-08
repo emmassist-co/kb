@@ -29,10 +29,12 @@ npx kb-local inspect
 
 ## Modes
 
-- local in-process file-backed mode
-- local R2 mirror mode
+- local in-process file-backed mode for development
+- local R2 mirror mode for sync, debugging, and migration support
 - local daemon mode
 - remote HTTP mode
+
+`kb inspect` should always tell the caller which tenant they are targeting, which backend is active, whether the surface is canonical, and whether the current workspace is production or support-only.
 
 ## Binary
 
@@ -88,6 +90,16 @@ HTTP mode:
 
 ```bash
 KB_BASE_URL=http://127.0.0.1:3001 npx kb-local search --json '{"query":"billing"}'
+```
+
+Operator-only repair surfaces:
+
+```bash
+npx kb-local help operator
+npx kb-local capture-source --json @source.json
+npx kb-local events
+npx kb-local drafts
+npx kb-local relations --entity-id vendor-stripe
 ```
 
 ## Verification

@@ -1,7 +1,8 @@
 {
   "name": "@emmassist-co/kb-flue-adapter",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
+  "license": "Apache-2.0",
   "type": "module",
   "files": [
     "src"
@@ -10,8 +11,8 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@emmassist-co/kb-cli": "^1.0.1",
-    "@emmassist-co/kb-core": "^0.2.0"
+    "@emmassist-co/kb-cli": "^1.1.0",
+    "@emmassist-co/kb-core": "^0.3.0"
   },
   "peerDependencies": {
     "@flue/sdk": "^0.3.10"

@@ -16,6 +16,8 @@ Use this when the task is to store, correct, structure, or clean up durable comp
 
 ```bash
 kb help
+kb help runtime
+kb help operator
 kb schema remember
 kb schema record
 kb schema relate
@@ -52,6 +54,10 @@ Avoid large fragile inline JSON blobs when a file is practical.
 - Use `kb annotate` for timeline or provenance updates on existing entities.
 - Use `kb query-relations` for relation-shaped questions.
 - Use `kb delete --id ...` to clean up bad test entities or accidental writes.
+
+Treat these as the default agent verbs. Do not use low-level event, draft, source-capture, or relation-repair commands unless you are explicitly doing KB repair or operator cleanup.
+
+Use `kb help runtime` as the compact contract for the current tenant, backend, canonicality, and write discipline.
 
 ## Minimal Patterns
 

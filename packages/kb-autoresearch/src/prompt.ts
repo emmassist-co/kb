@@ -18,6 +18,10 @@ export function buildAutoresearchPrompt(
     `Iteration: ${context.iteration}`,
     `Writable paths: ${context.allowlist.join(', ')}`,
     '',
+    '### KB runtime',
+    `tenant=${context.kbRuntime.tenantId}, backend=${context.kbRuntime.backend}, transport=${context.kbRuntime.transport}, canonical=${context.kbRuntime.canonical ? 'yes' : 'no'}, role=${context.kbRuntime.workspaceRole}`,
+    ...(context.kbRuntime.endpoint ? [`endpoint: ${context.kbRuntime.endpoint}`] : []),
+    '',
     '### Current target',
     `Failed categories to focus on: ${context.focus.targetCategories.join(', ') || 'unknown'}`,
     `Representative failing cases: ${context.focus.targetCases.join(', ') || 'unknown'}`,
@@ -43,6 +47,9 @@ export function buildAutoresearchPrompt(
     `If you need benchmark state, use \`${context.focus.benchmarkFiles.inspectCommand}\` first instead of opening raw JSON artifacts.`,
     'Fetch additional context yourself instead of assuming hidden context is preloaded.',
     'Do not inspect unrelated repo areas.',
+    context.kbRuntime.canonical
+      ? 'Treat this KB runtime as the canonical production surface when reasoning about deployed behavior.'
+      : 'Treat this KB runtime as a support-only workspace. Do not describe local or mirror writes as canonical production truth.',
     compact
       ? 'Do not read eval loaders, full reports, full ledgers, or broad repo files unless a KB file directly points you there.'
       : 'Do not read the full experiment ledger, full reports, or other historical benchmark artifacts unless the compact briefing is insufficient.',
@@ -87,6 +94,15 @@ export function buildAutoresearchBriefing(context: AgentRunOptions['structuredCo
     '',
     `Iteration: ${context.iteration}`,
     `Writable paths: ${context.allowlist.join(', ')}`,
+    '',
+    '## KB Runtime',
+    '',
+    `- tenant: ${context.kbRuntime.tenantId}`,
+    `- backend: ${context.kbRuntime.backend}`,
+    `- transport: ${context.kbRuntime.transport}`,
+    `- canonical: ${context.kbRuntime.canonical ? 'yes' : 'no'}`,
+    `- workspace role: ${context.kbRuntime.workspaceRole}`,
+    ...(context.kbRuntime.endpoint ? [`- endpoint: ${context.kbRuntime.endpoint}`] : []),
     '',
     '## Focus',
     '',

@@ -44,8 +44,11 @@ export async function startKnowledgeBaseCliDaemon(
       service,
       capabilities: {
         backend: 'file',
+        canonical: false,
         mode: 'local',
+        workspaceRole: 'local-development',
         tenantId: options.tenantId,
+        transport: 'http',
         rootDir
       },
       rebuild: async () => {

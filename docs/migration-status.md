@@ -31,18 +31,20 @@ This package needs a host adapter boundary so the KB repo owns the Flue-facing A
 
 ### `kb-storage-cloudflare`
 
-Still contains host-coupled state wiring via `state-cloudflare-do.ts`.
+Now owns a KB-native Durable Object snapshot core in `packages/kb-storage-cloudflare/src/state-cloudflare-do.ts`.
 
-The Durable Object state implementation still depends on admin-agent-specific:
+What this package now owns:
 
-- direct admin-agent invocation
-- env/model helpers
-- ingest/runtime orchestration assumptions
+- DO snapshot state as the write authority for deployed runtime calls
+- async canonical export to tenant-scoped R2
+- standalone rebuild / restore / reset behavior for canonical KB state
+- persistence health reporting for the KB-owned Cloudflare contract
 
-This needs to be split into:
+What remains intentionally outside this package:
 
-- KB-owned Durable Object state core
-- host-provided agent/research/gate hooks
+- admin-agent-specific ingest, research, and gate orchestration
+- host-specific env/model helpers
+- consumer-specific runtime wiring on top of the KB state core
 
 ### KB Sync Tooling
 

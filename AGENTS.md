@@ -12,7 +12,7 @@ This repository is the source of truth for shared KB packages published under `@
 
 ## Changelog Discipline
 
-Keep [CHANGELOG.md](/Users/alexandre/dev/personal/agents/administrative-ai/kb/CHANGELOG.md) current.
+Keep [CHANGELOG.md](./CHANGELOG.md) current.
 
 When work is merged to `main`, the responsible agent must append or update an entry immediately. Do not treat release follow-through as complete until the entry exists.
 

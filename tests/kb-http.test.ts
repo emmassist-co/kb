@@ -8,7 +8,14 @@ test('kb http exposes capabilities envelope', async () => {
   const response = await handleKnowledgeBaseHttpRequest(
     {
       service: {} as never,
-      capabilities: { backend: 'file', mode: 'local' }
+      capabilities: {
+        backend: 'file',
+        canonical: false,
+        mode: 'local',
+        tenantId: 'acme',
+        transport: 'http',
+        workspaceRole: 'local-development'
+      }
     },
     {
       method: 'GET',
@@ -20,8 +27,132 @@ test('kb http exposes capabilities envelope', async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(response.body, {
     ok: true,
-    capabilities: { backend: 'file', mode: 'local' }
+    capabilities: {
+      backend: 'file',
+      canonical: false,
+      mode: 'local',
+      tenantId: 'acme',
+      transport: 'http',
+      workspaceRole: 'local-development'
+    }
   });
+});
+
+test('kb http inspect exposes capabilities plus compact workspace summary', async () => {
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async list() {
+          return {
+            mode: 'basic',
+            entities: [{ id: 'company-acme', title: 'Acme', kind: 'company' }],
+            sources: [{ id: 'src_1', title: 'Handbook', kind: 'research' }],
+            links: [{ type: 'founder_of', count: 1 }]
+          };
+        }
+      } as never,
+      capabilities: {
+        backend: 'cloudflare',
+        canonical: true,
+        mode: 'local',
+        tenantId: 'acme',
+        transport: 'http',
+        workspaceRole: 'canonical-production'
+      }
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/inspect',
+      searchParams: new URLSearchParams()
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, {
+    ok: true,
+    data: {
+      backend: 'cloudflare',
+      canonical: true,
+      mode: 'local',
+      tenantId: 'acme',
+      transport: 'http',
+      workspaceRole: 'canonical-production',
+      summary: {
+        mode: 'basic',
+        entities: [{ id: 'company-acme', title: 'Acme', kind: 'company' }],
+        sources: [{ id: 'src_1', title: 'Handbook', kind: 'research' }],
+        links: [{ type: 'founder_of', count: 1 }]
+      }
+    }
+  });
+});
+
+test('kb http exposes event, draft, and relation routes', async () => {
+  const calls: string[] = [];
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async listEvents() {
+          calls.push('listEvents');
+          return [{ id: 'evt_1' }];
+        },
+        async getDraft(entityId: string) {
+          calls.push(`getDraft:${entityId}`);
+          return { entityId };
+        },
+        async listRelations(input: Record<string, unknown>) {
+          calls.push(`listRelations:${JSON.stringify(input)}`);
+          return [{ id: 'rel_1' }];
+        }
+      } as never
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/events',
+      searchParams: new URLSearchParams()
+    }
+  );
+
+  const draftResponse = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async getDraft(entityId: string) {
+          calls.push(`getDraft:${entityId}`);
+          return { entityId };
+        }
+      } as never
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/drafts/vendor-stripe',
+      searchParams: new URLSearchParams()
+    }
+  );
+
+  const relationResponse = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async listRelations(input: Record<string, unknown>) {
+          calls.push(`listRelations:${JSON.stringify(input)}`);
+          return [{ id: 'rel_1' }];
+        }
+      } as never
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/relations',
+      searchParams: new URLSearchParams('entityId=vendor-stripe&type=vendor_for')
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(draftResponse.status, 200);
+  assert.equal(relationResponse.status, 200);
+  assert.deepEqual(calls, [
+    'listEvents',
+    'getDraft:vendor-stripe',
+    'listRelations:{"entityId":"vendor-stripe","type":"vendor_for"}'
+  ]);
 });
 
 test('kb http delegates search requests to the service', async () => {
@@ -55,6 +186,63 @@ test('kb http delegates search requests to the service', async () => {
       query: 'who owns billing',
       mode: 'search-only',
       results: []
+    }
+  });
+});
+
+test('kb http write routes return enriched mutation envelopes', async () => {
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async annotate(input: Record<string, unknown>) {
+          assert.deepEqual(input, {
+            entityIds: ['company-acme'],
+            summary: 'Confirmed founder edge.',
+            effectiveAt: '2026-06-08T00:00:00.000Z'
+          });
+          return {
+            mutated: true,
+            entityIds: ['company-acme'],
+            sourceIds: [],
+            eventIds: ['evt_1'],
+            warnings: [],
+            hydrated: {
+              entities: [{ meta: { id: 'company-acme', title: 'Acme' }, timeline: ['2026-06-08: Confirmed founder edge.'] }],
+              sources: [],
+              events: [{ id: 'evt_1', summary: '2026-06-08: Confirmed founder edge.' }],
+              links: []
+            }
+          };
+        }
+      } as never
+    },
+    {
+      method: 'POST',
+      pathname: '/v1/annotate',
+      searchParams: new URLSearchParams(),
+      body: {
+        entityIds: ['company-acme'],
+        summary: 'Confirmed founder edge.',
+        effectiveAt: '2026-06-08T00:00:00.000Z'
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, {
+    ok: true,
+    data: {
+      mutated: true,
+      entityIds: ['company-acme'],
+      sourceIds: [],
+      eventIds: ['evt_1'],
+      warnings: [],
+      hydrated: {
+        entities: [{ meta: { id: 'company-acme', title: 'Acme' }, timeline: ['2026-06-08: Confirmed founder edge.'] }],
+        sources: [],
+        events: [{ id: 'evt_1', summary: '2026-06-08: Confirmed founder edge.' }],
+        links: []
+      }
     }
   });
 });

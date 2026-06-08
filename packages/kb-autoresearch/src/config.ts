@@ -21,6 +21,7 @@ export function buildRunConfig(repoRoot: string, options: KbAutoresearchCliOptio
     createdAt: new Date().toISOString(),
     baseBranch: branchName,
     allowlist: ['src/lib/kb/service.ts', 'src/lib/kb/relations.ts', 'src/lib/kb/relation-rules.json'],
+    kbRuntime: resolveKbRuntimeFromEnv(process.env),
     protectedMetrics: ['falseCertaintyRate', 'overclaimRate', 'falseMergeRate'],
     benchmarkPolicy: {
       screening: ['admin-world-v3 dev'],
@@ -48,6 +49,38 @@ export function buildRunConfig(repoRoot: string, options: KbAutoresearchCliOptio
       currentBriefingPath: path.join(currentRoot, 'briefing.md'),
       currentLogPath: path.join(currentRoot, 'log.txt')
     }
+  };
+}
+
+function resolveKbRuntimeFromEnv(env: NodeJS.ProcessEnv): KbAutoresearchRunConfig['kbRuntime'] {
+  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  const baseUrl = env.KB_BASE_URL?.trim();
+  const backend = env.KB_BACKEND?.trim().toLowerCase();
+  if (baseUrl) {
+    return {
+      tenantId,
+      backend: backend === 'r2-mirror' ? 'r2-mirror' : 'cloudflare',
+      transport: 'http',
+      canonical: true,
+      workspaceRole: 'canonical-production',
+      endpoint: baseUrl
+    };
+  }
+  if (backend === 'r2-mirror') {
+    return {
+      tenantId,
+      backend: 'r2-mirror',
+      transport: 'local',
+      canonical: false,
+      workspaceRole: 'mirror-support'
+    };
+  }
+  return {
+    tenantId,
+    backend: 'file',
+    transport: 'local',
+    canonical: false,
+    workspaceRole: 'local-development'
   };
 }
 

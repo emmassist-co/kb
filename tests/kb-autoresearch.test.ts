@@ -137,6 +137,14 @@ test('buildAutoresearchPrompt points the agent at a bounded briefing instead of 
   const prompt = buildAutoresearchPrompt('base prompt', {
     iteration: 12,
     allowlist: ['src/lib/kb/service.ts'],
+    kbRuntime: {
+      tenantId: 'acme',
+      backend: 'cloudflare',
+      transport: 'http',
+      canonical: true,
+      workspaceRole: 'canonical-production',
+      endpoint: 'https://kb.example.com'
+    },
     focus: {
       targetCategories: ['fuzzy', 'contradictions'],
       targetCases: ['fuzzy-dispute-doc', 'contradiction-refund-unresolved'],
@@ -161,6 +169,9 @@ test('buildAutoresearchPrompt points the agent at a bounded briefing instead of 
   assert.match(prompt, /briefing\.md/);
   assert.match(prompt, /best-score-summary\.json/);
   assert.match(prompt, /kb-autoresearch-inspect\.ts/);
+  assert.match(prompt, /tenant=acme, backend=cloudflare, transport=http, canonical=yes, role=canonical-production/);
+  assert.match(prompt, /endpoint: https:\/\/kb\.example\.com/);
+  assert.match(prompt, /canonical production surface/);
   assert.match(prompt, /Recent outcomes/);
   assert.doesNotMatch(prompt, /ledger\.jsonl/);
   assert.doesNotMatch(prompt, /current report/i);
@@ -171,6 +182,13 @@ test('buildAutoresearchPrompt diagnosis mode forbids edits and edit mode applies
   const context = {
     iteration: 12,
     allowlist: ['src/lib/kb/service.ts'],
+    kbRuntime: {
+      tenantId: 'acme',
+      backend: 'file',
+      transport: 'local',
+      canonical: false,
+      workspaceRole: 'local-development'
+    },
     focus: {
       targetCategories: ['fuzzy'],
       targetCases: ['fuzzy-dispute-doc'],
@@ -195,6 +213,7 @@ test('buildAutoresearchPrompt diagnosis mode forbids edits and edit mode applies
   });
 
   assert.match(diagnosisPrompt, /Do not edit any files in this pass/);
+  assert.match(diagnosisPrompt, /support-only workspace/);
   assert.match(editPrompt, /Apply this diagnosis unless the code clearly disproves it/);
   assert.match(editPrompt, /Prefer current owner evidence over older role mentions/);
 });
@@ -203,6 +222,13 @@ test('buildAutoresearchBriefing includes stall diagnosis when the loop is stuck'
   const briefing = buildAutoresearchBriefing({
     iteration: 5,
     allowlist: ['src/lib/kb/service.ts'],
+    kbRuntime: {
+      tenantId: 'acme',
+      backend: 'r2-mirror',
+      transport: 'local',
+      canonical: false,
+      workspaceRole: 'mirror-support'
+    },
     focus: {
       targetCategories: ['fuzzy'],
       targetCases: ['fuzzy-dispute-doc'],
@@ -228,6 +254,8 @@ test('buildAutoresearchBriefing includes stall diagnosis when the loop is stuck'
     }
   });
 
+  assert.match(briefing, /## KB Runtime/);
+  assert.match(briefing, /workspace role: mirror-support/);
   assert.match(briefing, /Stall Diagnosis/);
   assert.match(briefing, /Three consecutive attempts failed/);
 });
@@ -757,6 +785,14 @@ test('pi adapter splits diagnosis and edit, then retries the edit with a compact
       structuredContext: {
         iteration: 1,
         allowlist: ['src/lib/kb/service.ts'],
+        kbRuntime: {
+          tenantId: 'acme',
+          backend: 'cloudflare',
+          transport: 'http',
+          canonical: true,
+          workspaceRole: 'canonical-production',
+          endpoint: 'https://kb.example.com'
+        },
         focus: {
           targetCategories: ['retrieval'],
           targetCases: ['case-1'],
@@ -857,6 +893,13 @@ test('pi adapter falls back to autoresearch preflight auth when home auth is emp
       structuredContext: {
         iteration: 1,
         allowlist: ['src/lib/kb/service.ts'],
+        kbRuntime: {
+          tenantId: 'acme',
+          backend: 'file',
+          transport: 'local',
+          canonical: false,
+          workspaceRole: 'local-development'
+        },
         focus: {
           targetCategories: ['retrieval'],
           targetCases: ['case-1'],

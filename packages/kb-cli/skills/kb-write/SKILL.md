@@ -12,6 +12,7 @@ Use this when the task is to store, correct, structure, or clean up durable know
 
 ```bash
 kb-local help
+kb-local help operator
 kb-local schema remember
 kb-local schema record
 kb-local schema relate
@@ -46,6 +47,10 @@ kb-local validate annotate --json @payload.json
 - Use `annotate` for timeline or provenance updates on existing entities.
 - Use `query-relations` for relation-shaped questions.
 - Use `delete --id ...` to clean up bad test entities or accidental writes.
+
+Treat these as the default agent verbs. Do not use low-level event, draft, source-capture, or relation-repair commands unless you are explicitly doing KB repair or operator cleanup.
+
+In a deployed runtime, `kb help runtime` should be the compact contract for current tenant, backend, canonicality, and write discipline.
 
 ## Minimal Patterns
 
@@ -91,6 +96,7 @@ With a payload like:
 - Default to `relate` for explicit edges. Only use `record.relations[]` when you are already creating or rewriting the entity in the same payload.
 - Do not use `annotate` to create relation edges.
 - Use `record-batch` and `annotate-batch` for larger cleanups.
+- If you truly need direct repair surfaces, discover them through `kb-local help operator` instead of treating them as part of the normal agent loop.
 
 ## Install
 

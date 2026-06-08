@@ -1,7 +1,8 @@
 {
   "name": "@emmassist-co/kb-storage-cloudflare",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": false,
+  "license": "Apache-2.0",
   "type": "module",
   "files": [
     "src"
@@ -10,7 +11,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@emmassist-co/kb-core": "^0.2.0"
+    "@emmassist-co/kb-core": "^0.3.0"
   },
   "peerDependencies": {
     "@flue/sdk": "^0.3.10"
@@ -18,6 +19,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./r2-store": "./src/r2-store.ts",
-    "./cloudflare-store": "./src/cloudflare-store.ts"
+    "./cloudflare-store": "./src/cloudflare-store.ts",
+    "./state-cloudflare-do": "./src/state-cloudflare-do.ts"
   }
 }

@@ -26,6 +26,23 @@ test('kb cli local mode can record and search in-process', async () => {
       }
     );
     assert.equal(record.exitCode, 0);
+    const recordPayload = JSON.parse(record.stdout) as {
+      entityIds: string[];
+      eventIds: string[];
+      hydrated: {
+        entities: Array<{ meta: { id: string; title: string } }>;
+        sources: unknown[];
+        events: unknown[];
+        links: unknown[];
+      };
+    };
+    assert.deepEqual(recordPayload.entityIds, ['vendor-stripe']);
+    assert.deepEqual(recordPayload.eventIds, []);
+    assert.equal(recordPayload.hydrated.entities[0]?.meta.id, 'vendor-stripe');
+    assert.equal(recordPayload.hydrated.entities[0]?.meta.title, 'Stripe');
+    assert.deepEqual(recordPayload.hydrated.sources, []);
+    assert.deepEqual(recordPayload.hydrated.events, []);
+    assert.deepEqual(recordPayload.hydrated.links, []);
 
     const search = await runKnowledgeBaseCli(
       ['search', '--json', '{"query":"billing stripe"}'],
@@ -45,6 +62,89 @@ test('kb cli local mode can record and search in-process', async () => {
   }
 });
 
+test('kb cli write responses expose hydrated links and event writeback', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-writeback-'));
+
+  try {
+    const setup = await runKnowledgeBaseCli(
+      [
+        'record-batch',
+        '--json',
+        '[{"entity":{"id":"person-alex","kind":"person","title":"Alex"}},{"entity":{"id":"company-acme","kind":"company","title":"Acme","currentTruth":"Acme runs billing."}}]'
+      ],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(setup.exitCode, 0);
+
+    const relate = await runKnowledgeBaseCli(
+      ['relate', '--json', '{"type":"founder_of","fromId":"person-alex","toId":"company-acme"}'],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(relate.exitCode, 0);
+    const relatePayload = JSON.parse(relate.stdout) as {
+      hydrated: {
+        entities: Array<{ meta: { id: string } }>;
+        links: Array<{ type: string; fromId: string; toId: string }>;
+      };
+    };
+    assert.deepEqual(
+      relatePayload.hydrated.entities.map((entity) => entity.meta.id),
+      ['company-acme', 'person-alex']
+    );
+    assert.deepEqual(relatePayload.hydrated.links.map((link) => ({
+      type: link.type,
+      fromId: link.fromId,
+      toId: link.toId
+    })), [
+      {
+        type: 'founder_of',
+        fromId: 'person-alex',
+        toId: 'company-acme'
+      }
+    ]);
+
+    const annotate = await runKnowledgeBaseCli(
+      [
+        'annotate',
+        '--json',
+        '{"entity_ids":["company-acme"],"summary":"2026-06-08: Confirmed founder edge.","effective_at":"2026-06-08T00:00:00.000Z"}'
+      ],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(annotate.exitCode, 0);
+    const annotatePayload = JSON.parse(annotate.stdout) as {
+      eventIds: string[];
+      hydrated: {
+        entities: Array<{ timeline: string[] }>;
+        events: Array<{ summary: string }>;
+      };
+    };
+    assert.equal(annotatePayload.eventIds.length, 1);
+    assert.match(annotatePayload.hydrated.entities[0]?.timeline[0] ?? '', /2026-06-08: Confirmed founder edge\./);
+    assert.match(annotatePayload.hydrated.events[0]?.summary ?? '', /2026-06-08: Confirmed founder edge\./);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('kb cli daemon helper serves canonical endpoints over localhost', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-daemon-'));
   const daemon = await startKnowledgeBaseCliDaemon({
@@ -55,8 +155,10 @@ test('kb cli daemon helper serves canonical endpoints over localhost', async () 
   try {
     const response = await fetch(`${daemon.url}/v1/capabilities`);
     assert.equal(response.status, 200);
-    const payload = await response.json() as { capabilities: { backend: string } };
+    const payload = await response.json() as { capabilities: { backend: string; canonical: boolean; workspaceRole: string } };
     assert.equal(payload.capabilities.backend, 'file');
+    assert.equal(payload.capabilities.canonical, false);
+    assert.equal(payload.capabilities.workspaceRole, 'local-development');
   } finally {
     await daemon.close();
     rmSync(rootDir, { recursive: true, force: true });
@@ -91,7 +193,14 @@ test('kb cli http mode can search through the daemon contract', async () => {
   });
   const server = await startKnowledgeBaseNodeServer({
     service,
-    capabilities: { backend: 'file', mode: 'local' }
+    capabilities: {
+      backend: 'file',
+      canonical: false,
+      mode: 'local',
+      tenantId: 'acme',
+      transport: 'http',
+      workspaceRole: 'local-development'
+    }
   });
 
   try {
@@ -138,8 +247,85 @@ test('kb cli help makes the edge-writing split explicit', async () => {
   assert.match(result.stdout, /Use `kb relate` for explicit relation edges between existing entities/);
   assert.match(result.stdout, /Do not use `kb annotate` for relation edges/);
   assert.match(result.stdout, /Only use `record\.relations\[\]` when you are already creating or rewriting the entity/);
+  assert.match(result.stdout, /tenant, backend, canonicality/);
+  assert.match(result.stdout, /kb help operator/);
+  assert.doesNotMatch(result.stdout, /kb capture-source --json @payload\.json/);
+  assert.doesNotMatch(result.stdout, /kb events/);
+  assert.doesNotMatch(result.stdout, /kb drafts/);
+  assert.doesNotMatch(result.stdout, /kb relations \[--entity-id/);
   assert.match(result.stdout, /kb sync <pull\|status\|push> \[--verbose] \[--changes] \[--conflicts] \[--stats]/);
   assert.match(result.stdout, /kb daemon <start\|stop\|restart\|status\|logs\|once> \[--verbose] \[--logs] \[--stats]/);
+});
+
+test('kb cli operator help exposes repair-only commands explicitly', async () => {
+  const result = await runKnowledgeBaseCli(['help', 'operator']);
+
+  assert.equal(result.exitCode, 0);
+  assert.match(result.stdout, /kb capture-source --json @payload\.json/);
+  assert.match(result.stdout, /kb events/);
+  assert.match(result.stdout, /kb drafts/);
+  assert.match(result.stdout, /kb relations \[--entity-id/);
+  assert.match(result.stdout, /repair, cleanup, or inspection/i);
+  assert.match(result.stdout, /Default agent work should stay on `search`, `query-relations`, `remember`, `record`, `relate`, and `annotate`/);
+});
+
+test('kb cli inspect exposes tenant and workspace role for local mode', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-inspect-'));
+
+  try {
+    await runKnowledgeBaseCli(
+      ['record', '--json', '{"entity":{"id":"company-acme","kind":"company","title":"Acme","currentTruth":"Acme runs billing."}}'],
+      {
+        transport: { mode: 'local', tenantId: 'acme', rootDir }
+      }
+    );
+    const result = await runKnowledgeBaseCli(['inspect'], {
+      transport: { mode: 'local', tenantId: 'acme', rootDir }
+    });
+
+    assert.equal(result.exitCode, 0);
+    const parsed = JSON.parse(result.stdout) as {
+      tenantId: string;
+      backend: string;
+      canonical: boolean;
+      workspaceRole: string;
+      rootDir: string;
+      summary: {
+        entities: Array<{ id: string }>;
+        mode: string;
+      };
+    };
+    assert.equal(parsed.tenantId, 'acme');
+    assert.equal(parsed.backend, 'file');
+    assert.equal(parsed.canonical, false);
+    assert.equal(parsed.workspaceRole, 'local-development');
+    assert.equal(parsed.rootDir, rootDir);
+    assert.equal(parsed.summary.mode, 'basic');
+    assert.deepEqual(parsed.summary.entities.map((entity) => entity.id), ['company-acme']);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb cli rejects canonical-style backends without an http target', async () => {
+  const cloudflare = await runKnowledgeBaseCli(['inspect'], {
+    env: {
+      KB_BACKEND: 'cloudflare',
+      KB_TENANT_ID: 'acme'
+    }
+  });
+  assert.equal(cloudflare.exitCode, 1);
+  assert.match(cloudflare.stderr, /KB_BACKEND=cloudflare is not a direct local CLI workspace/i);
+  assert.match(cloudflare.stderr, /Use KB_BASE_URL to target the canonical deployed kb-http surface/i);
+
+  const r2 = await runKnowledgeBaseCli(['inspect'], {
+    env: {
+      KB_BACKEND: 'r2',
+      KB_TENANT_ID: 'acme'
+    }
+  });
+  assert.equal(r2.exitCode, 1);
+  assert.match(r2.stderr, /KB_BACKEND=r2 is not a direct local CLI workspace/i);
 });
 
 test('kb cli sync commands are rejected outside r2-mirror mode', async () => {
@@ -447,6 +633,71 @@ test('kb cli relate adds an explicit edge between existing entities', async () =
     assert.equal(traversed.exitCode, 0);
     const parsed = JSON.parse(traversed.stdout) as { edges: Array<{ type: string }> };
     assert.equal(parsed.edges[0]?.type, 'colleague_at');
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb cli exposes direct event, draft, relation, and source-capture surfaces', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-secondary-state-'));
+
+  try {
+    const captured = await runKnowledgeBaseCli(
+      [
+        'capture-source',
+        '--json',
+        '{"id":"src_note","title":"Operator note","content":"Stripe billing owner is Alex.","linkedEntities":["vendor-stripe"],"extractEntities":false}'
+      ],
+      { transport: { mode: 'local', tenantId: 'acme', rootDir } }
+    );
+    assert.equal(captured.exitCode, 0);
+
+    const draft = await runKnowledgeBaseCli(
+      [
+        'put-draft',
+        '--json',
+        '{"entityId":"vendor-stripe","title":"Stripe","summary":"Needs cleanup","openQuestions":["Who owns support?"],"sourceIds":["src_note"]}'
+      ],
+      { transport: { mode: 'local', tenantId: 'acme', rootDir } }
+    );
+    assert.equal(draft.exitCode, 0);
+
+    const event = await runKnowledgeBaseCli(
+      [
+        'record',
+        '--json',
+        '{"entity":{"id":"vendor-stripe","kind":"vendor","title":"Stripe","currentTruth":"Stripe handles billing."},"events":[{"summary":"2026-06-07: Billing owner captured.","sourceIds":["src_note"]}]}'
+      ],
+      { transport: { mode: 'local', tenantId: 'acme', rootDir } }
+    );
+    assert.equal(event.exitCode, 0);
+
+    const relations = await runKnowledgeBaseCli(
+      [
+        'replace-relations',
+        '--json',
+        '{"origin":{"kind":"seed","id":"seed:test"},"links":[{"type":"vendor_for","fromId":"vendor-stripe","toId":"vendor-stripe"}]}'
+      ],
+      { transport: { mode: 'local', tenantId: 'acme', rootDir } }
+    );
+    assert.equal(relations.exitCode, 0);
+
+    const listedEvents = await runKnowledgeBaseCli(['events'], {
+      transport: { mode: 'local', tenantId: 'acme', rootDir }
+    });
+    const listedDrafts = await runKnowledgeBaseCli(['drafts'], {
+      transport: { mode: 'local', tenantId: 'acme', rootDir }
+    });
+    const listedRelations = await runKnowledgeBaseCli(['relations', '--origin-kind', 'seed', '--origin-id', 'seed:test'], {
+      transport: { mode: 'local', tenantId: 'acme', rootDir }
+    });
+
+    assert.equal(listedEvents.exitCode, 0);
+    assert.equal(listedDrafts.exitCode, 0);
+    assert.equal(listedRelations.exitCode, 0);
+    assert.match(listedEvents.stdout, /Billing owner captured/);
+    assert.match(listedDrafts.stdout, /Needs cleanup/);
+    assert.match(listedRelations.stdout, /vendor_for/);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }

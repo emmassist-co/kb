@@ -55,6 +55,7 @@ import type {
   KnowledgeLinkRule,
   KnowledgeRelationQueryInput,
   KnowledgeRelationQueryResult,
+  KnowledgeMutationResult,
   KnowledgeReplayRecord,
   KnowledgeReplaySummary,
   KnowledgeSearchExplanation,
@@ -220,6 +221,29 @@ export class KnowledgeBaseService {
     return event;
   }
 
+  async listEvents(): Promise<KnowledgeEvent[]> {
+    return this.loadEvents();
+  }
+
+  async getEvent(id: string): Promise<KnowledgeEvent> {
+    const event = (await this.loadEvents()).find((entry) => entry.id === id) ?? null;
+    if (!event) throw new Error(`Knowledge event not found: ${id}`);
+    return event;
+  }
+
+  async deleteEvent(id: string): Promise<{ id: string; deleted: true; removedLinks: number }> {
+    const events = await this.loadEvents();
+    const remainingEvents = events.filter((event) => event.id !== id);
+    if (remainingEvents.length === events.length) {
+      throw new Error(`Knowledge event not found: ${id}`);
+    }
+    await this.store.replaceEvents(remainingEvents);
+    const removedLinks = (await this.store.listLinks()).filter((link) => link.originKind === 'event' && link.originId === id).length;
+    await this.store.replaceLinksForOrigin({ kind: 'event', id }, []);
+    this.invalidateLexicalCaches();
+    return { id, deleted: true, removedLinks };
+  }
+
   async importStructuredLinks(input: {
     origin: KnowledgeLinkOrigin;
     links: Array<{
@@ -283,6 +307,78 @@ export class KnowledgeBaseService {
     return draft;
   }
 
+  async listDrafts(): Promise<EntityDraft[]> {
+    return (await this.store.listDrafts()).sort((left, right) => {
+      const updated = right.updatedAt.localeCompare(left.updatedAt);
+      return updated !== 0 ? updated : left.entityId.localeCompare(right.entityId);
+    });
+  }
+
+  async getDraft(entityId: string): Promise<EntityDraft> {
+    const draft = await this.store.getDraft(entityId);
+    if (!draft) throw new Error(`Knowledge draft not found: ${entityId}`);
+    return draft;
+  }
+
+  async deleteDraft(entityId: string): Promise<{ entityId: string; deleted: true }> {
+    const draft = await this.store.getDraft(entityId);
+    if (!draft) throw new Error(`Knowledge draft not found: ${entityId}`);
+    await this.store.deleteDraft(entityId);
+    return { entityId, deleted: true };
+  }
+
+  async listRelations(input: {
+    entityId?: string;
+    originKind?: KnowledgeLinkOrigin['kind'];
+    originId?: string;
+    type?: string;
+  } = {}): Promise<KnowledgeLink[]> {
+    return this.filterRelations(input);
+  }
+
+  async replaceRelations(input: {
+    origin: KnowledgeLinkOrigin;
+    links: Array<{
+      type: string;
+      fromId: string;
+      toId: string;
+      sourceIds?: string[];
+      confidence?: number;
+      evidenceKind?: KnowledgeLink['evidenceKind'];
+      createdAt?: string;
+    }>;
+  }): Promise<{ origin: KnowledgeLinkOrigin; count: number; links: KnowledgeLink[] }> {
+    await this.ensureRelationTargets(
+      input.links.map((link) => ({ fromId: link.fromId, toId: link.toId })),
+      [],
+      uniqueStrings(input.links.flatMap((link) => link.sourceIds ?? []))
+    );
+    await this.importStructuredLinks(input);
+    const links = await this.filterRelations({
+      originKind: input.origin.kind,
+      originId: input.origin.id
+    });
+    return {
+      origin: input.origin,
+      count: links.length,
+      links
+    };
+  }
+
+  async clearRelations(origin: KnowledgeLinkOrigin): Promise<{ origin: KnowledgeLinkOrigin; deleted: true; removed: number }> {
+    const existing = await this.filterRelations({
+      originKind: origin.kind,
+      originId: origin.id
+    });
+    await this.store.replaceLinksForOrigin(origin, []);
+    this.invalidateLexicalCaches();
+    return {
+      origin,
+      deleted: true,
+      removed: existing.length
+    };
+  }
+
   async remember(input: {
     intent: 'source_capture' | 'fact_update' | 'correction' | 'company_profile' | 'person_profile';
     summary: string;
@@ -315,12 +411,7 @@ export class KnowledgeBaseService {
     };
     effectiveAt?: string;
     confidence?: 'low' | 'medium' | 'high';
-  }): Promise<{
-    mutated: true;
-    entityIds: string[];
-    sourceIds: string[];
-    warnings: string[];
-  }> {
+  }): Promise<KnowledgeMutationResult> {
     const warnings: string[] = [];
     const entityInputs = (input.entities ?? []).map((entity) => ({
       ...entity,
@@ -379,6 +470,7 @@ export class KnowledgeBaseService {
       }
     }
 
+    let relationLinks: KnowledgeLink[] = [];
     if (input.relations?.length) {
       await this.ensureRelationTargets(input.relations, entityInputs, sourceId ? [sourceId] : []);
       await this.importStructuredLinks({
@@ -393,6 +485,7 @@ export class KnowledgeBaseService {
           confidence: relation.confidence
         }))
       });
+      relationLinks = await this.loadLinksForEdges(input.relations);
     }
 
     if (input.effectiveAt && entityIds.length > 0 && input.summary) {
@@ -401,12 +494,14 @@ export class KnowledgeBaseService {
       }
     }
 
-    return {
+    return this.buildMutationResult({
       mutated: true,
       entityIds: uniqueStrings(mutatedEntityIds),
       sourceIds: sourceId ? [sourceId] : [],
-      warnings
-    };
+      eventIds: [],
+      warnings,
+      links: relationLinks
+    });
   }
 
   async record(input: {
@@ -463,12 +558,7 @@ export class KnowledgeBaseService {
       provenance?: string;
       createdAt?: string;
     }>;
-  }): Promise<{
-    mutated: true;
-    entityIds: string[];
-    sourceIds: string[];
-    warnings: string[];
-  }> {
+  }): Promise<KnowledgeMutationResult> {
     const warnings: string[] = [];
     const primary = await this.upsertEntityDocument(input.entity);
     const relatedIds: string[] = [];
@@ -503,6 +593,7 @@ export class KnowledgeBaseService {
       sourceIds.push(next.meta.id);
     }
 
+    let relationLinks: KnowledgeLink[] = [];
     if (input.relations?.length) {
       await this.importStructuredLinks({
         origin: { kind: 'seed', id: `record:${primary.meta.id}` },
@@ -514,25 +605,30 @@ export class KnowledgeBaseService {
           confidence: relation.confidence
         }))
       });
+      relationLinks = await this.loadLinksForEdges(input.relations);
     }
 
+    const eventIds: string[] = [];
     for (const event of input.events ?? []) {
-      await this.appendEvent({
+      const appended = await this.appendEvent({
         entityIds: event.entityIds ?? [primary.meta.id],
         summary: event.summary,
         sourceIds: uniqueStrings([...(event.sourceIds ?? []), ...sourceIds]),
         provenance: event.provenance,
         createdAt: event.createdAt
       });
+      eventIds.push(appended.id);
     }
 
     if (!primary.currentTruth) warnings.push(`entity ${primary.meta.id} was recorded without currentTruth`);
-    return {
+    return this.buildMutationResult({
       mutated: true,
       entityIds: uniqueStrings([primary.meta.id, ...relatedIds]),
       sourceIds: uniqueStrings(sourceIds),
-      warnings
-    };
+      eventIds: uniqueStrings(eventIds),
+      warnings,
+      links: relationLinks
+    });
   }
 
   async annotate(input: {
@@ -541,30 +637,27 @@ export class KnowledgeBaseService {
     effectiveAt?: string;
     sourceIds?: string[];
     provenance?: string;
-  }): Promise<{
-    mutated: true;
-    entityIds: string[];
-    sourceIds: string[];
-    warnings: string[];
-  }> {
+  }): Promise<KnowledgeMutationResult> {
     const entityIds = uniqueStrings(input.entityIds);
     const line = input.effectiveAt ? `${input.effectiveAt.slice(0, 10)}: ${input.summary}` : input.summary;
     for (const entityId of entityIds) {
       await this.appendTimelineEntry(entityId, line, input.sourceIds ?? []);
     }
-    await this.appendEvent({
+    const event = await this.appendEvent({
       entityIds,
       summary: line,
       sourceIds: input.sourceIds ?? [],
       provenance: input.provenance,
       createdAt: input.effectiveAt
     });
-    return {
+    return this.buildMutationResult({
       mutated: true,
       entityIds,
       sourceIds: uniqueStrings(input.sourceIds ?? []),
-      warnings: []
-    };
+      eventIds: [event.id],
+      warnings: [],
+      links: []
+    });
   }
 
   async relate(input: {
@@ -573,12 +666,7 @@ export class KnowledgeBaseService {
     toId: string;
     sourceIds?: string[];
     confidence?: number;
-  }): Promise<{
-    mutated: true;
-    entityIds: string[];
-    sourceIds: string[];
-    warnings: string[];
-  }> {
+  }): Promise<KnowledgeMutationResult> {
     await this.ensureRelationTargets(
       [{ fromId: input.fromId, toId: input.toId }],
       [],
@@ -594,12 +682,15 @@ export class KnowledgeBaseService {
         confidence: input.confidence
       }]
     });
-    return {
+    const links = await this.loadLinksForEdges([input]);
+    return this.buildMutationResult({
       mutated: true,
       entityIds: uniqueStrings([input.fromId, input.toId]),
       sourceIds: uniqueStrings(input.sourceIds ?? []),
-      warnings: []
-    };
+      eventIds: [],
+      warnings: [],
+      links
+    });
   }
 
   async search(input: KnowledgeSearchInput): Promise<{ query: string; assistedQuery?: string; mode: string; results: KnowledgeSearchResult[] }> {
@@ -866,7 +957,7 @@ export class KnowledgeBaseService {
       const currentMarkdown = await this.store.getEntityMarkdown(entityId);
       const current = currentMarkdown ? parseEntityDocument(currentMarkdown) : null;
       const draft = await this.store.getDraft(entityId);
-      const events = (await this.store.listEvents()).filter((event) => event.entityIds.includes(entityId));
+      const events = (await this.loadEvents()).filter((event) => event.entityIds.includes(entityId));
       if (!current && !draft && events.length === 0) {
         throw new Error(`Nothing to consolidate for entity: ${entityId}`);
       }
@@ -910,7 +1001,7 @@ export class KnowledgeBaseService {
     const entities = await this.loadEntities();
     const registry = await this.loadRegistry(entities);
     const sources = await this.loadSources();
-    const events = await this.store.listEvents();
+    const events = await this.loadEvents();
     const links = await this.store.listLinks();
     const issues: string[] = [];
     const sourceIds = new Set(sources.map((source) => source.meta.id));
@@ -1007,8 +1098,8 @@ export class KnowledgeBaseService {
       mode: await this.store.mode(),
       entities: await this.loadEntities(),
       sources: await this.loadSources(),
-      events: await this.store.listEvents(),
-      drafts: await this.store.listDrafts(),
+      events: await this.loadEvents(),
+      drafts: await this.listDrafts(),
       links: await this.store.listLinks()
     };
   }
@@ -1153,6 +1244,77 @@ export class KnowledgeBaseService {
   private async loadSources(): Promise<SourceDocument[]> {
     const docs = await this.store.listSourceMarkdown();
     return docs.map((entry) => parseSourceDocument(entry.markdown));
+  }
+
+  private async loadEvents(): Promise<KnowledgeEvent[]> {
+    return (await this.store.listEvents()).sort((left, right) => {
+      const created = left.createdAt.localeCompare(right.createdAt);
+      return created !== 0 ? created : left.id.localeCompare(right.id);
+    });
+  }
+
+  private async filterRelations(input: {
+    entityId?: string;
+    originKind?: KnowledgeLinkOrigin['kind'];
+    originId?: string;
+    type?: string;
+  }): Promise<KnowledgeLink[]> {
+    return (await this.store.listLinks())
+      .filter((link) => {
+        if (input.entityId && link.fromId !== input.entityId && link.toId !== input.entityId) return false;
+        if (input.originKind && link.originKind !== input.originKind) return false;
+        if (input.originId && link.originId !== input.originId) return false;
+        if (input.type && link.type !== input.type) return false;
+        return true;
+      })
+      .sort((left, right) => {
+        const created = left.createdAt.localeCompare(right.createdAt);
+        return created !== 0 ? created : left.id.localeCompare(right.id);
+      });
+  }
+
+  private async buildMutationResult(input: {
+    mutated: true;
+    entityIds: string[];
+    sourceIds: string[];
+    eventIds: string[];
+    warnings: string[];
+    links: KnowledgeLink[];
+  }): Promise<KnowledgeMutationResult> {
+    const [entities, sources, events] = await Promise.all([
+      this.loadEntities(),
+      this.loadSources(),
+      this.loadEvents()
+    ]);
+    return {
+      mutated: true,
+      entityIds: uniqueStrings(input.entityIds),
+      sourceIds: uniqueStrings(input.sourceIds),
+      eventIds: uniqueStrings(input.eventIds),
+      warnings: input.warnings,
+      hydrated: {
+        entities: entities.filter((entity) => input.entityIds.includes(entity.meta.id)),
+        sources: sources.filter((source) => input.sourceIds.includes(source.meta.id)),
+        events: events.filter((event) => input.eventIds.includes(event.id)),
+        links: input.links
+      }
+    };
+  }
+
+  private async loadLinksForEdges(
+    edges: Array<{
+      type: string;
+      fromId: string;
+      toId: string;
+    }>
+  ): Promise<KnowledgeLink[]> {
+    const expected = new Set(edges.map((edge) => `${edge.type}:${edge.fromId}:${edge.toId}`));
+    return (await this.store.listLinks())
+      .filter((link) => expected.has(`${link.type}:${link.fromId}:${link.toId}`))
+      .sort((left, right) => {
+        const created = left.createdAt.localeCompare(right.createdAt);
+        return created !== 0 ? created : left.id.localeCompare(right.id);
+      });
   }
 
   private async lexicalSearch(input: KnowledgeSearchInput): Promise<{ query: string; assistedQuery?: string; results: KnowledgeSearchResult[] }> {

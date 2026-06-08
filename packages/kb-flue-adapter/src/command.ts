@@ -1,6 +1,7 @@
 import type { Command } from '@flue/sdk/client';
 import { runKnowledgeBaseCli, type KnowledgeBaseCliExecutor } from '@emmassist-co/kb-cli';
 import type { KnowledgeBaseService } from '@emmassist-co/kb-core';
+import { createKbRuntimeContext, renderKbRuntimeContract } from './runtime-contract.js';
 
 export interface KnowledgeBaseRuntimeLike {
   getService(): Promise<KnowledgeBaseService>;
@@ -40,7 +41,7 @@ export function createKbCommand(
 ): Command {
   return {
     name: 'kb',
-    execute: async (args) => {
+    execute: async (args: string[]) => {
       const meta = {
         command: args[0] ?? 'help',
         duration_ms: 0
@@ -48,23 +49,24 @@ export function createKbCommand(
       const startedAt = Date.now();
       const parsed = parseSimpleArgs(args);
       const format = typeof parsed.flags.format === 'string' ? parsed.flags.format : undefined;
+      const helpTopic = meta.command === 'help' ? parsed.positionals[1] : meta.command;
 
       try {
         if (!shouldUsePackageCli(meta.command) || meta.command === 'help' || parsed.flags.help) {
-          return renderLocalHelp(meta.command);
+          return renderLocalHelp(helpTopic, env);
         }
         const result = await runKnowledgeBaseCli(args, {
           cwd: process.cwd(),
           env: Object.fromEntries(
             Object.entries(env).map(([key, value]) => [key, value == null ? undefined : String(value)])
           ),
-          executor: options.runtime ? await createRuntimeExecutor(options.runtime, options.telemetry) : undefined,
+          executor: options.runtime ? await createRuntimeExecutor(options.runtime, env, options.telemetry) : undefined,
           readFile: async (target) => {
             const resolved = target.startsWith('/workspace/')
               ? target
               : `/workspace/${target.replace(/^\//, '')}`;
             const bytes = await fs.readFileBuffer(resolved);
-            return Buffer.from(bytes).toString('utf8');
+            return new TextDecoder().decode(bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes));
           }
         });
         meta.duration_ms = Date.now() - startedAt;
@@ -97,6 +99,17 @@ function shouldUsePackageCli(commandName: string): boolean {
     'list',
     'get',
     'delete',
+    'capture-source',
+    'events',
+    'get-event',
+    'delete-event',
+    'drafts',
+    'get-draft',
+    'put-draft',
+    'delete-draft',
+    'relations',
+    'replace-relations',
+    'clear-relations',
     'search',
     'query-relations',
     'remember',
@@ -118,6 +131,7 @@ function shouldUsePackageCli(commandName: string): boolean {
 
 async function createRuntimeExecutor(
   runtime: KnowledgeBaseRuntimeLike,
+  env: Record<string, unknown>,
   telemetry?: CreateKbCommandOptions['telemetry']
 ): Promise<KnowledgeBaseCliExecutor> {
   let servicePromise: Promise<KnowledgeBaseService> | null = null;
@@ -126,10 +140,31 @@ async function createRuntimeExecutor(
     return servicePromise;
   };
   return {
-    inspect: async () => ({ runtime: 'flue' }),
+    inspect: async () => ({
+      tenantId: String(env.WORKSPACE_TENANT_ID ?? env.KB_TENANT_ID ?? 'default'),
+      backend: String(env.KB_BACKEND ?? 'runtime'),
+      transport: 'flue',
+      mode: 'local',
+      canonical: String(env.KB_BACKEND ?? '').trim().toLowerCase() === 'cloudflare',
+      workspaceRole: String(env.KB_BACKEND ?? '').trim().toLowerCase() === 'cloudflare'
+        ? 'canonical-production'
+        : 'runtime-support',
+      summary: await (await getService()).list()
+    }),
     list: async () => (await getService()).list(),
     get: async (id) => (await getService()).get(id),
     delete: async (id) => (await getService()).deleteRecord(id),
+    captureSource: async (input) => (await getService()).captureSource(input as Parameters<KnowledgeBaseService['captureSource']>[0]),
+    listEvents: async () => (await getService()).listEvents(),
+    getEvent: async (id) => (await getService()).getEvent(id),
+    deleteEvent: async (id) => (await getService()).deleteEvent(id),
+    listDrafts: async () => (await getService()).listDrafts(),
+    getDraft: async (entityId) => (await getService()).getDraft(entityId),
+    putDraft: async (input) => (await getService()).updateEntityDraft(input as Parameters<KnowledgeBaseService['updateEntityDraft']>[0]),
+    deleteDraft: async (entityId) => (await getService()).deleteDraft(entityId),
+    listRelations: async (input) => (await getService()).listRelations(input as Parameters<KnowledgeBaseService['listRelations']>[0]),
+    replaceRelations: async (input) => (await getService()).replaceRelations(input as Parameters<KnowledgeBaseService['replaceRelations']>[0]),
+    clearRelations: async (input) => (await getService()).clearRelations(input as unknown as Parameters<KnowledgeBaseService['clearRelations']>[0]),
     search: async (input) => {
       const startedAt = Date.now();
       const result = await (await getService()).search(input as unknown as Parameters<KnowledgeBaseService['search']>[0]);
@@ -241,7 +276,32 @@ function parseMaybeJson(raw: string): unknown {
   }
 }
 
-function renderLocalHelp(commandName?: string): { stdout: string; stderr: string; exitCode: number } {
+function renderLocalHelp(commandName: string | undefined, env: Record<string, unknown>): { stdout: string; stderr: string; exitCode: number } {
+  if (commandName === 'operator') {
+    return {
+      stdout: [
+        'kb operator surface',
+        '',
+        'Repair and inspection commands:',
+        '  kb capture-source --json @payload.json',
+        '  kb events',
+        '  kb get-event --id EVENT_ID',
+        '  kb delete-event --id EVENT_ID',
+        '  kb drafts',
+        '  kb get-draft --id ENTITY_ID',
+        '  kb put-draft --json @payload.json',
+        '  kb delete-draft --id ENTITY_ID',
+        '  kb relations [--entity-id ENTITY_ID] [--origin-kind entity|source|event|seed] [--origin-id ORIGIN_ID] [--type RELATION]',
+        '  kb replace-relations --json @payload.json',
+        '  kb clear-relations --origin-kind entity|source|event|seed --origin-id ORIGIN_ID',
+        '',
+        'Use these only for direct KB repair, cleanup, or inspection.',
+        'Default agent work should stay on `search`, `query-relations`, `remember`, `record`, `relate`, and `annotate`.'
+      ].join('\n') + '\n',
+      stderr: '',
+      exitCode: 0
+    };
+  }
   if (commandName === 'remember') {
     return {
       stdout: [
@@ -260,11 +320,18 @@ function renderLocalHelp(commandName?: string): { stdout: string; stderr: string
       exitCode: 0
     };
   }
+  if (commandName === 'runtime') {
+    return {
+      stdout: `${renderKbRuntimeContract(createKbRuntimeContext(env))}\n`,
+      stderr: '',
+      exitCode: 0
+    };
+  }
   return {
     stdout: [
       'kb <command> [flags]',
       '',
-      'Commands:',
+      'Default runtime surface:',
       '  kb inspect',
       '  kb list',
       '  kb get <id>',
@@ -272,6 +339,7 @@ function renderLocalHelp(commandName?: string): { stdout: string; stderr: string
       '  kb query-relations --json \'{"query":"...","mode":"graph-only|graph-first-hybrid","lexicalBackend":"legacy-lexical|bm25-lexical"}\'',
       '  kb remember --json @payload.json',
       '  kb record --json @payload.json',
+      '  kb relate --json @payload.json',
       '  kb annotate --json @payload.json',
       '  kb related --id ENTITY_ID',
       '  kb links --id ENTITY_ID',
@@ -279,11 +347,17 @@ function renderLocalHelp(commandName?: string): { stdout: string; stderr: string
       '  kb rebuild',
       '  kb doctor',
       '  kb export',
+      '  kb help runtime',
+      '  kb help operator',
       '',
       'Notes:',
       '  - Search first when the fact might already exist.',
       '  - Use `kb remember` for new facts, corrections, and evidence capture.',
       '  - Use `kb record` only when you already have an explicit structured KB record.',
+      '  - Use `kb relate` for explicit relation edges between existing entities.',
+      '  - Use `kb query-relations` for owner/founder/approver-style questions before falling back to broad search.',
+      '  - Run `kb help runtime` for the current tenant/backend/canonicality contract.',
+      '  - Run `kb help operator` only when you need direct KB repair or inspection.',
       '  - Prefer `--json -` or `--json @file.json` for write payload transport.'
     ].join('\n') + '\n',
     stderr: '',

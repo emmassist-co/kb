@@ -206,6 +206,17 @@ export interface KnowledgeExportSnapshot {
   links: KnowledgeLink[];
 }
 
+export interface KnowledgeWorkspaceCapabilities {
+  tenantId: string;
+  backend: 'file' | 'r2-mirror' | 'cloudflare' | 'r2' | 'http' | 'runtime';
+  transport: 'local' | 'http' | 'flue' | 'worker';
+  mode: KnowledgeBaseMode | 'local';
+  canonical: boolean;
+  workspaceRole: 'canonical-production' | 'local-development' | 'mirror-support' | 'runtime-support';
+  rootDir?: string;
+  baseUrl?: string;
+}
+
 export interface KnowledgeRelationQueryInput {
   query: string;
   limit?: number;
@@ -226,6 +237,22 @@ export interface KnowledgeRelationQueryResult {
   };
   results: KnowledgeSearchResult[];
   traversedLinks: KnowledgeLink[];
+}
+
+export interface KnowledgeMutationHydratedState {
+  entities: EntityDocument[];
+  sources: SourceDocument[];
+  events: KnowledgeEvent[];
+  links: KnowledgeLink[];
+}
+
+export interface KnowledgeMutationResult {
+  mutated: true;
+  entityIds: string[];
+  sourceIds: string[];
+  eventIds: string[];
+  warnings: string[];
+  hydrated: KnowledgeMutationHydratedState;
 }
 
 export interface KnowledgeSearchExplanation {

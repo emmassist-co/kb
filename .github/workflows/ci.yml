@@ -14,7 +14,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: ./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts
-      - run: ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all
+      - name: Install dependencies
+        run: npm ci
+      - name: Run typecheck
+        run: npm run typecheck
+      - name: Run npm test shard for kb-http and kb-cli
+        run: ./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts
+      - name: Run kb smoke verification
+        run: ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all

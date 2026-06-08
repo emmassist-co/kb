@@ -140,3 +140,39 @@ test('kb flue adapter logs runtime telemetry for relation queries', async () => 
   assert.equal(typeof event.durationMs, 'number');
   assert.ok((event.durationMs as number) >= 0);
 });
+
+test('kb flue adapter help exposes runtime context and operator-only repair topics', async () => {
+  const command = createKbCommand(
+    {
+      async readFileBuffer() {
+        throw new Error('readFileBuffer should not be used in this test');
+      }
+    },
+    {
+      WORKSPACE_TENANT_ID: 'acme',
+      KB_BACKEND: 'cloudflare'
+    }
+  );
+
+  const help = await command.execute(['help']);
+  assert.equal(help.exitCode, 0);
+  assert.match(help.stdout, /Default runtime surface:/);
+  assert.match(help.stdout, /kb help runtime/);
+  assert.match(help.stdout, /kb help operator/);
+  assert.doesNotMatch(help.stdout, /kb capture-source --json/);
+
+  const runtime = await command.execute(['help', 'runtime']);
+  assert.equal(runtime.exitCode, 0);
+  assert.match(runtime.stdout, /KB runtime contract/);
+  assert.match(runtime.stdout, /tenant: acme/);
+  assert.match(runtime.stdout, /backend: cloudflare/);
+  assert.match(runtime.stdout, /canonical: yes/);
+  assert.match(runtime.stdout, /workspace role: canonical-production/);
+  assert.match(runtime.stdout, /Use `kb search` before answering tenant-specific factual questions/);
+
+  const operator = await command.execute(['help', 'operator']);
+  assert.equal(operator.exitCode, 0);
+  assert.match(operator.stdout, /kb operator surface/);
+  assert.match(operator.stdout, /kb capture-source --json @payload\.json/);
+  assert.match(operator.stdout, /Use these only for direct KB repair, cleanup, or inspection\./);
+});
