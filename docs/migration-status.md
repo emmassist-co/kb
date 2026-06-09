@@ -16,6 +16,25 @@ Verified locally:
 - `./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts`
 - `./node_modules/.bin/tsx scripts/kb-verify.ts --mode all`
 
+## Staged Public Package Set
+
+The current staged public package set for open-source distribution is:
+
+- `@emmassist-co/kb-core`
+- `@emmassist-co/kb-storage-file`
+- `@emmassist-co/kb-storage-cloudflare`
+- `@emmassist-co/kb-http`
+- `@emmassist-co/kb-cli`
+
+These packages define the public Cloudflare-first KB product spine.
+
+Deferred from the staged public package set:
+
+- `@emmassist-co/kb-flue-adapter`
+  Still carries host-oriented runtime assumptions and should not be treated as public-ready until that boundary is removed.
+- `@emmassist-co/kb-autoresearch`
+  Remains private while its runtime, product, and packaging shape are narrowed.
+
 ## Remaining Coupling To `administrative`
 
 ### `kb-flue-adapter`
@@ -72,5 +91,5 @@ These should either:
 2. Extract KB-owned DO state logic from `state-cloudflare-do.ts`.
 3. Move KB sync logic into the KB repo and rewrite `kb-r2-sync`.
 4. Separate package tests from host integration tests.
-5. Publish the standalone packages under `@emmassist-co/*`.
-6. Switch `administrative` to consume the published packages.
+5. Publish the staged public package set under `@emmassist-co/*`.
+6. Switch `administrative` to consume the published public packages where the consumer contract is now owned by `kb`.

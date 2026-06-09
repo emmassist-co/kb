@@ -231,8 +231,8 @@ async function runSync(
 
 function startDetachedDaemon(options: KnowledgeBaseCliOptions): void {
   const env = { ...process.env, ...(options.env ?? {}) };
-  const cliEntry = fileURLToPath(new URL('./bin.ts', import.meta.url));
-  const child = spawn(process.execPath, ['--import', 'tsx', cliEntry, 'daemon', 'run-internal'], {
+  const cliEntry = fileURLToPath(new URL('../bin/kb-local.mjs', import.meta.url));
+  const child = spawn(process.execPath, [cliEntry, 'daemon', 'run-internal'], {
     cwd: options.cwd ?? process.cwd(),
     env,
     detached: true,

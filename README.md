@@ -11,6 +11,25 @@ Cloudflare-first compounding knowledge base for agents, operator runtimes, and t
 - `kb-flue-adapter` plugs the KB into Flue runtimes
 - `kb-autoresearch`, `kb-verify`, and `eval/` enforce compounding quality rather than one-off retrieval demos
 
+## Public Package Set
+
+The staged open-source package set is:
+
+- `@emmassist-co/kb-core`
+- `@emmassist-co/kb-storage-file`
+- `@emmassist-co/kb-storage-cloudflare`
+- `@emmassist-co/kb-http`
+- `@emmassist-co/kb-cli`
+
+These packages form the Cloudflare-first product spine for public consumers.
+
+Not yet in the staged public package set:
+
+- `@emmassist-co/kb-flue-adapter`
+  Deferred until the remaining host-specific runtime coupling is removed.
+- `@emmassist-co/kb-autoresearch`
+  Still private while its product surface, packaging contract, and runtime assumptions are narrowed.
+
 ## Product Direction
 
 The repo is optimized around one product claim:
@@ -39,6 +58,8 @@ Current package boundaries already reflect the intended shape:
 - `packages/kb-storage-cloudflare`: canonical R2-backed state and Cloudflare runtime adapters
 - `packages/kb-http`: canonical `GET`/`POST`/`PUT`/`DELETE` contract with both Node and Worker hosts
 - `packages/kb-cli`: local operator CLI, daemon mode, HTTP client mode, and installable skills
+- `packages/kb-flue-adapter`: deferred from the staged public package set until its remaining host-specific wiring is removed
+- `packages/kb-autoresearch`: private package and repo-owned research tooling surface, not a staged public install target
 
 ## Cloudflare-First Deployment Shape
 
@@ -56,6 +77,7 @@ Local daemon and file-backed flows remain important, but they support the produc
 Core repo checks:
 
 ```bash
+npm run build:public
 npm run typecheck
 npm test
 ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all

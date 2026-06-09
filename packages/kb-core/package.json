@@ -2,26 +2,71 @@
   "name": "@emmassist-co/kb-core",
   "version": "0.3.0",
   "private": false,
+  "description": "Backend-neutral knowledge base semantics for the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmassist-co/kb.git",
+    "directory": "packages/kb-core"
+  },
+  "homepage": "https://github.com/emmassist-co/kb/tree/main/packages/kb-core#readme",
+  "bugs": {
+    "url": "https://github.com/emmassist-co/kb/issues"
+  },
+  "keywords": [
+    "knowledge-base",
+    "cloudflare",
+    "r2",
+    "agents"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "src"
+    "dist"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "dependencies": {
     "yaml": "^2.8.1"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./types": "./src/types.ts",
-    "./documents": "./src/documents.ts",
-    "./bm25": "./src/bm25.ts",
-    "./relations": "./src/relations.ts",
-    "./service": "./src/service.ts",
-    "./service-helpers": "./src/service-helpers.ts",
-    "./store": "./src/store.ts",
-    "./snapshot-store": "./src/snapshot-store.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./documents": {
+      "types": "./dist/documents.d.ts",
+      "default": "./dist/documents.js"
+    },
+    "./bm25": {
+      "types": "./dist/bm25.d.ts",
+      "default": "./dist/bm25.js"
+    },
+    "./relations": {
+      "types": "./dist/relations.d.ts",
+      "default": "./dist/relations.js"
+    },
+    "./service": {
+      "types": "./dist/service.d.ts",
+      "default": "./dist/service.js"
+    },
+    "./service-helpers": {
+      "types": "./dist/service-helpers.d.ts",
+      "default": "./dist/service-helpers.js"
+    },
+    "./store": {
+      "types": "./dist/store.d.ts",
+      "default": "./dist/store.js"
+    },
+    "./snapshot-store": {
+      "types": "./dist/snapshot-store.d.ts",
+      "default": "./dist/snapshot-store.js"
+    }
   }
 }

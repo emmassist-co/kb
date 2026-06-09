@@ -2,20 +2,47 @@
   "name": "@emmassist-co/kb-http",
   "version": "0.2.0",
   "private": false,
+  "description": "Canonical HTTP and JSON contract for the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmassist-co/kb.git",
+    "directory": "packages/kb-http"
+  },
+  "homepage": "https://github.com/emmassist-co/kb/tree/main/packages/kb-http#readme",
+  "bugs": {
+    "url": "https://github.com/emmassist-co/kb/issues"
+  },
+  "keywords": [
+    "knowledge-base",
+    "http",
+    "cloudflare",
+    "api"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "src"
+    "dist"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "dependencies": {
     "@emmassist-co/kb-core": "^0.3.0"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./node-server": "./src/node-server.ts",
-    "./cloudflare-worker": "./src/cloudflare-worker.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node-server": {
+      "types": "./dist/node-server.d.ts",
+      "default": "./dist/node-server.js"
+    },
+    "./cloudflare-worker": {
+      "types": "./dist/cloudflare-worker.d.ts",
+      "default": "./dist/cloudflare-worker.js"
+    }
   }
 }

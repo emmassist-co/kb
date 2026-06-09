@@ -1,5 +1,5 @@
 import { KnowledgeBaseService, type KnowledgeBaseConfig } from '@emmassist-co/kb-core';
-import { startKnowledgeBaseNodeServer, type KnowledgeBaseNodeServerHandle } from '@emmassist-co/kb-http/node-server';
+import { startKnowledgeBaseNodeServer, type KnowledgeBaseNodeServerHandle } from '@emmassist-co/kb-http';
 import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 import path from 'node:path';
 

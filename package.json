@@ -3,14 +3,30 @@
   "version": "1.1.0",
   "private": true,
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmassist-co/kb.git"
+  },
+  "homepage": "https://github.com/emmassist-co/kb#readme",
+  "bugs": {
+    "url": "https://github.com/emmassist-co/kb/issues"
+  },
   "type": "module",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "compile": "tsc",
+    "clean": "rm -rf packages/kb-core/dist packages/kb-storage-file/dist packages/kb-storage-cloudflare/dist packages/kb-http/dist packages/kb-cli/dist",
+    "build:kb-core": "tsc -p packages/kb-core/tsconfig.json",
+    "build:kb-storage-file": "tsc -p packages/kb-storage-file/tsconfig.json",
+    "build:kb-storage-cloudflare": "tsc -p packages/kb-storage-cloudflare/tsconfig.json",
+    "build:kb-http": "tsc -p packages/kb-http/tsconfig.json",
+    "build:kb-cli": "tsc -p packages/kb-cli/tsconfig.json",
+    "build:public": "npm run clean && npm run build:kb-core && npm run build:kb-storage-file && npm run build:kb-storage-cloudflare && npm run build:kb-http && npm run build:kb-cli",
+    "verify:public-packages": "npm run build:public && node scripts/verify-public-packages.mjs",
+    "compile": "npm run build:public",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/**/*.test.ts",
+    "test": "npm run build:public && tsx --test tests/**/*.test.ts",
     "eval:kb": "tsx eval/runner/kb-benchmark.ts",
     "eval:kb:all": "tsx eval/runner/kb-eval.ts",
     "eval:kb:cat": "tsx eval/runner/kb-eval.ts",

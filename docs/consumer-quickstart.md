@@ -5,8 +5,7 @@ This guide is for a local repo, agent workspace, or operator shell that wants to
 ## What You Need
 
 - Node `22+`
-- npm access to GitHub Packages
-- `GITHUB_PACKAGES_TOKEN` with `read:packages`
+- access to the public npm registry
 
 ## Variables To Decide
 
@@ -24,24 +23,7 @@ Recommended defaults:
 - `KB_TENANT_ID`: repo name or agent name
 - `KB_ROOT_DIR`: `$PWD/.kb`
 
-## 1. Configure npm
-
-Create `.npmrc` in the consumer repo:
-
-```bash
-cat > .npmrc <<'EOF'
-@emmassist-co:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
-EOF
-```
-
-Export your package token:
-
-```bash
-export GITHUB_PACKAGES_TOKEN=...
-```
-
-## 2. Install The CLI
+## 1. Install The CLI
 
 ```bash
 npm install @emmassist-co/kb-cli
@@ -49,7 +31,7 @@ npm install @emmassist-co/kb-cli
 
 This gives you `kb-local`.
 
-## 3. Local In-Process Mode
+## 2. Local In-Process Mode
 
 ```bash
 export KB_TENANT_ID=my-agent
@@ -60,7 +42,7 @@ npx kb-local help
 npx kb-local schema record
 ```
 
-## 4. Local Daemon Mode
+## 3. Local Daemon Mode
 
 Start the server:
 
@@ -78,6 +60,21 @@ export KB_BASE_URL=http://127.0.0.1:3001
 
 npx kb-local search --json '{"query":"billing"}'
 ```
+
+## 4. Local R2 Mirror Mode
+
+Use this when you want a local inspection or support workspace that mirrors canonical KB files from Cloudflare-backed storage:
+
+```bash
+export KB_BACKEND=r2-mirror
+export KB_TENANT_ID=my-agent
+export KB_R2_MIRROR_ROOT="$PWD/.kb-sync"
+
+npx kb-local sync status
+npx kb-local sync pull
+```
+
+This is a support and debugging path, not a second production architecture. Canonical production writes still belong on the Cloudflare-hosted KB surface.
 
 ## 5. Install Skills For Agents
 
@@ -108,5 +105,6 @@ printf '%s\n' '{"query":"test"}' | npx kb-local search --json -
 If you cloned the KB repo itself, you can also run:
 
 ```bash
+npm run build:public
 ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all
 ```

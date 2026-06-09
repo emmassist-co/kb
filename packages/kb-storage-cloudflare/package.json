@@ -2,13 +2,31 @@
   "name": "@emmassist-co/kb-storage-cloudflare",
   "version": "0.2.0",
   "private": false,
+  "description": "Cloudflare-native KB persistence and runtime adapters for canonical tenant state.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmassist-co/kb.git",
+    "directory": "packages/kb-storage-cloudflare"
+  },
+  "homepage": "https://github.com/emmassist-co/kb/tree/main/packages/kb-storage-cloudflare#readme",
+  "bugs": {
+    "url": "https://github.com/emmassist-co/kb/issues"
+  },
+  "keywords": [
+    "knowledge-base",
+    "cloudflare",
+    "r2",
+    "durable-objects"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "src"
+    "dist"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "dependencies": {
     "@emmassist-co/kb-core": "^0.3.0"
@@ -17,9 +35,21 @@
     "@flue/sdk": "^0.3.10"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./r2-store": "./src/r2-store.ts",
-    "./cloudflare-store": "./src/cloudflare-store.ts",
-    "./state-cloudflare-do": "./src/state-cloudflare-do.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./r2-store": {
+      "types": "./dist/r2-store.d.ts",
+      "default": "./dist/r2-store.js"
+    },
+    "./cloudflare-store": {
+      "types": "./dist/cloudflare-store.d.ts",
+      "default": "./dist/cloudflare-store.js"
+    },
+    "./state-cloudflare-do": {
+      "types": "./dist/state-cloudflare-do.d.ts",
+      "default": "./dist/state-cloudflare-do.js"
+    }
   }
 }

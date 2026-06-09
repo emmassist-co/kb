@@ -9,18 +9,12 @@ Full setup guide: [docs/consumer-quickstart.md](../../docs/consumer-quickstart.m
 Minimal install for a local agent host:
 
 ```bash
-cat > .npmrc <<'EOF'
-@emmassist-co:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
-EOF
-
 npm install @emmassist-co/kb-cli
 ```
 
 Then run:
 
 ```bash
-export GITHUB_PACKAGES_TOKEN=...
 export KB_TENANT_ID=my-agent
 export KB_ROOT_DIR="$PWD/.kb"
 

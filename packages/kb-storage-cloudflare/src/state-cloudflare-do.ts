@@ -304,7 +304,7 @@ function createEmptySyncState(): StoredSyncState {
 }
 
 async function dispatchMethod(service: KnowledgeBaseService, method: keyof KnowledgeBaseService & string, args: unknown[]): Promise<unknown> {
-  const candidate = (service as Record<string, unknown>)[method];
+  const candidate = (service as unknown as Record<string, unknown>)[method];
   if (typeof candidate !== 'function') {
     throw new Error(`Unknown KB state method: ${method}`);
   }

@@ -2,30 +2,64 @@
   "name": "@emmassist-co/kb-cli",
   "version": "1.1.0",
   "private": false,
+  "description": "CLI for local, HTTP-backed, and R2-synced operation of the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmassist-co/kb.git",
+    "directory": "packages/kb-cli"
+  },
+  "homepage": "https://github.com/emmassist-co/kb/tree/main/packages/kb-cli#readme",
+  "bugs": {
+    "url": "https://github.com/emmassist-co/kb/issues"
+  },
+  "keywords": [
+    "knowledge-base",
+    "cli",
+    "cloudflare",
+    "r2",
+    "agents"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.908.0",
     "@emmassist-co/kb-core": "^0.3.0",
     "@emmassist-co/kb-http": "^0.2.0",
-    "@emmassist-co/kb-storage-file": "^0.2.0",
-    "tsx": "^4.21.0"
+    "@emmassist-co/kb-storage-file": "^0.2.0"
   },
   "files": [
     "bin",
-    "src",
+    "dist",
     "skills"
   ],
   "bin": {
     "kb-local": "./bin/kb-local.mjs"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./bin": "./src/bin.ts",
-    "./daemon": "./src/daemon.ts",
-    "./main": "./src/main.ts",
-    "./node-server": "./src/daemon.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./bin": {
+      "types": "./dist/bin.d.ts",
+      "default": "./dist/bin.js"
+    },
+    "./daemon": {
+      "types": "./dist/daemon.d.ts",
+      "default": "./dist/daemon.js"
+    },
+    "./main": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./node-server": {
+      "types": "./dist/daemon.d.ts",
+      "default": "./dist/daemon.js"
+    }
   }
 }
