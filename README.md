@@ -88,3 +88,68 @@ Open-source readiness:
 ```bash
 python3 path/to/os_ready_audit.py --root "$PWD"
 ```
+
+## Benchmark Standard
+
+Benchmarks are a first-class release surface for `kb`, not optional supporting detail.
+
+The public bar for `kb` is not "some tests pass." The eval stack has three distinct jobs:
+
+- `admin-world-v3` is the product-core retrieval benchmark.
+  We optimize on `admin-world-v3 dev` and confirm on `admin-world-v3 holdout`.
+  The current corpus carries `288 retrieval queries`, including `72 holdout queries`, across `9 relation families`.
+- `gbrain-world` is the external-reference retrieval benchmark.
+  In this repo, that means the exact public GBrain GitHub benchmark contract: `145` queries across attendance, employment, investing, and advising, not a repo-local reinterpretation of the vendored corpus.
+- `core-six` is the deterministic floor-raising suite.
+  It covers retrieval, temporal behavior, identity, provenance, contradictions, and fuzzy recall without model-judge noise.
+
+Current public benchmark posture:
+
+| Rail | Role | Size | P@5 | R@5 | MRR@5 | nDCG@5 | Status |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `core-six` | deterministic floor | `72 retrieval + 28 non-retrieval` | `30.0%` | `94.4%` | `93.1%` | `88.4%` | `pass` |
+| `admin-world-v3 dev` | product-core optimize rail | `216 queries` | `41.5%` | `99.3%` | `98.7%` | `92.6%` | `floor reached` |
+| `admin-world-v3 holdout` | product-core confirm rail | `72 queries` | `41.7%` | `99.3%` | `100.0%` | `93.6%` | `floor reached` |
+| `gbrain-world` | exact public external rail | `145 queries` | `35.6%` | `99.3%` | `100.0%` | `99.5%` | `guardrails passed` |
+
+External reference, kept separate from our measured score:
+
+| Reference | P@5 | R@5 |
+| --- | ---: | ---: |
+| `GBrain` public headline used in the side-by-side runner | `49.1%` | `97.9%` |
+
+- Latest deterministic scorecard: [`docs/benchmarks/kb-scorecard-latest.md`](./docs/benchmarks/kb-scorecard-latest.md)
+  Current result: `core-six` passes `100%` of categories.
+- Latest external-reference snapshot: `npm run eval:kb:gbrain-world`
+  Current measured KB score on the exact public GBrain GitHub benchmark: `P@5 35.6%`, `R@5 99.3%`, `MRR 100.0%`, `nDCG 99.5%`.
+  Current GBrain reference headline used in the side-by-side runner: `P@5 49.1%`, `R@5 97.9%`.
+
+That means the repo is not claiming "we beat GBrain." It is claiming:
+
+- the eval surface is explicit and public
+- the product-core benchmark is separated from the external-reference benchmark
+- the deterministic KB quality floor is visible and repeatable
+- the external benchmark is the exact public GBrain GitHub benchmark contract rather than a KB-local reinterpretation
+- the external-reference gap is measurable in the README instead of hidden in internal notes
+
+Release policy:
+
+- optimize on `admin-world-v3 dev`
+- confirm on `admin-world-v3 holdout`
+- block regressions on `core-six dev` and `core-six holdout`
+- require both `admin-world-v3 dev` and `admin-world-v3 holdout` to run in CI verification
+- run the exact `gbrain-world` GitHub benchmark contract as the public external reference rail, not a direct "ship only if it wins" target
+- after any major KB change, rerun the benchmark rails and refresh the published benchmark snapshot in this README and `docs/benchmarks/kb-scorecard-latest.*`
+
+Major changes that should trigger a benchmark refresh include:
+
+- retrieval or ranking logic changes
+- graph extraction or relation-model changes
+- storage, indexing, or sync changes that affect KB answer quality
+- benchmark corpus or benchmark runner changes
+- major CLI or HTTP behavior changes that alter the KB contract
+
+See:
+
+- [docs/operations/kb-benchmark.md](./docs/operations/kb-benchmark.md)
+- [docs/benchmarks/kb-scorecard-latest.md](./docs/benchmarks/kb-scorecard-latest.md)

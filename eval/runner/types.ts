@@ -101,6 +101,13 @@ export interface EvalScorecard {
   corpus: string;
   provenance: EvalCorpusProvenance | 'mixed';
   generatedAt: string;
+  policy?: {
+    optimizeOn?: string[];
+    confirmOn?: string[];
+    regressionGuardrails?: string[];
+    externalReference?: string[];
+    notes?: string[];
+  };
   categories: EvalCategoryResult[];
   overall: {
     passed: boolean;
@@ -129,10 +136,13 @@ export interface EvalRunResult {
   }>;
   corpusMetadata?: {
     benchmarkTier?: 'product-core' | 'external-reference' | 'regression-guardrail';
+    benchmarkContractId?: string;
+    benchmarkContractLabel?: string;
     split?: 'all' | 'dev' | 'holdout';
     corpusSize?: number;
     queryCount?: number;
     familyCounts?: Record<string, number>;
+    benchmarkFamilies?: string[];
     ambiguityRate?: number;
     temporalCaseRate?: number;
     distractorCaseRate?: number;

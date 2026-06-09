@@ -200,7 +200,7 @@ function extractGuardrailFailures(snapshot: BenchmarkSnapshot): string[] {
   const failures: string[] = [];
   failures.push(...extractAdminWorldGuardrailFailures(snapshot.adminWorldDev, 'admin-world-dev'));
   failures.push(...extractAdminWorldGuardrailFailures(snapshot.adminWorldHoldout, 'admin-world-holdout'));
-  if (!snapshot.gbrainWorld.gates?.passed) failures.push('gbrain-world');
+  if (!snapshot.gbrainWorld.gates?.passed) failures.push('gbrain-world:github-benchmark');
   if (snapshot.devScorecard.categories.some((category) => !category.passed)) failures.push('core-six-dev');
   if (snapshot.holdoutScorecard.categories.some((category) => !category.passed)) failures.push('core-six-holdout');
   return failures;

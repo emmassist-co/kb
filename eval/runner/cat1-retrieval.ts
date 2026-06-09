@@ -7,6 +7,7 @@ import { mean, ndcgAtK, passThresholds, precisionAtK, recallAtK, reciprocalRankA
 export async function runRetrievalCategory(input: {
   corpusPath?: string;
   gbrainWorldPath?: string;
+  gbrainWorldContract?: 'github-benchmark' | 'corpus-linkable';
   adminWorldPath?: string;
   repoDocsPath?: string;
   k?: number;
@@ -15,7 +16,7 @@ export async function runRetrievalCategory(input: {
   split?: 'all' | 'dev' | 'holdout';
 }): Promise<{ category: EvalCategoryResult; benchmark: EvalRunResult }> {
   const loaded: EvalCorpus = input.gbrainWorldPath
-    ? loadGbrainWorldCorpus(input.gbrainWorldPath)
+    ? loadGbrainWorldCorpus(input.gbrainWorldPath, input.gbrainWorldContract)
     : input.adminWorldPath
       ? loadAdminWorldCorpus(input.adminWorldPath, input.split)
     : input.repoDocsPath
@@ -272,9 +273,7 @@ export async function runRetrievalBenchmark(input: {
               recallAtK: mean(values.map((value) => value.r)),
               mrrAtK: mean(values.map((value) => value.mrr)),
               ndcgAtK: mean(values.map((value) => value.ndcg)),
-              passesFloor:
-                mean(values.map((value) => value.p)) >= 0.25 &&
-                mean(values.map((value) => value.r)) >= 0.8
+              passesFloor: meetsFloor(mean(values.map((value) => value.p)), mean(values.map((value) => value.r)))
             }
           ])
         ),
@@ -540,9 +539,7 @@ async function scoreRetrievalBenchmark(
           recallAtK: mean(values.map((value) => value.r)),
           mrrAtK: mean(values.map((value) => value.mrr)),
           ndcgAtK: mean(values.map((value) => value.ndcg)),
-          passesFloor:
-            mean(values.map((value) => value.p)) >= 0.25 &&
-            mean(values.map((value) => value.r)) >= 0.8
+          passesFloor: meetsFloor(mean(values.map((value) => value.p)), mean(values.map((value) => value.r)))
         }
       ])
     ),
@@ -604,31 +601,32 @@ export function extractRankedDocs(results: KnowledgeSearchResult[]): RankedDoc[]
 function buildBenchmarkGates(result: EvalRunResult): EvalRunResult['gates'] {
   const tier = result.corpusMetadata?.benchmarkTier;
   if (tier === 'product-core') {
+    const meets = (actual: number, threshold: number) => actual + 1e-9 >= threshold;
     const overall = [
-      gate('V3 floor P@5', result.precisionAtK, '>= 35%', result.precisionAtK >= 0.35),
-      gate('V3 floor R@5', result.recallAtK, '>= 90%', result.recallAtK >= 0.9),
-      gate('V3 floor MRR@5', result.mrrAtK, '>= 85%', result.mrrAtK >= 0.85),
-      gate('V3 floor nDCG@5', result.ndcgAtK, '>= 90%', result.ndcgAtK >= 0.9),
+      gate('V3 floor P@5', result.precisionAtK, '>= 35%', meets(result.precisionAtK, 0.35)),
+      gate('V3 floor R@5', result.recallAtK, '>= 90%', meets(result.recallAtK, 0.9)),
+      gate('V3 floor MRR@5', result.mrrAtK, '>= 85%', meets(result.mrrAtK, 0.85)),
+      gate('V3 floor nDCG@5', result.ndcgAtK, '>= 90%', meets(result.ndcgAtK, 0.9)),
       gate('Anchor resolution failures', result.diagnostics?.anchorResolutionFailureRate ?? 0, '<= 10%', (result.diagnostics?.anchorResolutionFailureRate ?? 0) <= 0.1),
       gate('Wrong anchor selections', result.diagnostics?.wrongAnchorSelectionRate ?? 0, '<= 10%', (result.diagnostics?.wrongAnchorSelectionRate ?? 0) <= 0.1),
       gate('Anchor page over answer', result.diagnostics?.anchorPageOverAnswerRate ?? 0, '<= 15%', (result.diagnostics?.anchorPageOverAnswerRate ?? 0) <= 0.15)
     ];
     const perFamily = Object.entries(result.familyBreakdown ?? {}).map(([family, metrics]) => ({
       family,
-      passed: metrics.precisionAtK >= 0.25 && metrics.recallAtK >= 0.8,
+      passed: meets(metrics.precisionAtK, 0.25) && meets(metrics.recallAtK, 0.8),
       precisionAtK: metrics.precisionAtK,
       recallAtK: metrics.recallAtK
     }));
     const strong =
-      result.precisionAtK >= 0.42 &&
-      result.recallAtK >= 0.93 &&
-      result.mrrAtK >= 0.9 &&
-      result.ndcgAtK >= 0.93;
+      meets(result.precisionAtK, 0.42) &&
+      meets(result.recallAtK, 0.93) &&
+      meets(result.mrrAtK, 0.9) &&
+      meets(result.ndcgAtK, 0.93);
     const stretch =
-      result.precisionAtK >= 0.5 &&
-      result.recallAtK >= 0.95 &&
-      result.mrrAtK >= 0.93 &&
-      result.ndcgAtK >= 0.95;
+      meets(result.precisionAtK, 0.5) &&
+      meets(result.recallAtK, 0.95) &&
+      meets(result.mrrAtK, 0.93) &&
+      meets(result.ndcgAtK, 0.95);
     const floor = overall.every((entry) => entry.passed) && perFamily.every((entry) => entry.passed);
     return {
       benchmarkTier: tier,
@@ -663,4 +661,8 @@ function buildBenchmarkGates(result: EvalRunResult): EvalRunResult['gates'] {
 
 function gate(label: string, actual: number, expected: string, passed: boolean) {
   return { label, actual, expected, passed };
+}
+
+function meetsFloor(precisionAtK: number, recallAtK: number) {
+  return precisionAtK + 1e-9 >= 0.25 && recallAtK + 1e-9 >= 0.8;
 }

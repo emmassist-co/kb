@@ -39,16 +39,24 @@ test('fixture corpus benchmark runs and returns aggregate metrics', async () => 
 
 test('gbrain world loader builds normalized ids and relational queries', () => {
   const root = path.resolve(process.cwd(), 'eval/data/gbrain-world-v1');
-  const loaded = loadGbrainWorldCorpus(root);
+  const loaded = loadGbrainWorldCorpus(root, 'github-benchmark');
+  const corpusLinks = loadGbrainWorldCorpus(root, 'corpus-linkable');
 
   assert.ok(loaded.pages.length > 100);
   assert.equal(loaded.queries.length, 145);
   assert.equal(loaded.provenance, 'upstream-fictional-benchmark');
+  assert.equal(loaded.metadata?.benchmarkContractId, 'github-benchmark');
+  assert.equal(loaded.metadata?.benchmarkContractLabel, 'Exact GBrain GitHub benchmark contract');
   assert.equal(normalizeSlug('companies/nimbus-5'), 'companies__nimbus-5');
   assert.ok(loaded.queries.some((query) => query.text.startsWith('Who works at ')));
   assert.ok(loaded.queries.some((query) => query.text.startsWith('Who invested in ')));
   assert.ok(loaded.queries.some((query) => query.text.startsWith('Who advises ')));
   assert.ok(loaded.queries.some((query) => query.text.startsWith('Who attended ')));
+  assert.ok(corpusLinks.queries.length > loaded.queries.length);
+  assert.equal(corpusLinks.metadata?.benchmarkContractId, 'corpus-linkable');
+  assert.ok(corpusLinks.queries.some((query) => query.family === 'related_companies'));
+  assert.ok(corpusLinks.queries.some((query) => query.family === 'related_people'));
+  assert.ok(corpusLinks.queries.some((query) => query.family === 'secondary_affiliations'));
 });
 
 test('repo docs loader builds retrieval corpus from real local docs', () => {
@@ -80,11 +88,11 @@ test('core six fixtures load deterministic category cases', () => {
   const root = path.resolve(process.cwd(), 'eval/data/core-six');
   const loaded = loadCoreSixFixtures(root);
 
-  assert.equal(loaded.temporal.length, 3);
-  assert.equal(loaded.identity.length, 5);
-  assert.equal(loaded.provenanceCases.length, 4);
-  assert.equal(loaded.contradictions.length, 2);
-  assert.equal(loaded.fuzzy.length, 4);
+  assert.equal(loaded.temporal.length, 5);
+  assert.equal(loaded.identity.length, 8);
+  assert.equal(loaded.provenanceCases.length, 6);
+  assert.equal(loaded.contradictions.length, 3);
+  assert.equal(loaded.fuzzy.length, 6);
 });
 
 test('kb eval suite runs all six categories and emits category results', async () => {
@@ -160,6 +168,26 @@ test('admin-world split loading is deterministic and non-empty', () => {
   assert.ok(dev.queries.every((query) => query.split === 'dev'));
   assert.ok(holdout.queries.every((query) => query.split === 'holdout'));
   assert.equal(new Set([...dev.queries, ...holdout.queries].map((query) => query.id)).size, dev.queries.length + holdout.queries.length);
+});
+
+test('admin-world benchmark keeps dense dev and holdout coverage', () => {
+  const root = path.resolve(process.cwd(), 'eval/data/admin-world-v3');
+  const dev = loadAdminWorldCorpus(root, 'dev');
+  const holdout = loadAdminWorldCorpus(root, 'holdout');
+
+  assert.ok(dev.queries.length >= 200);
+  assert.ok(holdout.queries.length >= 70);
+
+  for (const count of Object.values(dev.metadata?.familyCounts ?? {})) {
+    assert.ok(count >= 20);
+  }
+  for (const count of Object.values(holdout.metadata?.familyCounts ?? {})) {
+    assert.ok(count >= 8);
+  }
+
+  assert.ok((holdout.metadata?.ambiguityRate ?? 0) >= 0.3);
+  assert.ok((holdout.metadata?.indirectPhrasingRate ?? 0) >= 0.45);
+  assert.ok((holdout.metadata?.wrongTypeDistractorRate ?? 0) >= 0.95);
 });
 
 test('benchmark comparison modes use minimal hardness matrix by default and full matrix for side-by-side', () => {

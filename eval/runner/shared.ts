@@ -223,6 +223,9 @@ export function renderScorecardMarkdown(scorecard: EvalScorecard): string {
     '| Category | Cases | Passed | Metrics |',
     '| --- | ---: | :---: | --- |'
   ];
+  if (scorecard.policy) {
+    lines.splice(8, 0, ...renderScorecardPolicy(scorecard.policy), '');
+  }
   for (const category of scorecard.categories) {
     const metrics = Object.entries(category.metrics)
       .map(([key, value]) => `${key}=${(value * 100).toFixed(1)}%`)
@@ -239,6 +242,26 @@ export function renderScorecardMarkdown(scorecard: EvalScorecard): string {
   }
   lines.push('');
   return lines.join('\n');
+}
+
+function renderScorecardPolicy(policy: NonNullable<EvalScorecard['policy']>): string[] {
+  const lines = ['## Policy', ''];
+  if (policy.optimizeOn?.length) {
+    lines.push(`- optimize on: ${policy.optimizeOn.map((entry) => `\`${entry}\``).join(', ')}`);
+  }
+  if (policy.confirmOn?.length) {
+    lines.push(`- confirm on: ${policy.confirmOn.map((entry) => `\`${entry}\``).join(', ')}`);
+  }
+  if (policy.regressionGuardrails?.length) {
+    lines.push(`- regression guardrails: ${policy.regressionGuardrails.map((entry) => `\`${entry}\``).join(', ')}`);
+  }
+  if (policy.externalReference?.length) {
+    lines.push(`- external reference: ${policy.externalReference.map((entry) => `\`${entry}\``).join(', ')}`);
+  }
+  for (const note of policy.notes ?? []) {
+    lines.push(`- note: ${note}`);
+  }
+  return lines;
 }
 
 function mapKind(type: string): KnowledgeEntityKind {

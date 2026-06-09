@@ -1046,7 +1046,7 @@ function collectRetrievalTargets(bestScore: CandidateScore, options: { diversify
     categories.push('admin-world-v3-hardness');
   }
   if (!bestScore.snapshot.gbrainWorld.gates?.passed) {
-    categories.push('gbrain-world');
+    categories.push('gbrain-world:github-benchmark');
   }
   for (const result of [bestScore.snapshot.adminWorldDev, bestScore.snapshot.adminWorldHoldout]) {
     for (const [family, metrics] of Object.entries(result.familyBreakdown ?? {})) {

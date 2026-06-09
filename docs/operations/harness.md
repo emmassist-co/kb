@@ -196,7 +196,7 @@ The staged benchmark policy is:
 - optimize on `admin-world-v3 dev`
 - confirm on `admin-world-v3 holdout`
 - block regressions on `core-six`
-- block architectural regressions on `gbrain-world`
+- block architectural regressions on the exact `gbrain-world:github-benchmark` rail
 
 `repo-docs` stays outside the hot autoresearch loop until the KB retrieval baseline is healthy enough to justify broader coverage again.
 

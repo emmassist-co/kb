@@ -115,3 +115,32 @@ Also run focused tests for touched packages, for example:
 
 - `npx tsx --test tests/kb-cli.test.ts`
 - `npx tsx --test tests/kb-cli-docs.test.ts`
+
+## Benchmark Discipline
+
+Benchmarks are a critical public surface in this repo.
+
+For any major KB change, do not stop at tests and typecheck. Rerun the benchmark rails and refresh the published benchmark snapshot before calling the work done.
+
+Major changes include:
+
+- retrieval or ranking logic changes
+- graph extraction or relation-model changes
+- storage, indexing, sync, or migration changes that can alter answer quality
+- benchmark corpus or benchmark runner changes
+- major CLI or HTTP behavior changes that alter the KB contract
+
+Required benchmark commands for those changes:
+
+- `npm run eval:kb:all -- --json`
+- `npm run eval:kb:admin-world -- --split dev --json`
+- `npm run eval:kb:admin-world -- --split holdout --json`
+- `npm run eval:kb:gbrain-world -- --json`
+
+If the measured benchmark posture changes materially, update:
+
+- `README.md`
+- `docs/benchmarks/kb-scorecard-latest.md`
+- `docs/benchmarks/kb-scorecard-latest.json`
+
+Do not describe a major KB change as complete if the benchmark snapshot is stale relative to the code.

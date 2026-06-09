@@ -16,6 +16,7 @@ interface ParsedArgs {
   corpusPath?: string;
   fixturesPath?: string;
   gbrainWorldPath?: string;
+  gbrainWorldContract?: 'github-benchmark' | 'corpus-linkable';
   repoDocsPath?: string;
   outputDir?: string;
   writeScorecard: boolean;
@@ -27,12 +28,13 @@ async function main() {
   const scorecard: EvalScorecard = {
     suite: args.category ? `kb:${args.category}` : 'kb:core-six',
     corpus: args.gbrainWorldPath
-      ? `gbrain-world-v1:${args.gbrainWorldPath}`
+      ? `gbrain-world-v1:${args.gbrainWorldContract ?? 'github-benchmark'}:${args.gbrainWorldPath}`
       : args.repoDocsPath
         ? `repo-docs-v1:${args.repoDocsPath}`
         : 'kb-core-six',
     provenance: inferScorecardProvenance(categories),
     generatedAt: new Date().toISOString(),
+    policy: buildScorecardPolicy(args),
     categories,
     overall: summarizeOverall(categories)
   };
@@ -48,7 +50,7 @@ async function main() {
 
 export async function runSelectedCategories(args: ParsedArgs): Promise<EvalCategoryResult[]> {
   if (args.category === 'retrieval') {
-    return [(await runRetrievalCategory({ corpusPath: args.corpusPath, gbrainWorldPath: args.gbrainWorldPath, repoDocsPath: args.repoDocsPath, k: args.k })).category];
+    return [(await runRetrievalCategory({ corpusPath: args.corpusPath, gbrainWorldPath: args.gbrainWorldPath, gbrainWorldContract: args.gbrainWorldContract, repoDocsPath: args.repoDocsPath, k: args.k })).category];
   }
   if (args.category === 'temporal') return [await runTemporalCategory({ fixturesPath: args.fixturesPath })];
   if (args.category === 'identity') return [await runIdentityCategory({ fixturesPath: args.fixturesPath, k: args.k })];
@@ -95,7 +97,8 @@ function parseArgs(argv: string[]): ParsedArgs {
   const parsed: ParsedArgs = {
     json: false,
     k: 5,
-    writeScorecard: true
+    writeScorecard: true,
+    gbrainWorldContract: 'github-benchmark'
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -114,6 +117,13 @@ function parseArgs(argv: string[]): ParsedArgs {
       index += 1;
     } else if (arg === '--gbrain-world') {
       parsed.gbrainWorldPath = path.resolve(argv[index + 1] ?? '');
+      index += 1;
+    } else if (arg === '--gbrain-world-contract') {
+      const value = argv[index + 1];
+      if (value !== 'github-benchmark' && value !== 'corpus-linkable') {
+        throw new Error(`Unsupported gbrain world contract: ${value}`);
+      }
+      parsed.gbrainWorldContract = value;
       index += 1;
     } else if (arg === '--repo-docs') {
       parsed.repoDocsPath = path.resolve(argv[index + 1] ?? '');
@@ -137,6 +147,37 @@ function capitalize(value: string): string {
 function inferScorecardProvenance(categories: EvalCategoryResult[]): EvalScorecard['provenance'] {
   const values = [...new Set(categories.map((category) => category.provenance))];
   return values.length === 1 ? values[0] : 'mixed';
+}
+
+function buildScorecardPolicy(args: ParsedArgs): EvalScorecard['policy'] | undefined {
+  if (args.gbrainWorldPath) {
+    return {
+      externalReference: [`gbrain-world:${args.gbrainWorldContract ?? 'github-benchmark'}`],
+      notes: ['Use the exact GBrain GitHub benchmark contract as an external reference rail, not the primary optimize target.']
+    };
+  }
+  if (args.repoDocsPath) {
+    return {
+      notes: ['Repo docs retrieval is first-party source-grounded validation and stays outside the hot optimization loop.']
+    };
+  }
+  if (args.category) {
+    return {
+      regressionGuardrails: ['core-six'],
+      notes: ['Single-category runs are deterministic regression checks, not release-readiness summaries.']
+    };
+  }
+  return {
+    optimizeOn: ['admin-world-v3 dev'],
+    confirmOn: ['admin-world-v3 holdout'],
+    regressionGuardrails: ['core-six dev', 'core-six holdout'],
+    externalReference: ['gbrain-world:github-benchmark'],
+    notes: [
+      'Optimize on product-core admin-world retrieval quality.',
+      'Use deterministic core-six categories as regression floors.',
+      'Keep the exact GBrain GitHub benchmark contract as an external comparison rail rather than a direct ship target.'
+    ]
+  };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -24,5 +24,7 @@ jobs:
         run: npm run typecheck
       - name: Run npm test shard for kb-http and kb-cli
         run: ./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts
+      - name: Run KB eval policy verification
+        run: npm run verify:kb:evals
       - name: Run kb smoke verification
         run: ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all

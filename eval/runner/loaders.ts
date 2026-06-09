@@ -26,6 +26,10 @@ interface RichWorldPage {
     investors?: string[];
     advisors?: string[];
     attendees?: string[];
+    related_companies?: string[];
+    related_people?: string[];
+    secondary_affiliations?: string[];
+    notable_traits?: string[];
   };
 }
 
@@ -49,7 +53,10 @@ export function loadFixtureCorpus(rootDir: string): EvalCorpus {
   };
 }
 
-export function loadGbrainWorldCorpus(rootDir: string): EvalCorpus {
+export function loadGbrainWorldCorpus(
+  rootDir: string,
+  contract: 'github-benchmark' | 'corpus-linkable' = 'github-benchmark'
+): EvalCorpus {
   const files = readdirSync(rootDir).filter((entry) => entry.endsWith('.json') && !entry.startsWith('_'));
   const rawPages = files.map((fileName) => JSON.parse(readFileSync(path.join(rootDir, fileName), 'utf8')) as RichWorldPage);
   const existing = new Set(rawPages.map((page) => page.slug));
@@ -62,12 +69,32 @@ export function loadGbrainWorldCorpus(rootDir: string): EvalCorpus {
     aliases: page.aliases ?? [],
     relations: page._facts ? buildGbrainRelations(page, existing) : []
   }));
-  const queries = buildRelationalQueries(rawPages);
+  const queries = contract === 'github-benchmark'
+    ? buildGithubBenchmarkQueries(rawPages)
+    : buildCorpusLinkableQueries(rawPages);
   return {
-    corpusName: `gbrain-world-v1:${rootDir}`,
+    corpusName: `gbrain-world-v1:${contract}:${rootDir}`,
     provenance: 'upstream-fictional-benchmark',
     pages,
-    queries
+    queries,
+    metadata: {
+      benchmarkTier: 'external-reference',
+      benchmarkContractId: contract,
+      benchmarkContractLabel:
+        contract === 'github-benchmark'
+          ? 'Exact GBrain GitHub benchmark contract'
+          : 'All linkable vendored world-v1 relations',
+      benchmarkFamilies: [...new Set(queries.map((query) => query.family ?? 'unknown'))],
+      corpusSize: pages.length,
+      queryCount: queries.length,
+      familyCounts: Object.fromEntries(
+        queries.reduce((map, query) => {
+          const family = query.family ?? 'unknown';
+          map.set(family, (map.get(family) ?? 0) + 1);
+          return map;
+        }, new Map<string, number>())
+      )
+    }
   };
 }
 
@@ -213,7 +240,7 @@ export function loadRepoDocsCorpus(manifestDir: string, docsRoot = path.resolve(
   };
 }
 
-function buildRelationalQueries(pages: RichWorldPage[]): EvalQuery[] {
+function buildGithubBenchmarkQueries(pages: RichWorldPage[]): EvalQuery[] {
   const existing = new Set(pages.map((page) => page.slug));
   const queries: EvalQuery[] = [];
 
@@ -279,6 +306,54 @@ function buildRelationalQueries(pages: RichWorldPage[]): EvalQuery[] {
   return queries;
 }
 
+function buildCorpusLinkableQueries(pages: RichWorldPage[]): EvalQuery[] {
+  const existing = new Set(pages.map((page) => page.slug));
+  const queries = buildGithubBenchmarkQueries(pages);
+
+  for (const page of pages) {
+    const facts = page._facts;
+    if (!facts) continue;
+
+    const relatedCompanies = (facts.related_companies ?? []).filter((slug) => existing.has(slug)).map(normalizeSlug);
+    if (relatedCompanies.length > 0) {
+      queries.push({
+        id: `related-companies:${normalizeSlug(page.slug)}`,
+        text: `Which companies are related to ${page.title}?`,
+        relevant: relatedCompanies,
+        relationType: 'related_to_company',
+        anchorId: normalizeSlug(page.slug),
+        family: 'related_companies'
+      });
+    }
+
+    const relatedPeople = (facts.related_people ?? []).filter((slug) => existing.has(slug)).map(normalizeSlug);
+    if (relatedPeople.length > 0) {
+      queries.push({
+        id: `related-people:${normalizeSlug(page.slug)}`,
+        text: `Which people are related to ${page.title}?`,
+        relevant: relatedPeople,
+        relationType: 'related_to_person',
+        anchorId: normalizeSlug(page.slug),
+        family: 'related_people'
+      });
+    }
+
+    const secondaryAffiliations = (facts.secondary_affiliations ?? []).filter((slug) => existing.has(slug)).map(normalizeSlug);
+    if (secondaryAffiliations.length > 0) {
+      queries.push({
+        id: `secondary-affiliations:${normalizeSlug(page.slug)}`,
+        text: `What secondary affiliations does ${page.title} have?`,
+        relevant: secondaryAffiliations,
+        relationType: 'secondary_affiliation',
+        anchorId: normalizeSlug(page.slug),
+        family: 'secondary_affiliations'
+      });
+    }
+  }
+
+  return queries;
+}
+
 export function normalizeSlug(slug: string): string {
   return slug.replace(/\//g, '__');
 }
@@ -300,6 +375,12 @@ function buildGbrainRelations(page: RichWorldPage, existing: Set<string>): EvalP
     const advisors = (facts.advisors ?? []).filter((slug) => existing.has(slug)).map(normalizeSlug);
     if (advisors.length) relations.push({ type: 'advises', targets: advisors });
   }
+  const relatedCompanies = (facts.related_companies ?? []).filter((slug) => existing.has(slug)).map(normalizeSlug);
+  if (relatedCompanies.length) relations.push({ type: 'related_to_company', targets: relatedCompanies });
+  const relatedPeople = (facts.related_people ?? []).filter((slug) => existing.has(slug)).map(normalizeSlug);
+  if (relatedPeople.length) relations.push({ type: 'related_to_person', targets: relatedPeople });
+  const secondaryAffiliations = (facts.secondary_affiliations ?? []).filter((slug) => existing.has(slug)).map(normalizeSlug);
+  if (secondaryAffiliations.length) relations.push({ type: 'secondary_affiliation', targets: secondaryAffiliations });
   return relations;
 }
 

@@ -14,6 +14,26 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Not yet in the staged public package set/);
   assert.match(repoReadme, /@emmassist-co\/kb-flue-adapter/);
   assert.match(repoReadme, /@emmassist-co\/kb-autoresearch/);
+  assert.match(repoReadme, /## Benchmark Standard/);
+  assert.match(repoReadme, /admin-world-v3/);
+  assert.match(repoReadme, /gbrain-world/);
+  assert.match(repoReadme, /exact public GBrain GitHub benchmark contract: `145` queries across attendance, employment, investing, and advising/);
+  assert.match(repoReadme, /core-six/);
+  assert.match(repoReadme, /\| `core-six` \| deterministic floor \| `72 retrieval \+ 28 non-retrieval` \| `30\.0%` \| `94\.4%` \| `93\.1%` \| `88\.4%` \| `pass` \|/);
+  assert.match(repoReadme, /\| `admin-world-v3 dev` \| product-core optimize rail \| `216 queries` \| `41\.5%` \| `99\.3%` \| `98\.7%` \| `92\.6%` \| `floor reached` \|/);
+  assert.match(repoReadme, /\| `admin-world-v3 holdout` \| product-core confirm rail \| `72 queries` \| `41\.7%` \| `99\.3%` \| `100\.0%` \| `93\.6%` \| `floor reached` \|/);
+  assert.match(repoReadme, /\| `gbrain-world` \| exact public external rail \| `145 queries` \| `35\.6%` \| `99\.3%` \| `100\.0%` \| `99\.5%` \| `guardrails passed` \|/);
+  assert.match(repoReadme, /GBrain` public headline used in the side-by-side runner/);
+  assert.match(repoReadme, /288 retrieval queries/);
+  assert.match(repoReadme, /72 holdout queries/);
+  assert.match(repoReadme, /kb-scorecard-latest\.md/);
+  assert.match(repoReadme, /P@5 35\.6%/);
+  assert.match(repoReadme, /R@5 99\.3%/);
+  assert.match(repoReadme, /optimize on `admin-world-v3 dev`/);
+  assert.match(repoReadme, /confirm on `admin-world-v3 holdout`/);
+  assert.match(repoReadme, /block regressions on `core-six dev` and `core-six holdout`/);
+  assert.match(repoReadme, /external reference rail/);
+  assert.match(repoReadme, /after any major KB change, rerun the benchmark rails and refresh the published benchmark snapshot/);
 
   const packageSkill = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-write/SKILL.md'), 'utf8');
   assert.match(packageSkill, /github\.com\/emmassist-co\/kb/);

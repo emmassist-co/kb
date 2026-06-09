@@ -199,6 +199,23 @@
       "endDate": "2026-05-04",
       "expectedAnswer": "reviewed the dispute workflow",
       "expectedSources": ["src_finance_review"]
+    },
+    {
+      "id": "temporal-post-migration-provider",
+      "prompt": "Who handled invoice payments as of 2026-05-02?",
+      "entityId": "vendor-stripe",
+      "mode": "as-of",
+      "queryDate": "2026-05-02",
+      "expectedAnswer": "Stripe",
+      "expectedSources": ["src_migration_memo"]
+    },
+    {
+      "id": "temporal-owner-confirmed-latest",
+      "prompt": "Who owns the Stripe relationship now?",
+      "entityId": "vendor-stripe",
+      "mode": "latest",
+      "expectedAnswer": "Jane Smith",
+      "expectedSources": ["src_confirmed_owner"]
     }
   ],
   "identity": [
@@ -233,6 +250,26 @@
       "query": "Smith ops",
       "relevant": ["person-john-smith"],
       "disallowed": ["person-jane-smith"]
+    },
+    {
+      "id": "identity-jane-short-alias",
+      "prompt": "Resolve Jane S.",
+      "query": "Jane S.",
+      "relevant": ["person-jane-smith"],
+      "disallowed": ["person-john-smith"]
+    },
+    {
+      "id": "identity-john-short-alias",
+      "prompt": "Resolve John S.",
+      "query": "John S.",
+      "relevant": ["person-john-smith"],
+      "disallowed": ["person-jane-smith"]
+    },
+    {
+      "id": "identity-stripe-disputes-handle",
+      "prompt": "Resolve disputes@stripe.com",
+      "query": "disputes@stripe.com",
+      "relevant": ["vendor-stripe"]
     }
   ],
   "provenance": [
@@ -264,6 +301,20 @@
       "expectedSourceIds": [],
       "evidenceMode": "direct-quote",
       "unsupported": true
+    },
+    {
+      "id": "prov-legacy-processor-source",
+      "prompt": "Find source for the processor before the Stripe migration",
+      "claim": "Who handled invoice payments before Stripe?",
+      "expectedSourceIds": ["src_old_runbook"],
+      "evidenceMode": "timeline-derived"
+    },
+    {
+      "id": "prov-refund-sla-conflict",
+      "prompt": "Find sources for the unresolved refund SLA conflict",
+      "claim": "Why is the refund SLA still unresolved?",
+      "expectedSourceIds": ["src_refund_sla_old", "src_refund_sla_new", "src_refund_sla_conflict"],
+      "evidenceMode": "multi-source-synthesis"
     }
   ],
   "contradictions": [
@@ -282,6 +333,15 @@
       "entityId": "policy-refund-sla",
       "expectedStatus": "uncertain",
       "requiredMentions": ["24 hours", "48 hours", "unresolved"]
+    },
+    {
+      "id": "contradiction-processor-resolved",
+      "prompt": "Processor migration resolves the old versus new owner of invoice payments",
+      "entityId": "vendor-stripe",
+      "expectedStatus": "resolved",
+      "winningSourceIds": ["src_migration_memo"],
+      "losingSourceIds": ["src_old_runbook"],
+      "requiredMentions": ["adyen", "stripe", "replaced"]
     }
   ],
   "fuzzy": [
@@ -310,6 +370,18 @@
       "prompt": "Find the legacy processor before Stripe",
       "query": "legacy processor before stripe",
       "relevant": ["vendor-adyen"]
+    },
+    {
+      "id": "fuzzy-refund-policy",
+      "prompt": "Find the refund response policy doc",
+      "query": "refund response policy",
+      "relevant": ["policy-refund-sla"]
+    },
+    {
+      "id": "fuzzy-jane-payments-owner",
+      "prompt": "Find the finance person who owns Stripe",
+      "query": "finance person who owns stripe",
+      "relevant": ["person-jane-smith"]
     }
   ]
 }

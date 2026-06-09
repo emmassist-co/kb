@@ -26,7 +26,7 @@ export function buildRunConfig(repoRoot: string, options: KbAutoresearchCliOptio
     benchmarkPolicy: {
       screening: ['admin-world-v3 dev'],
       acceptance: ['admin-world-v3 holdout'],
-      guardrails: ['core-six dev', 'core-six holdout', 'gbrain-world'],
+      guardrails: ['core-six dev', 'core-six holdout', 'gbrain-world:github-benchmark'],
       skippedFromLoop: ['repo-docs dev', 'repo-docs holdout']
     },
     paths: {

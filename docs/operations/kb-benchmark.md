@@ -4,7 +4,8 @@ Use the KB benchmark to measure retrieval quality independently from the admin a
 
 Important corpus note:
 
-- `gbrain-world` is an upstream fictional benchmark corpus from `gbrain-evals`, useful for apples-to-apples comparison against GBrain retrieval shape
+- `gbrain-world` is the exact public GitHub benchmark contract currently presented by `gbrain-evals`: 145 relational queries across attendance, employment, investing, and advising
+- the vendored `world-v1` corpus is richer than that public contract; broader linkable-relation exploration exists separately and is not the public gold rail
 - `core-six` is our deterministic local fixture suite for temporal, identity, provenance, contradictions, and fuzzy behavior
 - `repo-docs-v1` is a first-party retrieval corpus built from the real markdown docs in this repository
 
@@ -42,16 +43,22 @@ Run retrieval against the real local repo docs corpus:
 npm run eval:kb:repo-docs
 ```
 
-Run against the vendored `gbrain-evals` fictional world:
+Run against the exact public GBrain GitHub benchmark:
 
 ```bash
 npm run eval:kb:gbrain-world
 ```
 
-Or point at any other checked-out `world-v1` path:
+Run the broader internal linkable-corpus exploration surface:
 
 ```bash
-npm run eval:kb -- --gbrain-world /path/to/gbrain-evals/eval/data/world-v1
+npm run eval:kb:gbrain-world-corpus-links
+```
+
+Or point at any other checked-out `world-v1` path for the exact GitHub benchmark contract:
+
+```bash
+npm run eval:kb -- --gbrain-world /path/to/gbrain-evals/eval/data/world-v1 --gbrain-world-contract github-benchmark
 ```
 
 ## What It Measures
@@ -63,14 +70,14 @@ The metric contract matches the core BrainBench retrieval metrics:
 - `MRR@k`
 - `nDCG@k`
 
-When you run with `--gbrain-world`, the benchmark uses the same primary relational retrieval case families GBrain uses in its side-by-side runner:
+When you run with `--gbrain-world --gbrain-world-contract github-benchmark`, the benchmark uses the same primary relational retrieval case families GBrain uses in its public side-by-side runner:
 
 - `Who attended <meeting>?`
 - `Who works at <company>?`
 - `Who invested in <company>?`
 - `Who advises <company>?`
 
-On the current `world-v1` corpus that is 145 queries total.
+On the current vendored `world-v1` corpus that is 145 queries total.
 
 ## Corpus Provenance
 
@@ -86,12 +93,14 @@ This is deliberate. A strong KB eval stack should include:
 - first-party source-grounded retrieval
 - deterministic targeted fixtures for narrow failure modes
 
-The goal is not to copy the entire GBrain eval stack. The goal is to keep our KB benchmark shape compatible with it:
+The goal of the public external rail is not to invent our own interpretation of GBrain. The goal is to run the same public GitHub benchmark contract and report our score on it:
 
-- canonical corpus directory
-- explicit query/qrels set
+- pinned vendored corpus
+- explicit benchmark contract identity
 - deterministic runner
 - adapter-independent metrics
+
+The broader vendored corpus may still support internal exploratory benchmarks, but those should not be confused with the public external rail.
 
 ## Current Scope
 

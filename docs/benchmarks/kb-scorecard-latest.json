@@ -2,7 +2,27 @@
   "suite": "kb:core-six",
   "corpus": "kb-core-six",
   "provenance": "deterministic-synthetic-fixtures",
-  "generatedAt": "2026-05-08T11:42:24.012Z",
+  "generatedAt": "2026-06-09T18:20:03.124Z",
+  "policy": {
+    "optimizeOn": [
+      "admin-world-v3 dev"
+    ],
+    "confirmOn": [
+      "admin-world-v3 holdout"
+    ],
+    "regressionGuardrails": [
+      "core-six dev",
+      "core-six holdout"
+    ],
+    "externalReference": [
+      "gbrain-world:github-benchmark"
+    ],
+    "notes": [
+      "Optimize on product-core admin-world retrieval quality.",
+      "Use deterministic core-six categories as regression floors.",
+      "Keep the exact GBrain GitHub benchmark contract as an external comparison rail rather than a direct ship target."
+    ]
+  },
   "categories": [
     {
       "category": "retrieval",
@@ -40,7 +60,7 @@
       "category": "temporal",
       "corpus": "kb-core-six-v1",
       "provenance": "deterministic-synthetic-fixtures",
-      "caseCount": 3,
+      "caseCount": 5,
       "metrics": {
         "exactAnswerAccuracy": 1,
         "evidenceCorrectness": 1,
@@ -53,13 +73,13 @@
       },
       "passed": true,
       "failures": [],
-      "sampleSize": 3
+      "sampleSize": 5
     },
     {
       "category": "identity",
       "corpus": "kb-core-six-v1",
       "provenance": "deterministic-synthetic-fixtures",
-      "caseCount": 5,
+      "caseCount": 8,
       "metrics": {
         "recallAtK": 1,
         "mrrAtK": 1,
@@ -80,7 +100,7 @@
       "category": "provenance",
       "corpus": "kb-core-six-v1",
       "provenance": "deterministic-synthetic-fixtures",
-      "caseCount": 4,
+      "caseCount": 6,
       "metrics": {
         "sourceHitRate": 1,
         "exactEvidenceMatch": 1,
@@ -95,13 +115,13 @@
       },
       "passed": true,
       "failures": [],
-      "sampleSize": 4
+      "sampleSize": 5
     },
     {
       "category": "contradictions",
       "corpus": "kb-core-six-v1",
       "provenance": "deterministic-synthetic-fixtures",
-      "caseCount": 2,
+      "caseCount": 3,
       "metrics": {
         "contradictionDetectionRate": 1,
         "correctWinnerSelectionRate": 1,
@@ -116,16 +136,16 @@
       },
       "passed": true,
       "failures": [],
-      "sampleSize": 2
+      "sampleSize": 3
     },
     {
       "category": "fuzzy",
       "corpus": "kb-core-six-v1",
       "provenance": "deterministic-synthetic-fixtures",
-      "caseCount": 4,
+      "caseCount": 6,
       "metrics": {
         "recallAtK": 1,
-        "mrrAtK": 0.875,
+        "mrrAtK": 0.9166666666666666,
         "explanationAvailability": 1,
         "confidenceCalibration": 1
       },
@@ -137,7 +157,7 @@
       },
       "passed": true,
       "failures": [],
-      "sampleSize": 4
+      "sampleSize": 5
     }
   ],
   "overall": {

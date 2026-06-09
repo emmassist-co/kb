@@ -294,7 +294,7 @@ test('pi backend defaults point to a direct local binary and codex subscription 
     assert.equal(config.model, 'gpt-5.3-codex-spark');
     assert.deepEqual(config.benchmarkPolicy.screening, ['admin-world-v3 dev']);
     assert.deepEqual(config.benchmarkPolicy.acceptance, ['admin-world-v3 holdout']);
-    assert.deepEqual(config.benchmarkPolicy.guardrails, ['core-six dev', 'core-six holdout', 'gbrain-world']);
+    assert.deepEqual(config.benchmarkPolicy.guardrails, ['core-six dev', 'core-six holdout', 'gbrain-world:github-benchmark']);
     assert.deepEqual(config.benchmarkPolicy.skippedFromLoop, ['repo-docs dev', 'repo-docs holdout']);
   } finally {
     rmSync(repoRoot, { force: true, recursive: true });
@@ -770,11 +770,14 @@ test('pi adapter splits diagnosis and edit, then retries the edit with a compact
   const root = createFixtureRepo();
   const promptDir = mkdtempSync(path.join(tmpdir(), 'kb-pi-prompt-'));
   const promptPath = path.join(promptDir, 'prompt.md');
+  const fakeHome = mkdtempSync(path.join(tmpdir(), 'kb-pi-home-'));
+  const previousHome = process.env.HOME;
   mkdirSync(path.join(root, 'node_modules/.bin'), { recursive: true });
   writeFileSync(path.join(root, 'node_modules/.bin/pi'), '', 'utf8');
   writeFileSync(promptPath, 'base prompt', 'utf8');
-  mkdirSync(path.join(process.env.HOME ?? '', '.pi/agent'), { recursive: true });
-  writeFileSync(path.join(process.env.HOME ?? '', '.pi/agent/auth.json'), '{}', 'utf8');
+  process.env.HOME = fakeHome;
+  mkdirSync(path.join(fakeHome, '.pi/agent'), { recursive: true });
+  writeFileSync(path.join(fakeHome, '.pi/agent/auth.json'), '{}', 'utf8');
 
   try {
     const adapter = new PiAgentAdapter(runner, { command: 'npx', provider: 'openai-codex' });
@@ -822,8 +825,10 @@ test('pi adapter splits diagnosis and edit, then retries the edit with a compact
     assert.doesNotMatch(calls[2]?.prompt ?? '', /Briefing artifact/);
     assert.match(calls[2]?.prompt ?? '', /retry after a context overflow/i);
   } finally {
+    process.env.HOME = previousHome;
     rmSync(root, { force: true, recursive: true });
     rmSync(promptDir, { force: true, recursive: true });
+    rmSync(fakeHome, { force: true, recursive: true });
   }
 });
 
@@ -840,8 +845,11 @@ test('pi adapter preflight fails immediately on missing auth or models', async (
     }
   };
   const root = createFixtureRepo();
-  mkdirSync(path.join(process.env.HOME ?? '', '.pi/agent'), { recursive: true });
-  writeFileSync(path.join(process.env.HOME ?? '', '.pi/agent/auth.json'), '{}', 'utf8');
+  const fakeHome = mkdtempSync(path.join(tmpdir(), 'kb-pi-home-'));
+  const previousHome = process.env.HOME;
+  process.env.HOME = fakeHome;
+  mkdirSync(path.join(fakeHome, '.pi/agent'), { recursive: true });
+  writeFileSync(path.join(fakeHome, '.pi/agent/auth.json'), '{}', 'utf8');
 
   try {
     const adapter = new PiAgentAdapter(runner, { command: 'npx', provider: 'openai-codex' });
@@ -852,7 +860,9 @@ test('pi adapter preflight fails immediately on missing auth or models', async (
     assert.equal(calls.length, 1);
     assert.equal(calls[0]?.args.includes('--list-models'), true);
   } finally {
+    process.env.HOME = previousHome;
     rmSync(root, { force: true, recursive: true });
+    rmSync(fakeHome, { force: true, recursive: true });
   }
 });
 
@@ -874,7 +884,10 @@ test('pi adapter falls back to autoresearch preflight auth when home auth is emp
   const root = createFixtureRepo();
   const promptDir = mkdtempSync(path.join(tmpdir(), 'kb-pi-fallback-'));
   const promptPath = path.join(promptDir, 'prompt.md');
-  const homeAuthDir = path.join(process.env.HOME ?? '', '.pi/agent');
+  const fakeHome = mkdtempSync(path.join(tmpdir(), 'kb-pi-home-'));
+  const previousHome = process.env.HOME;
+  process.env.HOME = fakeHome;
+  const homeAuthDir = path.join(fakeHome, '.pi/agent');
   const fallbackAuthPath = path.join(root, 'artifacts/kb-autoresearch/pi-preflight/pi-home/auth.json');
   mkdirSync(path.dirname(fallbackAuthPath), { recursive: true });
   writeFileSync(fallbackAuthPath, JSON.stringify({ 'openai-codex': { type: 'oauth', access: 'token' } }), 'utf8');
@@ -925,8 +938,10 @@ test('pi adapter falls back to autoresearch preflight auth when home auth is emp
     assert.equal(calls.length > 0, true);
   } finally {
     process.chdir(previousCwd);
+    process.env.HOME = previousHome;
     rmSync(root, { force: true, recursive: true });
     rmSync(promptDir, { force: true, recursive: true });
+    rmSync(fakeHome, { force: true, recursive: true });
   }
 });
 

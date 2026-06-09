@@ -5,6 +5,7 @@ import type { EvalRunResult } from './types.js';
 interface ParsedArgs {
   corpusPath?: string;
   gbrainWorldPath?: string;
+  gbrainWorldContract?: 'github-benchmark' | 'corpus-linkable';
   adminWorldPath?: string;
   repoDocsPath?: string;
   json: boolean;
@@ -51,6 +52,7 @@ async function main() {
   const { benchmark } = await runRetrievalCategory({
     corpusPath: args.corpusPath,
     gbrainWorldPath: args.gbrainWorldPath,
+    gbrainWorldContract: args.gbrainWorldContract,
     adminWorldPath: args.adminWorldPath,
     repoDocsPath: args.repoDocsPath,
     k: args.k,
@@ -188,6 +190,7 @@ async function runSingleMode(
   const { benchmark } = await runRetrievalCategory({
     corpusPath: args.corpusPath,
     gbrainWorldPath: args.gbrainWorldPath,
+    gbrainWorldContract: args.gbrainWorldContract,
     adminWorldPath: args.adminWorldPath,
     repoDocsPath: args.repoDocsPath,
     k: args.k,
@@ -208,6 +211,9 @@ function printMarkdown(result: EvalRunResult) {
   }
   if (result.corpusMetadata?.split) {
     console.log(`Split: \`${result.corpusMetadata.split}\``);
+  }
+  if (result.corpusMetadata?.benchmarkContractLabel) {
+    console.log(`Benchmark contract: \`${result.corpusMetadata.benchmarkContractLabel}\``);
   }
   console.log(`Queries: ${result.queryCount}`);
   console.log(`Top-K: ${result.k}`);
@@ -315,7 +321,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     k: 5,
     mode: 'graph-first-hybrid',
     sideBySide: false,
-    split: 'all'
+    split: 'all',
+    gbrainWorldContract: 'github-benchmark'
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -325,6 +332,13 @@ function parseArgs(argv: string[]): ParsedArgs {
       index += 1;
     } else if (arg === '--gbrain-world') {
       parsed.gbrainWorldPath = argv[index + 1];
+      index += 1;
+    } else if (arg === '--gbrain-world-contract') {
+      const value = argv[index + 1];
+      if (value !== 'github-benchmark' && value !== 'corpus-linkable') {
+        throw new Error(`Unsupported gbrain world contract: ${value}`);
+      }
+      parsed.gbrainWorldContract = value;
       index += 1;
     } else if (arg === '--repo-docs') {
       parsed.repoDocsPath = argv[index + 1];
@@ -358,6 +372,9 @@ function printSideBySide(comparison: BenchmarkComparison) {
   console.log('');
   console.log(`Corpus: \`${comparison.corpus}\``);
   console.log(`Split: \`${comparison.split}\``);
+  if (comparison.metadata?.benchmarkContractLabel) {
+    console.log(`Benchmark contract: \`${comparison.metadata.benchmarkContractLabel}\``);
+  }
   console.log(`Best stack: \`${comparison.bestStack.mode}\` / \`${comparison.bestStack.lexicalBackend ?? 'n/a'}\``);
   if (comparison.externalReference) {
     console.log(`External reference: \`${comparison.externalReference.name}\` P@5 ${(comparison.externalReference.precisionAtK * 100).toFixed(1)}%, R@5 ${(comparison.externalReference.recallAtK * 100).toFixed(1)}%`);
