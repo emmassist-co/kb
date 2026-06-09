@@ -1,0 +1,7 @@
+interface:
+  display_name: "KB Cloudflare Setup"
+  short_description: "Deploy the canonical KB surface to Cloudflare and connect agents to it"
+  default_prompt: "Use $kb-cloudflare-setup to ask for the required Cloudflare KB deployment inputs, guide the operator through deployment, verify canonical production capabilities, and connect the agent over HTTP."
+
+policy:
+  allow_implicit_invocation: true

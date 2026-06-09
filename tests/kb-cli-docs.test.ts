@@ -45,22 +45,42 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(setupSkill, /npx kb-local inspect/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-local-setup/agents/openai.yaml')));
 
+  const cloudflareSetupSkill = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-cloudflare-setup/SKILL.md'), 'utf8');
+  assert.match(cloudflareSetupSkill, /canonical Cloudflare-hosted KB surface/);
+  assert.match(cloudflareSetupSkill, /canonical-production/);
+  assert.match(cloudflareSetupSkill, /KB_BASE_URL/);
+  assert.match(cloudflareSetupSkill, /docs\/cloudflare-agent-setup\.md/);
+  assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-cloudflare-setup/agents/openai.yaml')));
+
   const readme = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/README.md'), 'utf8');
   assert.match(readme, /npm install @emmassist-co\/kb-cli/);
   assert.match(readme, /npx kb-local inspect/);
   assert.match(readme, /kb-local-setup/);
+  assert.match(readme, /cloudflare-agent-setup\.md/);
+  assert.match(readme, /kb-cloudflare-setup/);
   assert.doesNotMatch(readme, /npm\.pkg\.github\.com/);
 
   const quickstart = readFileSync(path.resolve(process.cwd(), 'docs/consumer-quickstart.md'), 'utf8');
   assert.match(quickstart, /public npm registry/);
+  assert.match(quickstart, /cloudflare-agent-setup\.md/);
   assert.match(quickstart, /KB_TENANT_ID/);
   assert.match(quickstart, /KB_ROOT_DIR/);
   assert.match(quickstart, /npm install @emmassist-co\/kb-cli/);
   assert.match(quickstart, /npx kb-local sync status/);
   assert.match(quickstart, /support and debugging path/);
   assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-local-setup/);
+  assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-cloudflare-setup/);
+  assert.match(quickstart, /canonical Cloudflare KB surface/);
   assert.doesNotMatch(quickstart, /GITHUB_PACKAGES_TOKEN/);
   assert.doesNotMatch(quickstart, /npm\.pkg\.github\.com/);
+
+  const cloudflareGuide = readFileSync(path.resolve(process.cwd(), 'docs/cloudflare-agent-setup.md'), 'utf8');
+  assert.match(cloudflareGuide, /canonical KB surface on Cloudflare/);
+  assert.match(cloudflareGuide, /workspaceRole: "canonical-production"/);
+  assert.match(cloudflareGuide, /workspaceRole: canonical-production/);
+  assert.match(cloudflareGuide, /KB_BASE_URL/);
+  assert.match(cloudflareGuide, /kb-cloudflare-setup/);
+  assert.match(cloudflareGuide, /wrangler\.jsonc/);
 
   const migrationStatus = readFileSync(path.resolve(process.cwd(), 'docs/migration-status.md'), 'utf8');
   assert.match(migrationStatus, /## Staged Public Package Set/);

@@ -5,6 +5,7 @@ Standalone KB CLI for local agents and HTTP-backed KB hosts.
 ## Consumer Quickstart
 
 Full setup guide: [docs/consumer-quickstart.md](../../docs/consumer-quickstart.md)
+Canonical Cloudflare deployment guide: [docs/cloudflare-agent-setup.md](../../docs/cloudflare-agent-setup.md)
 
 Minimal install for a local agent host:
 
@@ -38,12 +39,14 @@ npx kb-local inspect
 
 This package ships an installable KB write skill at [skills/kb-write](./skills/kb-write).
 It also ships a local setup skill at [skills/kb-local-setup](./skills/kb-local-setup).
+It also ships a Cloudflare setup skill at [skills/kb-cloudflare-setup](./skills/kb-cloudflare-setup).
 
 Example install:
 
 ```bash
 npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write
 npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-local-setup
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-cloudflare-setup
 ```
 
 ## Examples

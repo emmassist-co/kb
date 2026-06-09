@@ -2,6 +2,8 @@
 
 This guide is for a local repo, agent workspace, or operator shell that wants to consume the published KB packages from `emmassist-co/kb`.
 
+For the canonical Cloudflare production path, use [docs/cloudflare-agent-setup.md](./cloudflare-agent-setup.md).
+
 ## What You Need
 
 - Node `22+`
@@ -91,6 +93,14 @@ npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skil
 ```
 
 Use `kb-local-setup` when the agent should ask the user for the local setup variables and get the environment ready.
+
+KB Cloudflare setup skill:
+
+```bash
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-cloudflare-setup
+```
+
+Use `kb-cloudflare-setup` when the agent should guide an operator through deploying the canonical Cloudflare KB surface, verifying `canonical-production`, and handing the agent a working `KB_BASE_URL`.
 
 ## 6. Verification
 

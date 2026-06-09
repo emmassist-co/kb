@@ -48,6 +48,7 @@ See:
 - [STRATEGY.md](./STRATEGY.md)
 - [docs/product/knowledge-base.md](./docs/product/knowledge-base.md)
 - [docs/product/cloudflare-first-compounding-kb.md](./docs/product/cloudflare-first-compounding-kb.md)
+- [docs/cloudflare-agent-setup.md](./docs/cloudflare-agent-setup.md)
 
 ## Architecture
 
