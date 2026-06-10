@@ -35,8 +35,8 @@ Use this file as the merged-work ledger for `kb/`.
 ## 2026-06-10 - Protected Cloudflare KB HTTP And MCP Surface
 
 - Area: package, CLI command, HTTP surface
-- Merged to `main`: no
-- Commit / PR:
+- Merged to `main`: yes
+- Commit / PR: `33cef43`
 - Feature summary: added shared bearer-token auth and scope enforcement to `kb-http`, introduced the new `@emmassist-co/kb-mcp` package, taught `kb-cli` to authenticate remote HTTP calls, added `kb cloudflare deploy` to scaffold and protect a Cloudflare-native KB host, added `kb cloudflare verify` for post-deploy rechecks, and upgraded the MCP smoke path to use the Worker-shaped HTTP transport by default.
 - Customer-visible impact: operators can now stand up a protected Cloudflare KB with one auth model across `/v1` and `/mcp`, re-verify the deployed host without redeploying it, and hand outside MCP consumers a documented Streamable HTTP configuration with the same API key.
 - Deployment status: pending
