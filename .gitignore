@@ -3,4 +3,5 @@ dist-ts/
 packages/*/dist/
 .tmp/
 artifacts/
+.kb/
 .env*
