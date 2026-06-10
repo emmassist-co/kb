@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-06-10 - Restore KB Publish Gate For MCP Package
+
+- Area: package
+- Merged to `main`: yes
+- Commit / PR: pending
+- Feature summary: added the missing `publishConfig.access` metadata to `@emmassist-co/kb-mcp` so the public-package verification gate accepts the package and the shared publish workflow can release the new KB surface.
+- Customer-visible impact: none
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: run the `publish` workflow on `main`, confirm `@emmassist-co/kb-mcp` packs and publishes successfully alongside the other KB packages, then install the published package in a clean consumer and verify the MCP exports load.
+- Automated coverage: `npm run verify:public-packages`; `npm run typecheck`
+- Needs iteration: no
+- Follow-up: publish the unreleased KB package set and then update downstream consumers to the new versions.
+
 ## 2026-06-10 - Protected Cloudflare KB HTTP And MCP Surface
 
 - Area: package, CLI command, HTTP surface
