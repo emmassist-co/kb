@@ -43,6 +43,12 @@ const publicPackages = [
     forbiddenEntries: ['package/src/']
   },
   {
+    name: '@emmassist-co/kb-mcp',
+    workspace: '@emmassist-co/kb-mcp',
+    expectedEntries: ['package/dist/index.js', 'package/dist/index.d.ts', 'package/dist/cloudflare-worker.js'],
+    forbiddenEntries: ['package/src/']
+  },
+  {
     name: '@emmassist-co/kb-cli',
     workspace: '@emmassist-co/kb-cli',
     expectedEntries: ['package/bin/kb-local.mjs', 'package/dist/index.js', 'package/dist/main.js', 'package/dist/r2-sync-lib.js'],
@@ -100,10 +106,12 @@ try {
       [
         "const core = await import('@emmassist-co/kb-core');",
         "const http = await import('@emmassist-co/kb-http');",
+        "const mcp = await import('@emmassist-co/kb-mcp');",
         "const storage = await import('@emmassist-co/kb-storage-file');",
         "const cloudflare = await import('@emmassist-co/kb-storage-cloudflare');",
         "if (typeof core.KnowledgeBaseService !== 'function') throw new Error('kb-core export missing');",
         "if (typeof http.startKnowledgeBaseNodeServer !== 'function') throw new Error('kb-http export missing');",
+        "if (typeof mcp.createKnowledgeBaseMcpServer !== 'function') throw new Error('kb-mcp export missing');",
         "if (typeof storage.FileKnowledgeStore !== 'function') throw new Error('kb-storage-file export missing');",
         "if (typeof cloudflare.R2CanonicalKbStore !== 'function') throw new Error('kb-storage-cloudflare export missing');"
       ].join(' ')
@@ -125,7 +133,7 @@ try {
   const installedCliManifest = JSON.parse(
     readFileSync(path.join(consumerDir, 'node_modules', '@emmassist-co', 'kb-cli', 'package.json'), 'utf8')
   );
-  assert.equal(installedCliManifest.publishConfig?.access, 'public');
+  assert.equal(installedCliManifest.publishConfig?.registry, 'https://npm.pkg.github.com');
 } finally {
   rmSync(tmpRoot, { recursive: true, force: true });
 }
