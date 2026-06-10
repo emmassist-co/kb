@@ -5,10 +5,45 @@ import type {
   KnowledgeSearchMode
 } from '@emmassist-co/kb-core';
 
+export type KnowledgeBaseAccessScope = 'kb.read' | 'kb.write' | 'kb.operator';
+
+export interface KnowledgeBaseHttpAuthToken {
+  token: string;
+  scopes: KnowledgeBaseAccessScope[];
+  subject?: string;
+}
+
+export interface KnowledgeBaseHttpAuthConfig {
+  required?: boolean;
+  tokens: KnowledgeBaseHttpAuthToken[];
+  challengeRealm?: string;
+}
+
+export interface KnowledgeBaseHttpHeaders {
+  [key: string]: string | undefined;
+}
+
+export type KnowledgeBaseHttpAuthResult =
+  | {
+      ok: true;
+      principal: string | null;
+      scopes: KnowledgeBaseAccessScope[];
+    }
+  | {
+      ok: false;
+      status: 401 | 403;
+      headers?: Record<string, string>;
+      error: {
+        code: 'unauthorized' | 'forbidden';
+        message: string;
+      };
+    };
+
 export interface KnowledgeBaseHttpContext {
   service: KnowledgeBaseService;
   capabilities?: KnowledgeWorkspaceCapabilities;
   rebuild?: () => Promise<unknown>;
+  auth?: KnowledgeBaseHttpAuthConfig;
 }
 
 export interface KnowledgeBaseHttpRequest {
@@ -16,6 +51,7 @@ export interface KnowledgeBaseHttpRequest {
   pathname: string;
   searchParams: URLSearchParams;
   body?: unknown;
+  headers?: KnowledgeBaseHttpHeaders;
 }
 
 export interface KnowledgeBaseHttpResponseShape {

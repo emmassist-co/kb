@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-06-10 - Protected Cloudflare KB HTTP And MCP Surface
+
+- Area: package, CLI command, HTTP surface
+- Merged to `main`: no
+- Commit / PR:
+- Feature summary: added shared bearer-token auth and scope enforcement to `kb-http`, introduced the new `@emmassist-co/kb-mcp` package, taught `kb-cli` to authenticate remote HTTP calls, added `kb cloudflare deploy` to scaffold and protect a Cloudflare-native KB host, added `kb cloudflare verify` for post-deploy rechecks, and upgraded the MCP smoke path to use the Worker-shaped HTTP transport by default.
+- Customer-visible impact: operators can now stand up a protected Cloudflare KB with one auth model across `/v1` and `/mcp`, re-verify the deployed host without redeploying it, and hand outside MCP consumers a documented Streamable HTTP configuration with the same API key.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: run `kb-local cloudflare deploy` against a real Cloudflare workspace, run `kb-local cloudflare verify` against the deployed host, confirm the generated token works for both `/v1/capabilities` and `/mcp`, then connect one external MCP client to `https://HOST/mcp` with `Authorization: Bearer ...`.
+- Automated coverage: `npx tsc -p packages/kb-http/tsconfig.json --noEmit false`; `npx tsc -p packages/kb-mcp/tsconfig.json --noEmit false`; `npx tsc -p packages/kb-cli/tsconfig.json --noEmit false`; `node --import tsx/esm --test tests/kb-cli.test.ts tests/kb-mcp.test.ts tests/kb-http.test.ts tests/kb-cli-docs.test.ts`; `npm run smoke:kb-mcp -- --tenant-id kb-mcp-proof`
+- Needs iteration: yes
+- Follow-up: run one live Cloudflare deploy smoke, confirm one real external MCP client configuration against `/mcp`, and publish the widened packages once human verification is recorded.
+
 ## 2026-05-13 - Runtime Query Telemetry
 
 - Area: adapter

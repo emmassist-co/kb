@@ -15,9 +15,10 @@ This document describes the intended production shape for `kb`.
 The production path should be the default path:
 
 - Worker-hosted `kb-http` surface for reads and writes
+- Worker-hosted `kb-mcp` surface for external MCP clients over the same runtime
 - Cloudflare-backed canonical state for tenant knowledge
 - explicit per-tenant deployment boundaries
-- smoke verification against the deployed host
+- smoke verification against the deployed `/v1` and `/mcp` host surfaces
 
 The local CLI and file store are important, but they support development, migration, and debugging around the production contract.
 

@@ -57,15 +57,18 @@ export function summarizeKnowledgeBaseSyncDaemonResult(
   }
 
   const status = parseDaemonStatusPayload(result.stdout);
+  const running = isRunningStatusOutput(result.stdout, result.exitCode);
   const hints = compactHints([
-    result.stdout.includes('running') ? 'running' : 'not_running',
+    running ? 'running' : 'not_running',
     status?.detail === 'failed; see log' ? 'check_logs' : null
   ]);
   const summary: Record<string, unknown> = {
-    ok: result.exitCode === 0,
+    ok: running,
     command: 'daemon',
     action,
-    state: status?.state ?? (result.exitCode === 0 ? 'ok' : 'error'),
+    state: running
+      ? status?.state ?? 'running'
+      : 'stopped',
     counts: {},
     hints
   };
@@ -311,6 +314,12 @@ function parseDaemonStatusPayload(stdout: string): Record<string, unknown> | nul
   } catch {
     return null;
   }
+}
+
+function isRunningStatusOutput(stdout: string, exitCode: number): boolean {
+  if (exitCode !== 0) return false;
+  const firstLine = stdout.trim().split('\n').map((line) => line.trim()).find(Boolean);
+  return firstLine?.startsWith('kb daemon running') ?? false;
 }
 
 function compactHints(values: Array<string | null>): string[] {

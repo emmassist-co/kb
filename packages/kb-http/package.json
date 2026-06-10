@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-http",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "description": "Canonical HTTP and JSON contract for the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
@@ -43,6 +43,18 @@
     "./cloudflare-worker": {
       "types": "./dist/cloudflare-worker.d.ts",
       "default": "./dist/cloudflare-worker.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "default": "./dist/auth.js"
+    },
+    "./route-auth": {
+      "types": "./dist/route-auth.d.ts",
+      "default": "./dist/route-auth.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
     }
   }
 }

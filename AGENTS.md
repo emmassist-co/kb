@@ -116,6 +116,27 @@ Also run focused tests for touched packages, for example:
 - `npx tsx --test tests/kb-cli.test.ts`
 - `npx tsx --test tests/kb-cli-docs.test.ts`
 
+For KB MCP changes, do not stop at package tests if the work affects registration, transport, or agent-consumption flow. Use the repo-local smoke helpers:
+
+- `npm run serve:kb-mcp-stdio -- --tenant-id <tenant>` to expose the KB MCP surface over stdio against a local file-backed workspace
+- `npm run smoke:kb-mcp -- --tenant-id <tenant>` to run a real MCP client against the Worker-shaped KB MCP HTTP surface and verify actual KB tool round-trips like `capabilities`, `record`, `search`, and `inspect`
+- `npm run smoke:kb-mcp -- --transport stdio --tenant-id <tenant>` when you specifically need the local stdio registration path
+- `npm run smoke:codex-mcp -- --tenant-id <tenant>` only when you specifically need to diagnose Codex-session MCP registration behavior on top of the protocol-level smoke
+
+What these prove:
+
+- `serve:kb-mcp-stdio` proves the MCP server boots and exposes the local KB tool surface
+- `smoke:kb-mcp` proves the KB functions actually work over MCP through the Worker-shaped HTTP transport path
+- `smoke:codex-mcp` proves a separate Codex session can see the registered KB MCP server and attempt to use it
+
+If `smoke:codex-mcp` fails, distinguish:
+
+- provider/network failures in the Codex session
+- MCP registration visibility failures
+- MCP tool-call cancellation or approval behavior inside Codex
+
+Do not claim KB MCP end-to-end verification unless you state which of those layers actually passed.
+
 ## Benchmark Discipline
 
 Benchmarks are a critical public surface in this repo.

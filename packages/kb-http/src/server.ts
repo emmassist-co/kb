@@ -4,6 +4,8 @@ import type {
   KnowledgeSearchInput
 } from '@emmassist-co/kb-core';
 import type { KnowledgeBaseHttpContext, KnowledgeBaseHttpRequest, KnowledgeBaseHttpResponseShape } from './types.js';
+import { authorizeKnowledgeBaseRequest } from './auth.js';
+import { requiredScopesForKnowledgeBaseRoute } from './route-auth.js';
 
 type CaptureSourceInput = Parameters<KnowledgeBaseService['captureSource']>[0];
 type AppendEventInput = Parameters<KnowledgeBaseService['appendEvent']>[0];
@@ -22,6 +24,21 @@ export async function handleKnowledgeBaseHttpRequest(
   request: KnowledgeBaseHttpRequest
 ): Promise<KnowledgeBaseHttpResponseShape> {
   const { service } = ctx;
+  const auth = authorizeKnowledgeBaseRequest({
+    auth: ctx.auth,
+    headers: request.headers,
+    requiredScopes: requiredScopesForKnowledgeBaseRoute(request)
+  });
+  if (!auth.ok) {
+    return {
+      status: auth.status,
+      headers: auth.headers,
+      body: {
+        ok: false,
+        error: auth.error
+      }
+    };
+  }
 
   if (request.method === 'GET' && request.pathname === '/v1/capabilities') {
     return ok({

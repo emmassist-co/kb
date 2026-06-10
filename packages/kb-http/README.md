@@ -7,6 +7,7 @@ Canonical HTTP/JSON contract for the KB.
 - route dispatch for `/v1/...`
 - Node host adapter
 - Cloudflare fetch adapter
+- shared bearer auth and scope enforcement for deployed hosts
 
 ## Main routes
 
@@ -47,6 +48,12 @@ Canonical HTTP/JSON contract for the KB.
 
 - local Node daemon via `@emmassist-co/kb-http/node-server`
 - Cloudflare fetch adapter via `@emmassist-co/kb-http/cloudflare-worker`
+
+## Auth
+
+- deployed hosts can enforce one bearer-token model across read, write, and operator scopes
+- route checks are centralized instead of duplicated per caller
+- `kb-mcp` reuses this auth substrate rather than defining a second deployment contract
 
 ## Verification
 

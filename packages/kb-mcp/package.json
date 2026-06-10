@@ -1,0 +1,55 @@
+{
+  "name": "@emmassist-co/kb-mcp",
+  "version": "0.1.0",
+  "private": false,
+  "description": "MCP transport adapter for the Cloudflare-first KB stack.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmassist-co/kb.git",
+    "directory": "packages/kb-mcp"
+  },
+  "homepage": "https://github.com/emmassist-co/kb/tree/main/packages/kb-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/emmassist-co/kb/issues"
+  },
+  "keywords": [
+    "knowledge-base",
+    "mcp",
+    "cloudflare",
+    "agents"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@emmassist-co/kb-core": "^0.3.0",
+    "@emmassist-co/kb-http": "^0.3.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./mcp-server": {
+      "types": "./dist/mcp-server.d.ts",
+      "default": "./dist/mcp-server.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "default": "./dist/tools.js"
+    },
+    "./cloudflare-worker": {
+      "types": "./dist/cloudflare-worker.d.ts",
+      "default": "./dist/cloudflare-worker.js"
+    }
+  }
+}

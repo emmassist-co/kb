@@ -11,6 +11,12 @@ import {
 import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 import { startKnowledgeBaseCliDaemon } from './daemon.js';
 import {
+  executeKnowledgeBaseCloudflareDeployCommand,
+  executeKnowledgeBaseCloudflareVerifyCommand,
+  renderKnowledgeBaseCloudflareHelp
+} from './cloudflare-deploy.js';
+import { resolveKnowledgeBaseRemoteAuth } from './remote-auth.js';
+import {
   executeKnowledgeBaseSyncCommand,
   renderKnowledgeBaseSyncHelp,
   summarizeKnowledgeBaseSyncResult
@@ -37,6 +43,20 @@ export interface KnowledgeBaseCliOptions {
   executor?: KnowledgeBaseCliExecutor;
   readFile?: (filePath: string) => Promise<string>;
   transport?: KnowledgeBaseCliTransport;
+  cloudflareDeploy?: (
+    argv: string[],
+    options?: {
+      cwd?: string;
+      env?: Record<string, string | undefined>;
+    }
+  ) => Promise<unknown>;
+  cloudflareVerify?: (
+    argv: string[],
+    options?: {
+      cwd?: string;
+      env?: Record<string, string | undefined>;
+    }
+  ) => Promise<unknown>;
 }
 
 export type KnowledgeBaseCliTransport =
@@ -50,6 +70,7 @@ export type KnowledgeBaseCliTransport =
   | {
       mode: 'http';
       baseUrl: string;
+      token?: string;
       fetch?: typeof fetch;
     };
 
@@ -168,6 +189,47 @@ export async function runKnowledgeBaseCli(
         exitCode: result.exitCode
       };
     }
+    if (command === 'cloudflare') {
+      const action = parsed.positionals[1] ?? 'help';
+      if (action === 'help' || parsed.flags.help) {
+        return {
+          stdout: `${renderKnowledgeBaseCloudflareHelp()}\n`,
+          stderr: '',
+          exitCode: 0
+        };
+      }
+      if (action === 'deploy') {
+        const result = await (options.cloudflareDeploy ?? executeKnowledgeBaseCloudflareDeployCommand)(
+          buildSubcommandArgv(parsed, 2),
+          {
+            cwd: options.cwd,
+            env: options.env
+          }
+        );
+        return {
+          stdout: `${renderOutput(result, 'json')}\n`,
+          stderr: '',
+          exitCode: 0
+        };
+      }
+      if (action === 'verify') {
+        const result = await (options.cloudflareVerify ?? executeKnowledgeBaseCloudflareVerifyCommand)(
+          buildSubcommandArgv(parsed, 2),
+          {
+            cwd: options.cwd,
+            env: options.env
+          }
+        );
+        return {
+          stdout: `${renderOutput(result, 'json')}\n`,
+          stderr: '',
+          exitCode: 0
+        };
+      }
+      if (action !== 'deploy' && action !== 'verify') {
+        throw new Error(`Unknown kb cloudflare command: ${action}`);
+      }
+    }
     const executor = await createExecutor(options);
     const format = typeof parsed.flags.format === 'string' ? parsed.flags.format : 'json';
     const data = await executeCommand(executor, parsed, options);
@@ -261,9 +323,16 @@ function createHttpExecutor(
 ): KnowledgeBaseCliExecutor {
   const doFetch = transport.fetch ?? fetch;
   const request = async (pathname: string, init?: { method?: string; body?: unknown }): Promise<unknown> => {
+    const headers: Record<string, string> = {};
+    if (init?.body) {
+      headers['content-type'] = 'application/json';
+    }
+    if (transport.token) {
+      headers.authorization = `Bearer ${transport.token}`;
+    }
     const response = await doFetch(`${transport.baseUrl}${pathname}`, {
       method: init?.method ?? 'GET',
-      headers: init?.body ? { 'content-type': 'application/json' } : undefined,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       body: init?.body ? JSON.stringify(init.body) : undefined
     });
     const payload = await response.json() as { ok?: boolean; data?: unknown; error?: { message?: string } };
@@ -391,7 +460,11 @@ function resolveTransport(options: KnowledgeBaseCliOptions): KnowledgeBaseCliTra
   const env = options.env ?? process.env;
   const baseUrl = env.KB_BASE_URL;
   if (baseUrl) {
-    return { mode: 'http', baseUrl };
+    return {
+      mode: 'http',
+      baseUrl,
+      ...resolveKnowledgeBaseRemoteAuth(env)
+    };
   }
   const backend = readCliBackend(env.KB_BACKEND);
   const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
@@ -702,6 +775,8 @@ function renderHelp(topic?: string): string {
     '  kb serve [--host 127.0.0.1] [--port 3001]',
     '  kb sync <pull|status|push>',
     '  kb daemon <start|stop|restart|status|logs|once>',
+    '  kb cloudflare deploy --tenant-id TENANT_ID [--workspace PATH] [--worker-name NAME] [--bucket NAME] [--host-url URL] [--secret VALUE]',
+    '  kb cloudflare verify [--host-url URL] [--token VALUE] [--tenant-id ID]',
     '  kb help operator',
     '',
     'Notes:',
@@ -712,6 +787,9 @@ function renderHelp(topic?: string): string {
     '  - Use `kb remember` for facts, sources, corrections, and narrative evidence capture.',
     '  - Use `kb query-relations` for relation-shaped questions; `kb search` is lexical/hybrid retrieval.',
     '  - `kb inspect` must tell you tenant, backend, canonicality, and whether you are on a production or support surface before writes.',
+    '  - Use `KB_BASE_URL` to target a deployed KB and `KB_API_TOKEN` for protected remote hosts. `KB_BEARER_TOKEN` is accepted as a compatibility alias.',
+    '  - Use `kb cloudflare deploy` to scaffold a protected Cloudflare KB host and verify both `/v1` and `/mcp`.',
+    '  - Use `kb cloudflare verify` to recheck an existing protected Cloudflare KB host without redeploying it.',
     '  - Operator-only repair surfaces are intentionally hidden from the default help. Run `kb help operator` only when you need direct state repair or inspection.',
     '  - Prefer `kb validate ... --json @file.json` before large write batches.',
     '  - `kb sync` and `kb daemon` are local-only mirror operations for `KB_BACKEND=r2-mirror`.',

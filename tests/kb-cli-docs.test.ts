@@ -10,6 +10,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /@emmassist-co\/kb-storage-file/);
   assert.match(repoReadme, /@emmassist-co\/kb-storage-cloudflare/);
   assert.match(repoReadme, /@emmassist-co\/kb-http/);
+  assert.match(repoReadme, /@emmassist-co\/kb-mcp/);
   assert.match(repoReadme, /@emmassist-co\/kb-cli/);
   assert.match(repoReadme, /Not yet in the staged public package set/);
   assert.match(repoReadme, /@emmassist-co\/kb-flue-adapter/);
@@ -49,6 +50,9 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareSetupSkill, /canonical Cloudflare-hosted KB surface/);
   assert.match(cloudflareSetupSkill, /canonical-production/);
   assert.match(cloudflareSetupSkill, /KB_BASE_URL/);
+  assert.match(cloudflareSetupSkill, /KB_API_TOKEN/);
+  assert.match(cloudflareSetupSkill, /kb-local cloudflare deploy/);
+  assert.match(cloudflareSetupSkill, /kb-local cloudflare verify/);
   assert.match(cloudflareSetupSkill, /docs\/cloudflare-agent-setup\.md/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-cloudflare-setup/agents/openai.yaml')));
 
@@ -58,7 +62,19 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(readme, /kb-local-setup/);
   assert.match(readme, /cloudflare-agent-setup\.md/);
   assert.match(readme, /kb-cloudflare-setup/);
+  assert.match(readme, /KB_API_TOKEN/);
+  assert.match(readme, /kb-local cloudflare deploy/);
+  assert.match(readme, /kb-local cloudflare verify/);
   assert.doesNotMatch(readme, /npm\.pkg\.github\.com/);
+
+  const mcpReadme = readFileSync(path.resolve(process.cwd(), 'packages/kb-mcp/README.md'), 'utf8');
+  assert.match(mcpReadme, /MCP transport adapter/);
+  assert.match(mcpReadme, /Install/);
+  assert.match(mcpReadme, /Tool Surface/);
+  assert.match(mcpReadme, /npm run smoke:kb-mcp/);
+  assert.match(mcpReadme, /shared-secret bearer auth/);
+  assert.match(mcpReadme, /streamable-http/);
+  assert.match(mcpReadme, /Authorization/);
 
   const quickstart = readFileSync(path.resolve(process.cwd(), 'docs/consumer-quickstart.md'), 'utf8');
   assert.match(quickstart, /public npm registry/);
@@ -71,6 +87,10 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-local-setup/);
   assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-cloudflare-setup/);
   assert.match(quickstart, /canonical Cloudflare KB surface/);
+  assert.match(quickstart, /KB_API_TOKEN/);
+  assert.match(quickstart, /kb-local cloudflare deploy/);
+  assert.match(quickstart, /kb-local cloudflare verify/);
+  assert.match(quickstart, /streamable-http/);
   assert.doesNotMatch(quickstart, /GITHUB_PACKAGES_TOKEN/);
   assert.doesNotMatch(quickstart, /npm\.pkg\.github\.com/);
 
@@ -79,12 +99,18 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareGuide, /workspaceRole: "canonical-production"/);
   assert.match(cloudflareGuide, /workspaceRole: canonical-production/);
   assert.match(cloudflareGuide, /KB_BASE_URL/);
+  assert.match(cloudflareGuide, /KB_API_TOKEN/);
+  assert.match(cloudflareGuide, /kb-local cloudflare deploy/);
+  assert.match(cloudflareGuide, /kb-local cloudflare verify/);
+  assert.match(cloudflareGuide, /@emmassist-co\/kb-mcp/);
   assert.match(cloudflareGuide, /kb-cloudflare-setup/);
   assert.match(cloudflareGuide, /wrangler\.jsonc/);
+  assert.match(cloudflareGuide, /streamable-http/);
 
   const migrationStatus = readFileSync(path.resolve(process.cwd(), 'docs/migration-status.md'), 'utf8');
   assert.match(migrationStatus, /## Staged Public Package Set/);
   assert.match(migrationStatus, /@emmassist-co\/kb-core/);
+  assert.match(migrationStatus, /@emmassist-co\/kb-mcp/);
   assert.match(migrationStatus, /@emmassist-co\/kb-flue-adapter/);
   assert.match(migrationStatus, /@emmassist-co\/kb-autoresearch/);
 });

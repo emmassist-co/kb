@@ -6,6 +6,7 @@
 
 - one tenant-scoped deployment boundary
 - one canonical `kb-http` surface
+- one adjacent `kb-mcp` surface over the same runtime
 - one canonical Cloudflare-backed knowledge store
 - one operator-visible capability envelope that states tenant, backend, transport, canonicality, and workspace role
 
@@ -26,8 +27,10 @@ Local and mirror roles are useful, but they are not peer production backends.
 Production should bias toward:
 
 - Worker-hosted `kb-http`
+- Worker-hosted `kb-mcp` on the same tenant boundary
 - canonical tenant state in `kb-storage-cloudflare`
 - agent and operator writes going through the same HTTP contract
+- shared auth and scope enforcement across `/v1` and `/mcp`
 - verification against the deployed contract, not just local file mode
 
 ## Support Surfaces

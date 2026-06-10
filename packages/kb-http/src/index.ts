@@ -3,3 +3,5 @@ export * from './server.js';
 export * from './fetch-handler.js';
 export * from './node-server.js';
 export * from './cloudflare-worker.js';
+export * from './auth.js';
+export * from './route-auth.js';

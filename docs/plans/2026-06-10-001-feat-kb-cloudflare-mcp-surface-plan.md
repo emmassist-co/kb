@@ -1,7 +1,7 @@
 ---
 title: "feat: Add Cloudflare MCP surface and shared remote auth for KB"
 type: feat
-status: active
+status: completed
 date: 2026-06-10
 ---
 

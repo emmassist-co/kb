@@ -14,7 +14,8 @@ export async function handleKnowledgeBaseHttpFetch(
       method: request.method,
       pathname: url.pathname,
       searchParams: url.searchParams,
-      body
+      body,
+      headers: Object.fromEntries(request.headers.entries())
     });
     return Response.json(response.body, {
       status: response.status,

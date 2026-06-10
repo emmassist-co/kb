@@ -5,6 +5,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
 import { startKnowledgeBaseCliDaemon } from '../packages/kb-cli/src/daemon.js';
+import {
+  executeKnowledgeBaseCloudflareDeployCommand,
+  executeKnowledgeBaseCloudflareVerifyCommand
+} from '../packages/kb-cli/src/cloudflare-deploy.js';
 import { FileKnowledgeStore } from '../packages/kb-storage-file/src/file-store.js';
 import { startKnowledgeBaseNodeServer } from '../packages/kb-http/src/node-server.js';
 import { buildSubcommandArgv, runKnowledgeBaseCli } from '../packages/kb-cli/src/index.js';
@@ -222,6 +226,299 @@ test('kb cli http mode can search through the daemon contract', async () => {
   }
 });
 
+test('kb cli http mode sends bearer auth to protected remote hosts', async () => {
+  const seen: Array<{ url: string; authorization: string | null }> = [];
+  const result = await runKnowledgeBaseCli(
+    ['inspect'],
+    {
+      transport: {
+        mode: 'http',
+        baseUrl: 'https://kb.example.com',
+        token: 'top-secret',
+        fetch: async (input, init) => {
+          const headers = new Headers(init?.headers);
+          seen.push({
+            url: String(input),
+            authorization: headers.get('authorization')
+          });
+          return new Response(JSON.stringify({
+            ok: true,
+            data: {
+              backend: 'cloudflare',
+              canonical: true,
+              tenantId: 'acme',
+              transport: 'worker',
+              workspaceRole: 'canonical-production'
+            }
+          }), {
+            status: 200,
+            headers: {
+              'content-type': 'application/json'
+            }
+          });
+        }
+      }
+    }
+  );
+
+  assert.equal(result.exitCode, 0);
+  assert.deepEqual(seen, [{
+    url: 'https://kb.example.com/v1/inspect',
+    authorization: 'Bearer top-secret'
+  }]);
+});
+
+test('kb cli resolves remote bearer auth from environment', async () => {
+  const originalFetch = globalThis.fetch;
+  const seen: string[] = [];
+  globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seen.push(headers.get('authorization') ?? '');
+    return new Response(JSON.stringify({
+      ok: true,
+      data: { status: 'ok' }
+    }), {
+      status: 200,
+      headers: {
+        'content-type': 'application/json'
+      }
+    });
+  }) as typeof fetch;
+
+  try {
+    const result = await runKnowledgeBaseCli(
+      ['doctor'],
+      {
+        env: {
+          KB_BASE_URL: 'https://kb.example.com',
+          KB_API_TOKEN: 'from-env'
+        }
+      }
+    );
+
+    assert.equal(result.exitCode, 0);
+    assert.deepEqual(seen, ['Bearer from-env']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('kb cloudflare deploy generates a secret, installs it, and verifies both surfaces', async () => {
+  const writes = new Map<string, string>();
+  const commands: Array<{ command: string; args: string[]; stdin?: string }> = [];
+  const requests: Array<{ url: string; authorization: string | null; method: string }> = [];
+
+  const result = await executeKnowledgeBaseCloudflareDeployCommand(
+    [
+      '--workspace', '/tmp/acme-kb',
+      '--tenant-id', 'acme',
+      '--worker-name', 'acme-kb',
+      '--bucket', 'acme-kb-canonical',
+      '--host-url', 'https://kb.acme.example'
+    ],
+    {
+      mkdir: async () => undefined,
+      writeFile: async (filePath, contents) => {
+        writes.set(String(filePath), String(contents));
+      },
+      randomToken: () => 'generated-secret',
+      runCommand: async (command, args, commandOptions) => {
+        commands.push({ command, args, stdin: commandOptions?.stdin });
+        return { stdout: 'ok', stderr: '', exitCode: 0 };
+      },
+      fetchImpl: (async (input, init) => {
+        const headers = new Headers(init?.headers);
+        requests.push({
+          url: String(input),
+          authorization: headers.get('authorization'),
+          method: init?.method ?? 'GET'
+        });
+        if (String(input).endsWith('/v1/capabilities')) {
+          return new Response(JSON.stringify({
+            ok: true,
+            capabilities: {
+              tenantId: 'acme',
+              backend: 'cloudflare',
+              canonical: true,
+              workspaceRole: 'canonical-production'
+            }
+          }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'kb-cloudflare-deploy-verify',
+          result: { tools: [] }
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }) as typeof fetch
+    }
+  );
+
+  assert.equal(result.auth.token, 'generated-secret');
+  assert.equal(result.auth.generated, true);
+  assert.equal(result.hostUrl, 'https://kb.acme.example');
+  assert.equal(commands.length, 2);
+  assert.deepEqual(commands[0], {
+    command: 'npx',
+    args: ['wrangler', 'secret', 'put', 'KB_API_TOKEN', '--name', 'acme-kb', '--config', 'wrangler.jsonc'],
+    stdin: 'generated-secret\n'
+  });
+  assert.deepEqual(commands[1], {
+    command: 'npx',
+    args: ['wrangler', 'deploy', '--config', 'wrangler.jsonc'],
+    stdin: undefined
+  });
+  assert.deepEqual(requests, [
+    {
+      url: 'https://kb.acme.example/v1/capabilities',
+      authorization: 'Bearer generated-secret',
+      method: 'GET'
+    },
+    {
+      url: 'https://kb.acme.example/mcp',
+      authorization: 'Bearer generated-secret',
+      method: 'POST'
+    }
+  ]);
+  assert.match(writes.get('/tmp/acme-kb/src/kb-worker.ts') ?? '', /createKnowledgeBaseMcpFetch/);
+  assert.match(writes.get('/tmp/acme-kb/src/kb-worker.ts') ?? '', /KB_API_TOKEN/);
+  assert.doesNotMatch(writes.get('/tmp/acme-kb/src/kb-worker.ts') ?? '', /generated-secret/);
+  assert.match(writes.get('/tmp/acme-kb/wrangler.jsonc') ?? '', /acme-kb-canonical/);
+});
+
+test('kb cloudflare deploy accepts a provided secret without generating a replacement', async () => {
+  const result = await executeKnowledgeBaseCloudflareDeployCommand(
+    [
+      '--workspace', '/tmp/acme-kb',
+      '--tenant-id', 'acme',
+      '--secret', 'provided-secret'
+    ],
+    {
+      mkdir: async () => undefined,
+      writeFile: async () => undefined,
+      randomToken: () => 'should-not-be-used',
+      runCommand: async () => ({ stdout: 'ok', stderr: '', exitCode: 0 }),
+      fetchImpl: (async (input) => {
+        if (String(input).endsWith('/v1/capabilities')) {
+          return new Response(JSON.stringify({
+            ok: true,
+            capabilities: {
+              tenantId: 'acme',
+              backend: 'cloudflare',
+              canonical: true,
+              workspaceRole: 'canonical-production'
+            }
+          }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+        return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+      }) as typeof fetch
+    }
+  );
+
+  assert.equal(result.auth.token, 'provided-secret');
+  assert.equal(result.auth.generated, false);
+});
+
+test('kb cloudflare verify checks both capabilities and mcp on a protected host', async () => {
+  const requests: Array<{ url: string; authorization: string | null; method: string }> = [];
+
+  const result = await executeKnowledgeBaseCloudflareVerifyCommand(
+    [
+      '--host-url', 'https://kb.acme.example',
+      '--tenant-id', 'acme'
+    ],
+    {
+      env: {
+        KB_API_TOKEN: 'verify-secret'
+      },
+      fetchImpl: (async (input, init) => {
+        const headers = new Headers(init?.headers);
+        requests.push({
+          url: String(input),
+          authorization: headers.get('authorization'),
+          method: init?.method ?? 'GET'
+        });
+        if (String(input).endsWith('/v1/capabilities')) {
+          return new Response(JSON.stringify({
+            ok: true,
+            capabilities: {
+              tenantId: 'acme',
+              backend: 'cloudflare',
+              canonical: true,
+              workspaceRole: 'canonical-production'
+            }
+          }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'kb-cloudflare-verify',
+          result: {
+            tools: [
+              { name: 'capabilities' },
+              { name: 'search' }
+            ]
+          }
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }) as typeof fetch
+    }
+  );
+
+  assert.equal(result.hostUrl, 'https://kb.acme.example');
+  assert.equal(result.verification.capabilities.tenantId, 'acme');
+  assert.deepEqual(result.verification.mcp.toolNames, ['capabilities', 'search']);
+  assert.deepEqual(requests, [
+    {
+      url: 'https://kb.acme.example/v1/capabilities',
+      authorization: 'Bearer verify-secret',
+      method: 'GET'
+    },
+    {
+      url: 'https://kb.acme.example/mcp',
+      authorization: 'Bearer verify-secret',
+      method: 'POST'
+    }
+  ]);
+});
+
+test('kb cloudflare verify fails clearly without a configured token', async () => {
+  await assert.rejects(
+    executeKnowledgeBaseCloudflareVerifyCommand(
+      ['--host-url', 'https://kb.acme.example'],
+      {
+        env: {}
+      }
+    ),
+    /Missing KB_API_TOKEN, KB_BEARER_TOKEN, or --token/
+  );
+});
+
+test('kb cloudflare verify fails when mcp verification is rejected', async () => {
+  await assert.rejects(
+    executeKnowledgeBaseCloudflareVerifyCommand(
+      ['--host-url', 'https://kb.acme.example'],
+      {
+        env: {
+          KB_API_TOKEN: 'verify-secret'
+        },
+        fetchImpl: (async (input) => {
+          if (String(input).endsWith('/v1/capabilities')) {
+            return new Response(JSON.stringify({
+              ok: true,
+              capabilities: {
+                tenantId: 'acme',
+                backend: 'cloudflare',
+                canonical: true,
+                workspaceRole: 'canonical-production'
+              }
+            }), { status: 200, headers: { 'content-type': 'application/json' } });
+          }
+          return new Response('forbidden', { status: 403 });
+        }) as typeof fetch
+      }
+    ),
+    /Cloudflare verification failed for \/mcp with 403/
+  );
+});
+
 test('kb cli schema documents required fields and valid enums for write commands', async () => {
   const result = await runKnowledgeBaseCli(['schema', 'remember']);
 
@@ -255,6 +552,20 @@ test('kb cli help makes the edge-writing split explicit', async () => {
   assert.doesNotMatch(result.stdout, /kb relations \[--entity-id/);
   assert.match(result.stdout, /kb sync <pull\|status\|push> \[--verbose] \[--changes] \[--conflicts] \[--stats]/);
   assert.match(result.stdout, /kb daemon <start\|stop\|restart\|status\|logs\|once> \[--verbose] \[--logs] \[--stats]/);
+  assert.match(result.stdout, /kb cloudflare deploy --tenant-id TENANT_ID/);
+  assert.match(result.stdout, /kb cloudflare verify \[--host-url URL] \[--token VALUE] \[--tenant-id ID]/);
+  assert.match(result.stdout, /verify both `\/v1` and `\/mcp`/);
+  assert.match(result.stdout, /recheck an existing protected Cloudflare KB host without redeploying it/);
+});
+
+test('kb cloudflare help exposes both deploy and verify flows', async () => {
+  const result = await runKnowledgeBaseCli(['cloudflare', 'help']);
+
+  assert.equal(result.exitCode, 0);
+  assert.match(result.stdout, /kb cloudflare <deploy\|verify> \[flags]/);
+  assert.match(result.stdout, /kb cloudflare deploy --tenant-id TENANT_ID/);
+  assert.match(result.stdout, /kb cloudflare verify \[flags]/);
+  assert.match(result.stdout, /checks \/mcp through a real MCP tools\/list request/);
 });
 
 test('kb cli operator help exposes repair-only commands explicitly', async () => {
@@ -433,6 +744,30 @@ test('kb daemon status defaults to a compact health envelope', () => {
     state: 'idle',
     counts: {},
     hints: ['running']
+  });
+});
+
+test('kb daemon status does not surface stale running hints when the daemon is down', () => {
+  const summary = summarizeKnowledgeBaseSyncDaemonResult({
+    stdout: 'kb daemon not running\n{"state":"idle","action":"sleep","detail":"next pull at 1781098216","pid":32278,"updatedAt":"2026-06-10T13:25:01.049Z"}',
+    stderr: '',
+    exitCode: 1
+  }, { stats: true });
+
+  assert.deepEqual(summary, {
+    ok: false,
+    command: 'daemon',
+    action: 'status',
+    state: 'stopped',
+    counts: {},
+    hints: ['not_running'],
+    stats: {
+      state: 'idle',
+      action: 'sleep',
+      detail: 'next pull at 1781098216',
+      pid: 32278,
+      updatedAt: '2026-06-10T13:25:01.049Z'
+    }
   });
 });
 

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "paths": {
+      "@emmassist-co/kb-core": ["packages/kb-core/dist/index.d.ts"],
+      "@emmassist-co/kb-http": ["packages/kb-http/dist/index.d.ts"],
+      "@emmassist-co/kb-http/auth": ["packages/kb-http/dist/auth.d.ts"],
+      "@emmassist-co/kb-http/route-auth": ["packages/kb-http/dist/route-auth.d.ts"],
+      "@emmassist-co/kb-http/types": ["packages/kb-http/dist/types.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": []
+}

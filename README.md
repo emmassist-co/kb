@@ -19,6 +19,7 @@ The staged open-source package set is:
 - `@emmassist-co/kb-storage-file`
 - `@emmassist-co/kb-storage-cloudflare`
 - `@emmassist-co/kb-http`
+- `@emmassist-co/kb-mcp`
 - `@emmassist-co/kb-cli`
 
 These packages form the Cloudflare-first product spine for public consumers.
@@ -58,6 +59,7 @@ Current package boundaries already reflect the intended shape:
 - `packages/kb-storage-file`: local file-backed store for development and local agent workspaces
 - `packages/kb-storage-cloudflare`: canonical R2-backed state and Cloudflare runtime adapters
 - `packages/kb-http`: canonical `GET`/`POST`/`PUT`/`DELETE` contract with both Node and Worker hosts
+- `packages/kb-mcp`: Streamable HTTP MCP adapter over the same tenant-scoped Worker runtime and auth model
 - `packages/kb-cli`: local operator CLI, daemon mode, HTTP client mode, and installable skills
 - `packages/kb-flue-adapter`: deferred from the staged public package set until its remaining host-specific wiring is removed
 - `packages/kb-autoresearch`: private package and repo-owned research tooling surface, not a staged public install target
@@ -68,7 +70,9 @@ Production should bias toward:
 
 - one deployment per tenant or customer boundary
 - Worker-hosted `kb-http` surface
+- Worker-hosted `kb-mcp` surface on the same tenant runtime
 - canonical tenant state in Cloudflare-backed storage
+- one shared-secret auth model across `/v1` and `/mcp` in v1
 - automated verification against the deployed HTTP contract
 
 Local daemon and file-backed flows remain important, but they support the production architecture instead of defining it.
@@ -82,6 +86,15 @@ npm run build:public
 npm run typecheck
 npm test
 ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all
+npm run smoke:kb-mcp -- --tenant-id demo-tenant
+```
+
+Protected Cloudflare host recheck:
+
+```bash
+KB_BASE_URL=https://YOUR-KB-HOST \
+KB_API_TOKEN=replace-me-with-a-secret \
+npx kb-local cloudflare verify --tenant-id demo-tenant
 ```
 
 Open-source readiness:

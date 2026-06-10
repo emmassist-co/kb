@@ -7,13 +7,14 @@ The following surfaces already work from the extracted `emmassist/kb` monorepo:
 - `@emmassist-co/kb-core`
 - `@emmassist-co/kb-storage-file`
 - `@emmassist-co/kb-http`
+- `@emmassist-co/kb-mcp`
 - `@emmassist-co/kb-cli`
 - `@emmassist-co/kb-autoresearch` source tree copied into the repo
 
 Verified locally:
 
 - `npm run typecheck`
-- `./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts`
+- `./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts tests/kb-mcp.test.ts`
 - `./node_modules/.bin/tsx scripts/kb-verify.ts --mode all`
 
 ## Staged Public Package Set
@@ -24,6 +25,7 @@ The current staged public package set for open-source distribution is:
 - `@emmassist-co/kb-storage-file`
 - `@emmassist-co/kb-storage-cloudflare`
 - `@emmassist-co/kb-http`
+- `@emmassist-co/kb-mcp`
 - `@emmassist-co/kb-cli`
 
 These packages define the public Cloudflare-first KB product spine.

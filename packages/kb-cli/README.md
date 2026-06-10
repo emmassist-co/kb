@@ -28,6 +28,7 @@ npx kb-local inspect
 - local R2 mirror mode for sync, debugging, and migration support
 - local daemon mode
 - remote HTTP mode
+- Cloudflare deploy/bootstrap mode for protected remote hosts
 
 `kb inspect` should always tell the caller which tenant they are targeting, which backend is active, whether the surface is canonical, and whether the current workspace is production or support-only.
 
@@ -89,6 +90,28 @@ HTTP mode:
 KB_BASE_URL=http://127.0.0.1:3001 npx kb-local search --json '{"query":"billing"}'
 ```
 
+Protected remote HTTP mode:
+
+```bash
+KB_BASE_URL=https://kb.example.com \
+KB_API_TOKEN=replace-me \
+npx kb-local inspect
+```
+
+Cloudflare deploy/bootstrap:
+
+```bash
+npx kb-local cloudflare deploy --tenant-id acme --workspace ./kb-cloudflare
+```
+
+Cloudflare host re-verification:
+
+```bash
+KB_BASE_URL=https://kb.example.com \
+KB_API_TOKEN=replace-me \
+npx kb-local cloudflare verify --tenant-id acme
+```
+
 Operator-only repair surfaces:
 
 ```bash
@@ -102,3 +125,4 @@ npx kb-local relations --entity-id vendor-stripe
 ## Verification
 
 - local CLI + daemon smoke: `npm run verify:kb -- --mode all`
+- deployed Cloudflare host recheck: `KB_BASE_URL=... KB_API_TOKEN=... npx kb-local cloudflare verify --tenant-id ...`

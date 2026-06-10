@@ -102,6 +102,43 @@ npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skil
 
 Use `kb-cloudflare-setup` when the agent should guide an operator through deploying the canonical Cloudflare KB surface, verifying `canonical-production`, and handing the agent a working `KB_BASE_URL`.
 
+Protected remote KBs also require:
+
+```bash
+export KB_BASE_URL=https://YOUR-KB-HOST
+export KB_API_TOKEN=replace-me-with-a-secret
+```
+
+If you want the CLI to scaffold and deploy the Cloudflare workspace directly:
+
+```bash
+npx kb-local cloudflare deploy --tenant-id my-agent --workspace ./kb-cloudflare
+```
+
+If the host already exists and you just want to recheck it:
+
+```bash
+npx kb-local cloudflare verify --tenant-id my-agent
+```
+
+If you want an external MCP client to connect to that deployed KB, use the same base host and API key on `/mcp`:
+
+```json
+{
+  "mcpServers": {
+    "my-agent-kb": {
+      "transport": {
+        "type": "streamable-http",
+        "url": "https://YOUR-KB-HOST/mcp",
+        "headers": {
+          "Authorization": "Bearer replace-me-with-a-secret"
+        }
+      }
+    }
+  }
+}
+```
+
 ## 6. Verification
 
 Minimal smoke:
@@ -117,4 +154,5 @@ If you cloned the KB repo itself, you can also run:
 ```bash
 npm run build:public
 ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all
+npm run smoke:kb-mcp -- --tenant-id my-agent
 ```

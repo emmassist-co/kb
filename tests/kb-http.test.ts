@@ -284,3 +284,107 @@ test('kb http cloudflare adapter serves the same fetch contract', async () => {
     data: { status: 'ok' }
   });
 });
+
+test('kb http rejects protected routes without a bearer token', async () => {
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async list() {
+          throw new Error('should not be called');
+        }
+      } as never,
+      auth: {
+        required: true,
+        tokens: [{ token: 'top-secret', scopes: ['kb.read'] }]
+      }
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/inspect',
+      searchParams: new URLSearchParams()
+    }
+  );
+
+  assert.equal(response.status, 401);
+  assert.equal(response.headers?.['WWW-Authenticate'], 'Bearer realm="kb"');
+  assert.deepEqual(response.body, {
+    ok: false,
+    error: {
+      code: 'unauthorized',
+      message: 'Missing or invalid bearer token.'
+    }
+  });
+});
+
+test('kb http rejects write routes when the token lacks write scope', async () => {
+  let called = false;
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async record() {
+          called = true;
+          return {};
+        }
+      } as never,
+      auth: {
+        required: true,
+        tokens: [{ token: 'read-only', scopes: ['kb.read'] }]
+      }
+    },
+    {
+      method: 'POST',
+      pathname: '/v1/record',
+      searchParams: new URLSearchParams(),
+      headers: {
+        authorization: 'Bearer read-only'
+      },
+      body: {
+        entity: {
+          id: 'company-acme',
+          kind: 'company',
+          title: 'Acme'
+        }
+      }
+    }
+  );
+
+  assert.equal(response.status, 403);
+  assert.equal(called, false);
+  assert.deepEqual(response.body, {
+    ok: false,
+    error: {
+      code: 'forbidden',
+      message: 'Missing required scopes: kb.write'
+    }
+  });
+});
+
+test('kb http accepts protected read routes with a valid bearer token', async () => {
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async doctor() {
+          return { status: 'ok' };
+        }
+      } as never,
+      auth: {
+        required: true,
+        tokens: [{ token: 'reader', scopes: ['kb.read'] }]
+      }
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/doctor',
+      searchParams: new URLSearchParams(),
+      headers: {
+        authorization: 'Bearer reader'
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, {
+    ok: true,
+    data: { status: 'ok' }
+  });
+});

@@ -64,7 +64,8 @@ async function handleNodeRequest(
       searchParams: url.searchParams,
       body: request.method === 'GET' || request.method === 'HEAD'
         ? undefined
-        : await parseJsonBody(request)
+        : await parseJsonBody(request),
+      headers: normalizeHeaders(request)
     });
     response.statusCode = result.status;
     response.setHeader('content-type', 'application/json; charset=utf-8');
@@ -83,6 +84,20 @@ async function handleNodeRequest(
       }
     })}\n`);
   }
+}
+
+function normalizeHeaders(request: IncomingMessage): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const [key, value] of Object.entries(request.headers)) {
+    if (typeof value === 'string') {
+      headers[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && value.length > 0) {
+      headers[key] = value.join(', ');
+    }
+  }
+  return headers;
 }
 
 async function parseJsonBody(request: IncomingMessage): Promise<unknown> {
