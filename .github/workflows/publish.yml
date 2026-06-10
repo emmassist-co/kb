@@ -17,12 +17,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+          registry-url: https://npm.pkg.github.com
       - run: npm ci
       - run: npm run verify:public-packages
       - run: npm run verify:kb:evals
       - run: npm run typecheck
-      - run: npm config set @emmassist-co:registry https://registry.npmjs.org --location=project
       - run: npm publish --workspace @emmassist-co/kb-core --workspace @emmassist-co/kb-storage-file --workspace @emmassist-co/kb-storage-cloudflare --workspace @emmassist-co/kb-http --workspace @emmassist-co/kb-mcp --workspace @emmassist-co/kb-cli
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
