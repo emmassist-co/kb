@@ -22,6 +22,6 @@ jobs:
       - run: npm run verify:public-packages
       - run: npm run verify:kb:evals
       - run: npm run typecheck
-      - run: npm publish --workspace @emmassist-co/kb-core --workspace @emmassist-co/kb-storage-file --workspace @emmassist-co/kb-storage-cloudflare --workspace @emmassist-co/kb-http --workspace @emmassist-co/kb-mcp --workspace @emmassist-co/kb-cli
+      - run: node scripts/publish-public-packages.mjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-06-10 - Make KB Publish Idempotent Across Mixed Package Versions
+
+- Area: package
+- Merged to `main`: yes
+- Commit / PR: pending
+- Feature summary: replaced the one-shot multi-workspace publish command with a selective publish script that checks the registry first, skips already-published package versions, and only publishes the KB packages whose versions are still unreleased.
+- Customer-visible impact: operators can rerun the KB publish workflow after partial or staggered releases without hitting `409 Conflict` on unchanged package versions.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: trigger the `publish` workflow on `main`, confirm already-published packages log as skipped, and confirm the unreleased package versions are published successfully to GitHub Packages.
+- Automated coverage: `node scripts/publish-public-packages.mjs --dry-run`
+- Needs iteration: no
+- Follow-up: rerun the KB publish workflow and then update downstream consumers to the newly published versions.
+
 ## 2026-06-10 - Restore KB Publish Gate For MCP Package
 
 - Area: package
