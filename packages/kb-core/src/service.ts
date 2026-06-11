@@ -631,6 +631,56 @@ export class KnowledgeBaseService {
     });
   }
 
+  async recordSource(input: {
+    source: {
+      id: string;
+      kind: 'note' | 'research' | 'workspace' | 'chat';
+      title: string;
+      url?: string;
+      authors?: string[];
+      tags?: string[];
+      linkedEntities?: string[];
+      createdAt?: string;
+      summary?: string;
+      content?: string;
+      citations?: string[];
+      rawSourceRef?: string;
+      supersedes?: string[];
+      freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+      lastReviewedAt?: string;
+    };
+  }): Promise<KnowledgeMutationResult> {
+    const source = createSourceDocument({
+      id: input.source.id,
+      tenantId: this.tenantId,
+      kind: input.source.kind,
+      title: input.source.title,
+      url: input.source.url,
+      authors: input.source.authors ?? [],
+      tags: input.source.tags ?? [],
+      linkedEntities: input.source.linkedEntities ?? [],
+      createdAt: input.source.createdAt,
+      summary: input.source.summary,
+      content: input.source.content,
+      citations: input.source.citations ?? [],
+      rawSourceRef: input.source.rawSourceRef,
+      supersedes: input.source.supersedes ?? [],
+      freshnessStatus: input.source.freshnessStatus,
+      lastReviewedAt: input.source.lastReviewedAt
+    });
+    await this.store.putSourceMarkdown(source.meta.id, renderSourceDocument(source));
+    this.invalidateLexicalCaches();
+    await this.reindexSource(source.meta.id);
+    return this.buildMutationResult({
+      mutated: true,
+      entityIds: [],
+      sourceIds: [source.meta.id],
+      eventIds: [],
+      warnings: [],
+      links: []
+    });
+  }
+
   async annotate(input: {
     entityIds: string[];
     summary: string;

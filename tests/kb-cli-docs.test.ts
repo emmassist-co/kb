@@ -91,8 +91,19 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(quickstart, /kb-local cloudflare deploy/);
   assert.match(quickstart, /kb-local cloudflare verify/);
   assert.match(quickstart, /streamable-http/);
+  assert.match(quickstart, /kb-obsidian-semantic-sync\.md/);
+  assert.match(quickstart, /entities\/\*\.md/);
+  assert.match(quickstart, /sources\/\*\.md/);
   assert.doesNotMatch(quickstart, /GITHUB_PACKAGES_TOKEN/);
   assert.doesNotMatch(quickstart, /npm\.pkg\.github\.com/);
+
+  const obsidianGuidePath = path.resolve(process.cwd(), 'docs/operations/kb-obsidian-semantic-sync.md');
+  assert.ok(existsSync(obsidianGuidePath));
+  const obsidianGuide = readFileSync(obsidianGuidePath, 'utf8');
+  assert.match(obsidianGuide, /Cloudflare-hosted `kb-http` remains the source of truth/);
+  assert.match(obsidianGuide, /Raw `kb sync push` remains a support-mode escape hatch/);
+  assert.match(obsidianGuide, /Destructive entity rewrites/);
+  assert.match(obsidianGuide, /state: semantic_blocked/);
 
   const cloudflareGuide = readFileSync(path.resolve(process.cwd(), 'docs/cloudflare-agent-setup.md'), 'utf8');
   assert.match(cloudflareGuide, /canonical KB surface on Cloudflare/);

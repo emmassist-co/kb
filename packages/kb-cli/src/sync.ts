@@ -426,6 +426,7 @@ function summarizeStatusResult(
     addedRemote: filterPaths(entries, 'added-remote'),
     deletedLocal: filterPaths(entries, 'deleted-local'),
     deletedRemote: filterPaths(entries, 'deleted-remote'),
+    rejectedLocal: filterPaths(entries, 'rejected-local'),
     conflicts: filterPaths(entries, 'conflict')
   };
   const changedCount =
@@ -435,20 +436,23 @@ function summarizeStatusResult(
     changes.addedRemote.length +
     changes.deletedLocal.length +
     changes.deletedRemote.length +
+    changes.rejectedLocal.length +
     changes.conflicts.length;
   const hints = compactHints([
     changes.modifiedLocal.length || changes.addedLocal.length || changes.deletedLocal.length ? 'has_local_changes' : null,
     changes.modifiedRemote.length || changes.addedRemote.length || changes.deletedRemote.length ? 'needs_pull' : null,
+    changes.rejectedLocal.length ? 'has_rejected_local_edits' : null,
     changes.conflicts.length ? 'has_conflicts' : null
   ]);
   const summary: Record<string, unknown> = {
     ok: result.ok === true,
     command: 'sync',
     action: 'status',
-    state: changes.conflicts.length > 0 ? 'conflict' : changedCount > 0 ? 'drift' : 'in_sync',
+    state: changes.conflicts.length > 0 ? 'conflict' : changes.rejectedLocal.length > 0 ? 'rejected' : changedCount > 0 ? 'drift' : 'in_sync',
     counts: {
       changed: changedCount,
-      conflicts: changes.conflicts.length
+      conflicts: changes.conflicts.length,
+      ...(changes.rejectedLocal.length > 0 ? { rejected: changes.rejectedLocal.length } : {})
     },
     hints
   };
@@ -460,6 +464,7 @@ function summarizeStatusResult(
       addedRemote: changes.addedRemote,
       deletedLocal: changes.deletedLocal,
       deletedRemote: changes.deletedRemote,
+      rejectedLocal: changes.rejectedLocal,
       conflicts: options.conflicts ? changes.conflicts : []
     });
   }

@@ -4,7 +4,19 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import type { KnowledgeBaseCliOptions } from './index.js';
+import { createExecutor } from './index.js';
 import { executeKnowledgeBaseSyncCommand, resolveMirrorRoot } from './sync.js';
+import type { KnowledgeMutationResult } from '@emmassist-co/kb-core';
+import type {
+  SemanticAnnotateInput,
+  SemanticRecordInput,
+  SemanticRecordSourceInput
+} from './semantic-sync/compile.js';
+import { classifySemanticMirrorPath } from './semantic-sync/contract.js';
+import { diffSemanticMirrorRecord } from './semantic-sync/diff.js';
+import { compileSemanticMirrorDiff } from './semantic-sync/compile.js';
+import { applySemanticMutationPlan } from './semantic-sync/apply.js';
+import { readLocalMirrorFile, readTenantKbBaseFile, type TenantKbStatusEntry } from './r2-sync-lib.js';
 
 interface KnowledgeBaseSyncDaemonResult {
   stdout: string;
@@ -20,6 +32,29 @@ interface KnowledgeBaseSyncDaemonSummaryOptions {
 }
 
 type KnowledgeBaseSyncDaemonAction = 'start' | 'stop' | 'restart' | 'status' | 'logs' | 'once' | 'run-internal';
+
+interface SemanticSyncStatus {
+  state: 'ok' | 'blocked';
+  appliedEdits: number;
+  rejectedEdits: number;
+  conflicts: number;
+  refreshFailed?: boolean;
+}
+
+export interface SemanticMirrorApplyResult {
+  appliedEdits: number;
+  rejectedEdits: number;
+  conflicts: number;
+  touchedPaths: string[];
+  issues: Array<{ path: string; code: string; message: string }>;
+}
+
+interface SemanticMirrorExecutor {
+  get(id: string): Promise<{ kind: 'entity' | 'source'; markdown: string; parsed: unknown }>;
+  record(input: SemanticRecordInput): Promise<KnowledgeMutationResult>;
+  recordSource(input: SemanticRecordSourceInput): Promise<KnowledgeMutationResult>;
+  annotate(input: SemanticAnnotateInput): Promise<KnowledgeMutationResult>;
+}
 
 export function renderKnowledgeBaseSyncDaemonHelp(): string {
   return 'kb daemon <start|stop|restart|status|logs|once> [--verbose] [--logs] [--stats]';
@@ -58,8 +93,10 @@ export function summarizeKnowledgeBaseSyncDaemonResult(
 
   const status = parseDaemonStatusPayload(result.stdout);
   const running = isRunningStatusOutput(result.stdout, result.exitCode);
+  const semantic = readSemanticStatus(status);
   const hints = compactHints([
     running ? 'running' : 'not_running',
+    semantic?.state === 'blocked' ? 'semantic_sync_blocked' : null,
     status?.detail === 'failed; see log' ? 'check_logs' : null
   ]);
   const summary: Record<string, unknown> = {
@@ -67,9 +104,16 @@ export function summarizeKnowledgeBaseSyncDaemonResult(
     command: 'daemon',
     action,
     state: running
-      ? status?.state ?? 'running'
+      ? semantic?.state === 'blocked'
+        ? 'semantic_blocked'
+        : status?.state ?? 'running'
       : 'stopped',
-    counts: {},
+    counts: semantic
+      ? {
+          ...(typeof semantic.rejectedEdits === 'number' && semantic.rejectedEdits > 0 ? { rejectedEdits: semantic.rejectedEdits } : {}),
+          ...(typeof semantic.conflicts === 'number' && semantic.conflicts > 0 ? { semanticConflicts: semantic.conflicts } : {})
+        }
+      : {},
     hints
   };
   if (options.stats && status) {
@@ -145,7 +189,16 @@ export async function executeKnowledgeBaseSyncDaemonCommand(
     case 'once':
       try {
         await executeKnowledgeBaseSyncCommand(['pull'], options);
-        await executeKnowledgeBaseSyncCommand(['push'], options);
+        if (isSemanticSyncEnabled(env)) {
+          const outcome = await runSemanticSyncPass(options, stateDir);
+          if (outcome.appliedEdits > 0) {
+            await executeKnowledgeBaseSyncCommand(['pull'], options);
+          } else if (outcome.rejectedEdits === 0 && outcome.conflicts === 0) {
+            await executeKnowledgeBaseSyncCommand(['push'], options);
+          }
+        } else {
+          await executeKnowledgeBaseSyncCommand(['push'], options);
+        }
         return { stdout: `kb daemon once completed for ${mirrorRoot}`, stderr: '', exitCode: 0 };
       } catch (error) {
         return { stdout: '', stderr: error instanceof Error ? error.message : String(error), exitCode: 1 };
@@ -203,7 +256,16 @@ async function runLoop(input: {
       await sleep(pushDebounce * 1000);
       const afterDebounce = computeLocalSignature(input.mirrorRoot);
       if (afterDebounce !== lastSignature) {
-        await runSync('push', input.options, input.logFile, input.statusFile);
+        if (isSemanticSyncEnabled(env)) {
+          const outcome = await runSemanticSyncPass(input.options, path.dirname(input.statusFile));
+          if (outcome.appliedEdits > 0) {
+            await runSync('pull', input.options, input.logFile, input.statusFile);
+          } else if (outcome.rejectedEdits === 0 && outcome.conflicts === 0) {
+            await runSync('push', input.options, input.logFile, input.statusFile);
+          }
+        } else {
+          await runSync('push', input.options, input.logFile, input.statusFile);
+        }
         lastSignature = computeLocalSignature(input.mirrorRoot);
       }
     } else {
@@ -274,6 +336,147 @@ function writeStatus(statusFile: string, state: string, action: string, detail: 
   }), 'utf8');
 }
 
+async function runSemanticSyncPass(
+  options: KnowledgeBaseCliOptions,
+  stateDir: string
+): Promise<SemanticMirrorApplyResult> {
+  const status = await executeKnowledgeBaseSyncCommand(['status'], options);
+  const entries = readStatusEntries(status.entries);
+  const cliExecutor = await createExecutor(options);
+  const executor: SemanticMirrorExecutor = {
+    get: async (id) => await cliExecutor.get(id) as { kind: 'entity' | 'source'; markdown: string; parsed: unknown },
+    record: async (input) => await cliExecutor.record(input as unknown as Record<string, unknown>) as KnowledgeMutationResult,
+    recordSource: async (input) => await cliExecutor.recordSource(input) as KnowledgeMutationResult,
+    annotate: async (input) => await cliExecutor.annotate(input as unknown as Record<string, unknown>) as KnowledgeMutationResult
+  };
+  const mirrorRoot = resolveMirrorRoot(options.cwd ?? process.cwd(), options.env ?? process.env, options.env?.KB_TENANT_ID ?? options.env?.WORKSPACE_TENANT_ID ?? 'default');
+  const outcome = await applyKnowledgeBaseSemanticSyncEdits({
+    mirrorRoot,
+    statusEntries: entries,
+    executor
+  });
+  const semanticStatus: SemanticSyncStatus = {
+    state: outcome.rejectedEdits > 0 || outcome.conflicts > 0 ? 'blocked' : 'ok',
+    appliedEdits: outcome.appliedEdits,
+    rejectedEdits: outcome.rejectedEdits,
+    conflicts: outcome.conflicts
+  };
+  if (outcome.issues.length > 0) {
+    appendLog(path.join(stateDir, 'daemon.log'), JSON.stringify({ semanticIssues: outcome.issues }));
+  }
+  writeStatusWithSemantic(
+    path.join(stateDir, 'daemon.status.json'),
+    semanticStatus.state === 'blocked' ? 'blocked' : 'idle',
+    'semantic-sync',
+    semanticStatus.state === 'blocked' ? 'blocked by local edits' : 'ok',
+    semanticStatus
+  );
+  return outcome;
+}
+
+export async function applyKnowledgeBaseSemanticSyncEdits(input: {
+  mirrorRoot: string;
+  statusEntries: TenantKbStatusEntry[];
+  executor: SemanticMirrorExecutor;
+}): Promise<SemanticMirrorApplyResult> {
+  const outcome: SemanticMirrorApplyResult = {
+    appliedEdits: 0,
+    rejectedEdits: 0,
+    conflicts: 0,
+    touchedPaths: [],
+    issues: []
+  };
+
+  for (const entry of input.statusEntries) {
+    const classification = classifySemanticMirrorPath(entry.path);
+    if (classification.pathClass !== 'editable-record') {
+      if (entry.state === 'rejected-local') {
+        outcome.rejectedEdits += 1;
+        outcome.issues.push({ path: entry.path, code: 'rejected_local', message: 'Support-only mirror file was edited locally.' });
+      }
+      continue;
+    }
+
+    if (entry.state === 'conflict') {
+      outcome.conflicts += 1;
+      outcome.issues.push({ path: entry.path, code: 'remote_conflict', message: 'Remote canonical record changed since last sync.' });
+      continue;
+    }
+    if (entry.state === 'deleted-local' || entry.state === 'rejected-local') {
+      outcome.rejectedEdits += 1;
+      outcome.issues.push({ path: entry.path, code: 'unsupported_edit', message: `Semantic sync does not support ${entry.state}.` });
+      continue;
+    }
+    if (entry.state !== 'modified-local' && entry.state !== 'added-local') {
+      continue;
+    }
+
+    const editedMarkdown = (await readLocalMirrorFile(input.mirrorRoot, entry.path)).toString('utf8');
+    const baselineMarkdown = (await readTenantKbBaseFile(input.mirrorRoot, entry.path))?.toString('utf8') ?? null;
+    const recordId = path.basename(entry.path, '.md');
+    let canonicalMarkdown: string | null = null;
+    try {
+      const canonical = await input.executor.get(recordId);
+      if (canonical.kind !== classification.recordKind) {
+        outcome.conflicts += 1;
+        outcome.issues.push({ path: entry.path, code: 'kind_mismatch', message: `Canonical record kind mismatch for ${recordId}.` });
+        continue;
+      }
+      canonicalMarkdown = canonical.markdown;
+    } catch (error) {
+      if (entry.state !== 'added-local') {
+        outcome.conflicts += 1;
+        outcome.issues.push({
+          path: entry.path,
+          code: 'canonical_lookup_failed',
+          message: error instanceof Error ? error.message : String(error)
+        });
+        continue;
+      }
+    }
+
+    const diff = diffSemanticMirrorRecord({
+      path: entry.path,
+      baselineMarkdown,
+      editedMarkdown,
+      canonicalMarkdown
+    });
+    const plan = compileSemanticMirrorDiff(diff);
+    if (!plan.ok) {
+      if (plan.code === 'diff_failed' && diff.ok === false && diff.code === 'remote_drift') {
+        outcome.conflicts += 1;
+      } else {
+        outcome.rejectedEdits += 1;
+      }
+      outcome.issues.push({ path: entry.path, code: plan.code, message: plan.message });
+      continue;
+    }
+
+    await applySemanticMutationPlan(input.executor, plan);
+    outcome.appliedEdits += 1;
+    outcome.touchedPaths.push(entry.path);
+  }
+
+  return outcome;
+}
+
+function writeStatusWithSemantic(
+  statusFile: string,
+  state: string,
+  action: string,
+  detail: string,
+  semanticSync: SemanticSyncStatus
+): void {
+  writeFileSync(statusFile, JSON.stringify({
+    state,
+    action,
+    detail,
+    semanticSync,
+    pid: process.pid,
+    updatedAt: new Date().toISOString()
+  }), 'utf8');
+}
+
 function appendLog(logFile: string, message: string): void {
   appendFileSync(logFile, `[${new Date().toISOString()}] ${message}\n`, 'utf8');
 }
@@ -314,6 +517,37 @@ function parseDaemonStatusPayload(stdout: string): Record<string, unknown> | nul
   } catch {
     return null;
   }
+}
+
+function isSemanticSyncEnabled(env: Record<string, string | undefined>): boolean {
+  return Boolean(env.KB_BASE_URL?.trim());
+}
+
+function readStatusEntries(value: unknown): TenantKbStatusEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is { path?: unknown; state?: unknown } => Boolean(entry) && typeof entry === 'object')
+    .map((entry) => ({
+      path: typeof entry.path === 'string' ? entry.path : '',
+      state: typeof entry.state === 'string' ? entry.state as TenantKbStatusEntry['state'] : 'unchanged'
+    }))
+    .filter((entry) => entry.path !== '');
+}
+
+function readSemanticStatus(status: Record<string, unknown> | null): {
+  state?: string;
+  rejectedEdits?: number;
+  conflicts?: number;
+} | null {
+  if (!status) return null;
+  const semantic = status.semanticSync;
+  if (!semantic || typeof semantic !== 'object' || Array.isArray(semantic)) return null;
+  const value = semantic as Record<string, unknown>;
+  return {
+    state: typeof value.state === 'string' ? value.state : undefined,
+    rejectedEdits: typeof value.rejectedEdits === 'number' && Number.isFinite(value.rejectedEdits) ? value.rejectedEdits : undefined,
+    conflicts: typeof value.conflicts === 'number' && Number.isFinite(value.conflicts) ? value.conflicts : undefined
+  };
 }
 
 function isRunningStatusOutput(stdout: string, exitCode: number): boolean {

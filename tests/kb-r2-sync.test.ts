@@ -16,6 +16,10 @@ import {
   type TenantKbSyncManifest
 } from '../packages/kb-cli/src/r2-sync-lib.js';
 import {
+  classifySemanticMirrorPath,
+  isSemanticEditableMirrorPath
+} from '../packages/kb-cli/src/semantic-sync/contract.js';
+import {
   parseKbR2SyncArgs,
   renderKbR2SyncHelp
 } from '../scripts/kb-r2-sync.ts';
@@ -54,6 +58,28 @@ test('resolveTenantKbManifestPath places manifest inside tenant mirror root', ()
     resolveTenantKbManifestPath(mirrorRoot),
     path.join(mirrorRoot, '.kb-sync-manifest.json')
   );
+});
+
+test('semantic mirror path contract marks only entity and source markdown as human-editable', () => {
+  assert.deepEqual(classifySemanticMirrorPath('entities/vendor-acme.md'), {
+    path: 'entities/vendor-acme.md',
+    pathClass: 'editable-record',
+    recordKind: 'entity',
+    reason: 'entity_markdown'
+  });
+  assert.deepEqual(classifySemanticMirrorPath('sources/src_123.md'), {
+    path: 'sources/src_123.md',
+    pathClass: 'editable-record',
+    recordKind: 'source',
+    reason: 'source_markdown'
+  });
+  assert.equal(isSemanticEditableMirrorPath('entities/vendor-acme.md'), true);
+  assert.equal(isSemanticEditableMirrorPath('events/evt-1.json'), false);
+  assert.deepEqual(classifySemanticMirrorPath('events/evt-1.json'), {
+    path: 'events/evt-1.json',
+    pathClass: 'support-only',
+    reason: 'generated_event'
+  });
 });
 
 test('collectLocalMirrorFiles returns relative paths beneath the tenant mirror', async () => {
@@ -181,6 +207,37 @@ test('planTenantKbStatus classifies unchanged modified added and deleted local f
       ['entities/vendor-umbrella.md', 'added-remote']
     ]
   );
+});
+
+test('planTenantKbStatus flags support-only local edits as rejected rather than editable drift', () => {
+  const manifest: TenantKbSyncManifest = {
+    tenantId: 'tenant-a',
+    bucketName: 'administrative-agent-kb',
+    prefix: '.kb/tenant-a/',
+    pulledAt: '2026-05-08T12:00:00.000Z',
+    pushedAt: null,
+    files: {
+      'events/evt-1.json': {
+        key: 'events/evt-1.json',
+        remoteHash: 'old-remote',
+        localHash: 'old-remote'
+      }
+    }
+  };
+
+  const status = planTenantKbStatus({
+    manifest,
+    remoteObjects: [
+      { key: 'events/evt-1.json', hash: 'old-remote', size: 10 }
+    ],
+    localFiles: [
+      { path: 'events/evt-1.json', hash: 'new-local', size: 11 }
+    ]
+  });
+
+  assert.deepEqual(status.entries, [
+    { path: 'events/evt-1.json', state: 'rejected-local' }
+  ]);
 });
 
 test('planTenantKbPush uploads only locally changed files', () => {

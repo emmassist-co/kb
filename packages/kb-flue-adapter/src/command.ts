@@ -204,6 +204,7 @@ async function createRuntimeExecutor(
     },
     remember: async (input) => (await getService()).remember(input as Parameters<KnowledgeBaseService['remember']>[0]),
     record: async (input) => (await getService()).record(input as Parameters<KnowledgeBaseService['record']>[0]),
+    recordSource: async (input) => (await getService()).recordSource(input as Parameters<KnowledgeBaseService['recordSource']>[0]),
     relate: async (input) => (await getService()).relate(input as Parameters<KnowledgeBaseService['relate']>[0]),
     annotate: async (input) => (await getService()).annotate(input as Parameters<KnowledgeBaseService['annotate']>[0]),
     related: async (id) => (await getService()).related(id),

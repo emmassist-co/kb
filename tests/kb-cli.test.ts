@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
@@ -13,7 +13,7 @@ import { FileKnowledgeStore } from '../packages/kb-storage-file/src/file-store.j
 import { startKnowledgeBaseNodeServer } from '../packages/kb-http/src/node-server.js';
 import { buildSubcommandArgv, runKnowledgeBaseCli } from '../packages/kb-cli/src/index.js';
 import { summarizeKnowledgeBaseSyncResult } from '../packages/kb-cli/src/sync.js';
-import { summarizeKnowledgeBaseSyncDaemonResult } from '../packages/kb-cli/src/sync-daemon.js';
+import { applyKnowledgeBaseSemanticSyncEdits, summarizeKnowledgeBaseSyncDaemonResult } from '../packages/kb-cli/src/sync-daemon.js';
 
 test('kb cli local mode can record and search in-process', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-local-'));
@@ -730,6 +730,35 @@ test('kb sync status can disclose changed paths on demand', () => {
   });
 });
 
+test('kb sync status surfaces support-only local edits as rejected semantic drift', () => {
+  const summary = summarizeKnowledgeBaseSyncResult({
+    ok: true,
+    command: 'status',
+    tenantId: 'acme',
+    mirrorRoot: '/tmp/acme',
+    prefix: '.kb/acme/',
+    entries: [
+      { path: 'events/evt-1.json', state: 'rejected-local' }
+    ]
+  }, { changes: true });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'sync',
+    action: 'status',
+    state: 'rejected',
+    counts: {
+      changed: 1,
+      conflicts: 0,
+      rejected: 1
+    },
+    hints: ['has_rejected_local_edits'],
+    changes: {
+      rejectedLocal: ['events/evt-1.json']
+    }
+  });
+});
+
 test('kb daemon status defaults to a compact health envelope', () => {
   const summary = summarizeKnowledgeBaseSyncDaemonResult({
     stdout: 'kb daemon running (pid 123)\n{"state":"idle","action":"pull","detail":"ok","updatedAt":"2026-05-13T10:00:00.000Z"}',
@@ -771,6 +800,37 @@ test('kb daemon status does not surface stale running hints when the daemon is d
   });
 });
 
+test('kb daemon status surfaces semantic sync blockage when payload reports rejected edits or conflicts', () => {
+  const summary = summarizeKnowledgeBaseSyncDaemonResult({
+    stdout: 'kb daemon running (pid 123)\n{"state":"idle","action":"push","detail":"ok","semanticSync":{"state":"blocked","rejectedEdits":2,"conflicts":1},"updatedAt":"2026-06-11T10:00:00.000Z"}',
+    stderr: '',
+    exitCode: 0
+  }, { stats: true });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'daemon',
+    action: 'status',
+    state: 'semantic_blocked',
+    counts: {
+      rejectedEdits: 2,
+      semanticConflicts: 1
+    },
+    hints: ['running', 'semantic_sync_blocked'],
+    stats: {
+      state: 'idle',
+      action: 'push',
+      detail: 'ok',
+      semanticSync: {
+        state: 'blocked',
+        rejectedEdits: 2,
+        conflicts: 1
+      },
+      updatedAt: '2026-06-11T10:00:00.000Z'
+    }
+  });
+});
+
 test('kb daemon logs remain opt-in and compact by default', () => {
   const summary = summarizeKnowledgeBaseSyncDaemonResult({
     stdout: '[2026-05-13T10:00:00.000Z] kb sync pull\n[2026-05-13T10:00:05.000Z] {"ok":true}',
@@ -787,6 +847,151 @@ test('kb daemon logs remain opt-in and compact by default', () => {
       lines: 2
     },
     hints: ['use_verbose_for_log_lines']
+  });
+});
+
+test('kb daemon semantic pass compiles editable entity markdown into canonical mutations', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-daemon-semantic-'));
+  const mirrorRoot = path.join(rootDir, 'mirror');
+  const storeRoot = path.join(rootDir, 'canonical');
+
+  try {
+    const service = new KnowledgeBaseService(
+      'acme',
+      {
+        enabled: true,
+        mode: 'basic',
+        writePolicy: 'mixed',
+        persistence: {
+          backend: 'file',
+          cacheRefreshPolicy: 'none',
+          rootDir: storeRoot
+        },
+        ingest: {
+          agentTurns: false,
+          userCorrections: false,
+          workspaceSignals: false,
+          externalResearch: false
+        }
+      },
+      new FileKnowledgeStore(storeRoot, 'basic')
+    );
+
+    await service.record({
+      entity: {
+        id: 'vendor-acme',
+        kind: 'vendor',
+        title: 'Acme',
+        aliases: ['ACME'],
+        owners: ['finance'],
+        currentTruth: 'Acme owns billing.',
+        timeline: ['2026-06-01: Contract signed.']
+      }
+    });
+    const canonical = await service.get('vendor-acme');
+    mkdirSync(path.join(mirrorRoot, 'entities'), { recursive: true });
+    mkdirSync(path.join(mirrorRoot, '.kb-sync-base', 'entities'), { recursive: true });
+    writeFileSync(path.join(mirrorRoot, 'entities', 'vendor-acme.md'), `---
+id: vendor-acme
+tenantId: acme
+kind: vendor
+title: Acme
+aliases:
+  - ACME
+  - Acme Corp
+handles: []
+tags: []
+status:
+owners:
+  - finance
+  - ops
+sources: []
+updatedAt: 2026-06-11T10:00:00.000Z
+confidence: medium
+supersedes: []
+freshnessStatus:
+lastReviewedAt:
+---
+
+## Current Truth
+
+Acme owns billing and vendor tooling.
+
+## Open Questions
+
+## Timeline
+
+- 2026-06-01: Contract signed.
+- 2026-06-11: Human updated ownership notes.
+
+## Sources
+`);
+    writeFileSync(path.join(mirrorRoot, '.kb-sync-base', 'entities', 'vendor-acme.md'), canonical.markdown);
+
+    const outcome = await applyKnowledgeBaseSemanticSyncEdits({
+      mirrorRoot,
+      statusEntries: [{ path: 'entities/vendor-acme.md', state: 'modified-local' }],
+      executor: {
+        get: service.get.bind(service),
+        record: service.record.bind(service),
+        recordSource: service.recordSource.bind(service),
+        annotate: service.annotate.bind(service)
+      }
+    });
+
+    assert.deepEqual(outcome, {
+      appliedEdits: 1,
+      rejectedEdits: 0,
+      conflicts: 0,
+      touchedPaths: ['entities/vendor-acme.md'],
+      issues: []
+    });
+
+    const next = await service.get('vendor-acme');
+    assert.equal(next.kind, 'entity');
+    if (next.kind !== 'entity') return;
+    assert.equal(next.parsed.currentTruth, 'Acme owns billing and vendor tooling.');
+    assert.deepEqual(next.parsed.meta.aliases, ['ACME', 'Acme Corp']);
+    assert.deepEqual(next.parsed.meta.owners, ['finance', 'ops']);
+    assert.deepEqual(next.parsed.timeline, [
+      '2026-06-01: Contract signed.',
+      '2026-06-11: Human updated ownership notes.'
+    ]);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb daemon semantic pass fails closed on support-only local edits', async () => {
+  const outcome = await applyKnowledgeBaseSemanticSyncEdits({
+    mirrorRoot: '/tmp/unused',
+    statusEntries: [{ path: 'events/evt_1.json', state: 'rejected-local' }],
+    executor: {
+      get: async () => {
+        throw new Error('should not be called');
+      },
+      record: async () => {
+        throw new Error('should not be called');
+      },
+      recordSource: async () => {
+        throw new Error('should not be called');
+      },
+      annotate: async () => {
+        throw new Error('should not be called');
+      }
+    }
+  });
+
+  assert.deepEqual(outcome, {
+    appliedEdits: 0,
+    rejectedEdits: 1,
+    conflicts: 0,
+    touchedPaths: [],
+    issues: [{
+      path: 'events/evt_1.json',
+      code: 'rejected_local',
+      message: 'Support-only mirror file was edited locally.'
+    }]
   });
 });
 

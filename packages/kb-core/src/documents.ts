@@ -283,7 +283,7 @@ function normalizeSourceFrontmatter(frontmatter: Record<string, unknown>): Sourc
 
 function sectionBody(body: string, heading: string): string {
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`## ${escaped}\\n\\n([\\s\\S]*?)(?=\\n## |$)`, 'm');
+  const regex = new RegExp(`## ${escaped}\\n\\n([\\s\\S]*?)(?=\\n## |$)`);
   const match = regex.exec(body);
   return match?.[1]?.trim() ?? '';
 }

@@ -2,7 +2,7 @@
   "suite": "kb:core-six",
   "corpus": "kb-core-six",
   "provenance": "deterministic-synthetic-fixtures",
-  "generatedAt": "2026-06-09T18:20:03.124Z",
+  "generatedAt": "2026-06-11T12:23:33.850Z",
   "policy": {
     "optimizeOn": [
       "admin-world-v3 dev"
@@ -33,7 +33,7 @@
         "precisionAtK": 0.29999999999999966,
         "recallAtK": 0.9444444444444444,
         "mrrAtK": 0.9310185185185185,
-        "ndcgAtK": 0.8836861256879858,
+        "ndcgAtK": 0.8835922501252271,
         "explainabilityRate": 1
       },
       "thresholds": {

@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-storage-file",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
   "description": "Local filesystem storage adapter for the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
@@ -29,7 +29,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@emmassist-co/kb-core": "^0.3.0"
+    "@emmassist-co/kb-core": "^0.4.0"
   },
   "exports": {
     ".": {

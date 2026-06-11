@@ -3,7 +3,12 @@ import type {
   KnowledgeRelationQueryInput,
   KnowledgeSearchInput
 } from '@emmassist-co/kb-core';
-import type { KnowledgeBaseHttpContext, KnowledgeBaseHttpRequest, KnowledgeBaseHttpResponseShape } from './types.js';
+import type {
+  KnowledgeBaseHttpContext,
+  KnowledgeBaseHttpRequest,
+  KnowledgeBaseHttpResponseShape,
+  KnowledgeBaseSourceRecordInput
+} from './types.js';
 import { authorizeKnowledgeBaseRequest } from './auth.js';
 import { requiredScopesForKnowledgeBaseRoute } from './route-auth.js';
 
@@ -14,6 +19,7 @@ type ListRelationsInput = NonNullable<Parameters<KnowledgeBaseService['listRelat
 type ReplaceRelationsInput = Parameters<KnowledgeBaseService['replaceRelations']>[0];
 type ClearRelationsInput = Parameters<KnowledgeBaseService['clearRelations']>[0];
 type RecordInput = Parameters<KnowledgeBaseService['record']>[0];
+type RecordSourceInput = KnowledgeBaseSourceRecordInput;
 type RelateInput = Parameters<KnowledgeBaseService['relate']>[0];
 type RememberInput = Parameters<KnowledgeBaseService['remember']>[0];
 type AnnotateInput = Parameters<KnowledgeBaseService['annotate']>[0];
@@ -216,6 +222,13 @@ export async function handleKnowledgeBaseHttpRequest(
     return ok({
       ok: true,
       data: await service.record(expectBody<RecordInput>(request.body))
+    });
+  }
+
+  if (request.method === 'POST' && request.pathname === '/v1/record-source') {
+    return ok({
+      ok: true,
+      data: await service.recordSource(expectBody<RecordSourceInput>(request.body))
     });
   }
 

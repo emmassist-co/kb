@@ -77,6 +77,8 @@ Production should bias toward:
 
 Local daemon and file-backed flows remain important, but they support the production architecture instead of defining it.
 
+For human authoring on top of a canonical Cloudflare deployment, the supported path is a tenant mirror plus semantic sync: humans edit `entities/*.md` and `sources/*.md`, the daemon compiles those edits into canonical KB mutations, and the mirror refreshes from canonical state after success. See `docs/operations/kb-obsidian-semantic-sync.md`.
+
 ## Verification
 
 Core repo checks:
