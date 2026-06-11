@@ -78,6 +78,8 @@ npx kb-local sync pull
 
 This is a support and debugging path, not a second production architecture. Canonical production writes still belong on the Cloudflare-hosted KB surface.
 
+If humans want to edit the tenant mirror directly in Obsidian while canonical writes still go through KB semantics, use the semantic authoring workflow in `docs/operations/kb-obsidian-semantic-sync.md`. In that mode, `entities/*.md` and `sources/*.md` are the only supported authoring targets and the daemon translates those edits onto the canonical Cloudflare KB surface.
+
 ## 5. Install Skills For Agents
 
 KB write skill:

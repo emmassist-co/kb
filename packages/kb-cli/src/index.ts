@@ -99,6 +99,7 @@ interface KnowledgeBaseCliExecutor {
   queryRelations(input: JsonObject): Promise<unknown>;
   remember(input: JsonObject): Promise<unknown>;
   record(input: JsonObject): Promise<unknown>;
+  recordSource(input: JsonObject): Promise<unknown>;
   relate(input: JsonObject): Promise<unknown>;
   annotate(input: JsonObject): Promise<unknown>;
   related(id: string): Promise<unknown>;
@@ -247,7 +248,7 @@ export async function runKnowledgeBaseCli(
   }
 }
 
-async function createExecutor(options: KnowledgeBaseCliOptions): Promise<KnowledgeBaseCliExecutor> {
+export async function createExecutor(options: KnowledgeBaseCliOptions): Promise<KnowledgeBaseCliExecutor> {
   if (options.executor) return options.executor;
   const transport = resolveTransport(options);
   if (transport.mode === 'http') {
@@ -290,6 +291,7 @@ async function createExecutor(options: KnowledgeBaseCliOptions): Promise<Knowled
     queryRelations: (input) => service.queryRelations(coerceRelationInput(input)),
     remember: (input) => service.remember(input as Parameters<KnowledgeBaseService['remember']>[0]),
     record: (input) => service.record(input as Parameters<KnowledgeBaseService['record']>[0]),
+    recordSource: (input) => service.recordSource(input as Parameters<KnowledgeBaseService['recordSource']>[0]),
     relate: (input) => service.relate(input as Parameters<KnowledgeBaseService['relate']>[0]),
     annotate: (input) => service.annotate(input as Parameters<KnowledgeBaseService['annotate']>[0]),
     related: (id) => service.related(id),
@@ -367,6 +369,7 @@ function createHttpExecutor(
     queryRelations: (input) => request('/v1/query-relations', { method: 'POST', body: coerceRelationInput(input) }),
     remember: (input) => request('/v1/remember', { method: 'POST', body: input }),
     record: (input) => request('/v1/record', { method: 'POST', body: input }),
+    recordSource: (input) => request('/v1/record-source', { method: 'POST', body: input }),
     relate: (input) => request('/v1/relate', { method: 'POST', body: input }),
     annotate: (input) => request('/v1/annotate', { method: 'POST', body: input }),
     related: (id) => request(`/v1/entities/${encodeURIComponent(id)}/related`),

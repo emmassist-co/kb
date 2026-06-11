@@ -247,6 +247,73 @@ test('kb http write routes return enriched mutation envelopes', async () => {
   });
 });
 
+test('kb http exposes exact source-record write route for semantic sync', async () => {
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async recordSource(input: Record<string, unknown>) {
+          assert.deepEqual(input, {
+            source: {
+              id: 'src_vendor_note',
+              kind: 'note',
+              title: 'Vendor note',
+              linkedEntities: ['vendor-acme'],
+              summary: 'Updated summary.',
+              content: 'Updated content.'
+            }
+          });
+          return {
+            mutated: true,
+            entityIds: [],
+            sourceIds: ['src_vendor_note'],
+            eventIds: [],
+            warnings: [],
+            hydrated: {
+              entities: [],
+              sources: [{ meta: { id: 'src_vendor_note', title: 'Vendor note' }, summary: 'Updated summary.' }],
+              events: [],
+              links: []
+            }
+          };
+        }
+      } as never
+    },
+    {
+      method: 'POST',
+      pathname: '/v1/record-source',
+      searchParams: new URLSearchParams(),
+      body: {
+        source: {
+          id: 'src_vendor_note',
+          kind: 'note',
+          title: 'Vendor note',
+          linkedEntities: ['vendor-acme'],
+          summary: 'Updated summary.',
+          content: 'Updated content.'
+        }
+      }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, {
+    ok: true,
+    data: {
+      mutated: true,
+      entityIds: [],
+      sourceIds: ['src_vendor_note'],
+      eventIds: [],
+      warnings: [],
+      hydrated: {
+        entities: [],
+        sources: [{ meta: { id: 'src_vendor_note', title: 'Vendor note' }, summary: 'Updated summary.' }],
+        events: [],
+        links: []
+      }
+    }
+  });
+});
+
 test('kb http node server serves the same contract over localhost', async () => {
   const server = await startKnowledgeBaseNodeServer({
     service: {
