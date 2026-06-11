@@ -1,13 +1,57 @@
-import type { KnowledgeBaseService } from '@emmassist-co/kb-core';
 import type {
   SemanticEntityDiff,
   SemanticMirrorDiff,
   SemanticSourceDiff
 } from './diff.js';
 
-type RecordInput = Parameters<KnowledgeBaseService['record']>[0];
-type RecordSourceInput = Parameters<KnowledgeBaseService['recordSource']>[0];
-type AnnotateInput = Parameters<KnowledgeBaseService['annotate']>[0];
+export interface SemanticRecordInput {
+  entity: {
+    id: string;
+    kind: 'company' | 'person' | 'process' | 'project' | 'policy' | 'vendor' | 'decision' | 'system' | 'team' | 'meeting';
+    title: string;
+    aliases?: string[];
+    handles?: string[];
+    tags?: string[];
+    status?: string;
+    owners?: string[];
+    sources?: string[];
+    confidence?: 'low' | 'medium' | 'high';
+    currentTruth?: string;
+    openQuestions?: string[];
+    timeline?: string[];
+    supersedes?: string[];
+    freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+    lastReviewedAt?: string;
+  };
+}
+
+export interface SemanticRecordSourceInput {
+  source: {
+    id: string;
+    kind: 'note' | 'research' | 'workspace' | 'chat';
+    title: string;
+    url?: string;
+    authors?: string[];
+    tags?: string[];
+    linkedEntities?: string[];
+    createdAt?: string;
+    summary?: string;
+    content?: string;
+    citations?: string[];
+    rawSourceRef?: string;
+    supersedes?: string[];
+    freshnessStatus?: 'fresh' | 'needs_review' | 'stale';
+    lastReviewedAt?: string;
+  };
+}
+
+export interface SemanticAnnotateInput {
+  entityIds: string[];
+  summary: string;
+  effectiveAt?: string;
+  sourceIds?: string[];
+  provenance?: string;
+}
 
 export type SemanticCompileFailureCode =
   | 'diff_failed'
@@ -15,9 +59,9 @@ export type SemanticCompileFailureCode =
   | 'unsupported_mutation';
 
 export type SemanticMutationCommand =
-  | { kind: 'record'; payload: RecordInput }
-  | { kind: 'record-source'; payload: RecordSourceInput }
-  | { kind: 'annotate'; payload: AnnotateInput };
+  | { kind: 'record'; payload: SemanticRecordInput }
+  | { kind: 'record-source'; payload: SemanticRecordSourceInput }
+  | { kind: 'annotate'; payload: SemanticAnnotateInput };
 
 export type SemanticMutationPlan =
   | {
@@ -108,7 +152,7 @@ function compileEntityDiff(path: string, diff: SemanticEntityDiff): SemanticMuta
     return failure(path, 'destructive_edit', `Entity source reference rewrite is not supported in semantic sync: ${path}`);
   }
 
-  const entity: RecordInput['entity'] = {
+  const entity: SemanticRecordInput['entity'] = {
     id: diff.next.meta.id,
     kind: diff.next.meta.kind,
     title: diff.next.meta.title
@@ -171,7 +215,7 @@ function compileSourceDiff(path: string, diff: SemanticSourceDiff): SemanticMuta
   };
 }
 
-function hasEntityMutation(entity: RecordInput['entity']): boolean {
+function hasEntityMutation(entity: SemanticRecordInput['entity']): boolean {
   return Boolean(
     entity.currentTruth
     || entity.aliases?.length
@@ -202,7 +246,7 @@ function isAppendOnlyArray(baseline: string[], next: string[]): boolean {
   return next.length >= baseline.length && baseline.every((value, index) => next[index] === value);
 }
 
-function compileTimelineAnnotation(entityId: string, line: string): AnnotateInput {
+function compileTimelineAnnotation(entityId: string, line: string): SemanticAnnotateInput {
   const match = /^(\d{4}-\d{2}-\d{2}):\s*(.+)$/.exec(line);
   if (!match) {
     return {

@@ -2,10 +2,9 @@ import {
   parseEntityDocument,
   parseSourceDocument,
   validateEntityDocument,
-  validateSourceDocument,
-  type EntityDocument,
-  type SourceDocument
+  validateSourceDocument
 } from '@emmassist-co/kb-core/documents';
+import type { EntityDocument, SourceDocument } from '@emmassist-co/kb-core';
 import { classifySemanticMirrorPath } from './contract.js';
 
 export type SemanticDiffFailureCode =
@@ -49,6 +48,9 @@ export type SemanticMirrorDiff =
   | { ok: true; path: string; recordKind: 'entity'; diff: SemanticEntityDiff }
   | { ok: true; path: string; recordKind: 'source'; diff: SemanticSourceDiff }
   | { ok: false; path: string; code: SemanticDiffFailureCode; message: string; issues?: string[] };
+
+const ENTITY_META_FIELDS = ['title', 'aliases', 'handles', 'tags', 'status', 'owners', 'sources', 'confidence', 'supersedes', 'freshnessStatus', 'lastReviewedAt'] as const;
+const SOURCE_META_FIELDS = ['title', 'url', 'authors', 'tags', 'linkedEntities', 'rawSourceRef', 'supersedes', 'freshnessStatus', 'lastReviewedAt'] as const;
 
 export function diffSemanticMirrorRecord(input: {
   path: string;
@@ -192,11 +194,11 @@ function diffEntityMetaFields(
   next: EntityDocument
 ): SemanticEntityDiff['changedMetaFields'] {
   if (!baseline) {
-    return ['title', 'aliases', 'handles', 'tags', 'status', 'owners', 'sources', 'confidence', 'supersedes', 'freshnessStatus', 'lastReviewedAt']
+    return [...ENTITY_META_FIELDS]
       .filter((field) => hasEntityMetaValue(next, field));
   }
   const fields: SemanticEntityDiff['changedMetaFields'] = [];
-  for (const field of ['title', 'aliases', 'handles', 'tags', 'status', 'owners', 'sources', 'confidence', 'supersedes', 'freshnessStatus', 'lastReviewedAt'] as const) {
+  for (const field of ENTITY_META_FIELDS) {
     if (!equalMetaValue(readEntityMetaValue(baseline, field), readEntityMetaValue(next, field))) {
       fields.push(field);
     }
@@ -209,11 +211,11 @@ function diffSourceMetaFields(
   next: SourceDocument
 ): SemanticSourceDiff['changedMetaFields'] {
   if (!baseline) {
-    return ['title', 'url', 'authors', 'tags', 'linkedEntities', 'rawSourceRef', 'supersedes', 'freshnessStatus', 'lastReviewedAt']
+    return [...SOURCE_META_FIELDS]
       .filter((field) => hasSourceMetaValue(next, field));
   }
   const fields: SemanticSourceDiff['changedMetaFields'] = [];
-  for (const field of ['title', 'url', 'authors', 'tags', 'linkedEntities', 'rawSourceRef', 'supersedes', 'freshnessStatus', 'lastReviewedAt'] as const) {
+  for (const field of SOURCE_META_FIELDS) {
     if (!equalMetaValue(readSourceMetaValue(baseline, field), readSourceMetaValue(next, field))) {
       fields.push(field);
     }

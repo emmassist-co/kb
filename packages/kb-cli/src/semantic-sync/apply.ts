@@ -5,12 +5,17 @@ import type {
   KnowledgeMutationResult,
   SourceDocument
 } from '@emmassist-co/kb-core';
-import type { SemanticMutationCommand, SemanticMutationPlan } from './compile.js';
+import type {
+  SemanticAnnotateInput,
+  SemanticMutationPlan,
+  SemanticRecordInput,
+  SemanticRecordSourceInput
+} from './compile.js';
 
 export interface SemanticMutationExecutor {
-  record(input: SemanticMutationCommand & { kind: 'record' }['payload']): Promise<KnowledgeMutationResult>;
-  recordSource(input: SemanticMutationCommand & { kind: 'record-source' }['payload']): Promise<KnowledgeMutationResult>;
-  annotate(input: SemanticMutationCommand & { kind: 'annotate' }['payload']): Promise<KnowledgeMutationResult>;
+  record(input: SemanticRecordInput): Promise<KnowledgeMutationResult>;
+  recordSource(input: SemanticRecordSourceInput): Promise<KnowledgeMutationResult>;
+  annotate(input: SemanticAnnotateInput): Promise<KnowledgeMutationResult>;
 }
 
 export async function applySemanticMutationPlan(

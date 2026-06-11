@@ -3,9 +3,15 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import type { KnowledgeBaseCliOptions, KnowledgeBaseCliExecutor } from './index.js';
+import type { KnowledgeBaseCliOptions } from './index.js';
 import { createExecutor } from './index.js';
 import { executeKnowledgeBaseSyncCommand, resolveMirrorRoot } from './sync.js';
+import type { KnowledgeMutationResult } from '@emmassist-co/kb-core';
+import type {
+  SemanticAnnotateInput,
+  SemanticRecordInput,
+  SemanticRecordSourceInput
+} from './semantic-sync/compile.js';
 import { classifySemanticMirrorPath } from './semantic-sync/contract.js';
 import { diffSemanticMirrorRecord } from './semantic-sync/diff.js';
 import { compileSemanticMirrorDiff } from './semantic-sync/compile.js';
@@ -43,7 +49,12 @@ export interface SemanticMirrorApplyResult {
   issues: Array<{ path: string; code: string; message: string }>;
 }
 
-interface SemanticMirrorExecutor extends Pick<KnowledgeBaseCliExecutor, 'get' | 'record' | 'recordSource' | 'annotate'> {}
+interface SemanticMirrorExecutor {
+  get(id: string): Promise<{ kind: 'entity' | 'source'; markdown: string; parsed: unknown }>;
+  record(input: SemanticRecordInput): Promise<KnowledgeMutationResult>;
+  recordSource(input: SemanticRecordSourceInput): Promise<KnowledgeMutationResult>;
+  annotate(input: SemanticAnnotateInput): Promise<KnowledgeMutationResult>;
+}
 
 export function renderKnowledgeBaseSyncDaemonHelp(): string {
   return 'kb daemon <start|stop|restart|status|logs|once> [--verbose] [--logs] [--stats]';
@@ -331,7 +342,13 @@ async function runSemanticSyncPass(
 ): Promise<SemanticMirrorApplyResult> {
   const status = await executeKnowledgeBaseSyncCommand(['status'], options);
   const entries = readStatusEntries(status.entries);
-  const executor = await createExecutor(options);
+  const cliExecutor = await createExecutor(options);
+  const executor: SemanticMirrorExecutor = {
+    get: async (id) => await cliExecutor.get(id) as { kind: 'entity' | 'source'; markdown: string; parsed: unknown },
+    record: async (input) => await cliExecutor.record(input as unknown as Record<string, unknown>) as KnowledgeMutationResult,
+    recordSource: async (input) => await cliExecutor.recordSource(input) as KnowledgeMutationResult,
+    annotate: async (input) => await cliExecutor.annotate(input as unknown as Record<string, unknown>) as KnowledgeMutationResult
+  };
   const mirrorRoot = resolveMirrorRoot(options.cwd ?? process.cwd(), options.env ?? process.env, options.env?.KB_TENANT_ID ?? options.env?.WORKSPACE_TENANT_ID ?? 'default');
   const outcome = await applyKnowledgeBaseSemanticSyncEdits({
     mirrorRoot,
