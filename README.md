@@ -1,6 +1,6 @@
 # `emmassist/kb`
 
-![KB hero](./docs/assets/kb-hero.svg)
+![KB hero diagram](./docs/assets/company-brain-kb-logo.png)
 
 Cloudflare-first compounding knowledge base for agents, operator runtimes, and tenant-scoped institutional memory.
 
