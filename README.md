@@ -1,6 +1,42 @@
 # `emmassist/kb`
 
+![KB hero](./docs/assets/kb-hero.svg)
+
 Cloudflare-first compounding knowledge base for agents, operator runtimes, and tenant-scoped institutional memory.
+
+## Quick Start
+
+If another coding agent wants a working KB in a fresh repo, this is the shortest supported path:
+
+```bash
+npm install @emmassist-co/kb-cli
+
+export KB_TENANT_ID=my-agent
+export KB_ROOT_DIR="$PWD/.kb"
+
+npx kb-local inspect
+npx kb-local schema record
+npx kb-local help
+```
+
+If that agent needs the canonical shared deployment instead of a local file-backed KB:
+
+```bash
+export KB_BASE_URL=https://YOUR-KB-HOST
+export KB_API_TOKEN=replace-me-with-a-secret
+
+npx kb-local search --json '{"query":"billing"}'
+```
+
+For the full install and deployment path, see:
+
+- [docs/consumer-quickstart.md](./docs/consumer-quickstart.md)
+- [docs/cloudflare-agent-setup.md](./docs/cloudflare-agent-setup.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [SECURITY.md](./SECURITY.md)
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+- [docs/audits/2026-06-11-open-source-readiness.md](./docs/audits/2026-06-11-open-source-readiness.md)
+- [docs/audits/2026-06-11-agent-native-audit.md](./docs/audits/2026-06-11-agent-native-audit.md)
 
 `kb` is the source of truth for the packages and operating model behind a durable knowledge base that gets better over time:
 
@@ -87,6 +123,7 @@ Core repo checks:
 npm run build:public
 npm run typecheck
 npm test
+npm run test:bench
 ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all
 npm run smoke:kb-mcp -- --tenant-id demo-tenant
 ```
