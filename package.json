@@ -28,7 +28,7 @@
     "smoke:kb-mcp": "node --import tsx/esm scripts/kb-mcp-smoke.ts",
     "smoke:codex-mcp": "node --import tsx/esm scripts/kb-codex-mcp-smoke.ts",
     "serve:kb-mcp-stdio": "node --import tsx/esm scripts/kb-mcp-stdio.ts",
-    "verify:kb:evals": "node --import tsx/esm --test tests/kb-benchmark.test.ts tests/kb-cli-docs.test.ts && npm run eval:kb:all -- --no-write-scorecard && npm run eval:kb:admin-world -- --split dev && npm run eval:kb:admin-world -- --split holdout && npm run eval:kb:gbrain-world",
+    "verify:kb:evals": "node --import tsx/esm --test tests/kb-cli-docs.test.ts && npm run eval:kb:all -- --no-write-scorecard && npm run eval:kb:admin-world -- --split dev && npm run eval:kb:admin-world -- --split holdout && npm run eval:kb:gbrain-world",
     "compile": "npm run build:public",
     "typecheck": "tsc --noEmit",
     "test": "npm run build:public && node --import tsx/esm --test tests/**/*.test.ts",
