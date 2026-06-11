@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-06-11 - Add Obsidian Semantic Sync For Canonical KB Mirrors
+
+- Area: package, CLI command, HTTP surface, adapter
+- Merged to `main`: no
+- Commit / PR: PR `#3`
+- Feature summary: added a semantic sync lane for `entities/*.md` and `sources/*.md` mirror edits so the daemon can diff human markdown changes, compile safe edits into canonical KB mutations, push source round-trips through a new `/v1/record-source` path, and then refresh the mirror from canonical state.
+- Customer-visible impact: operators can use Obsidian or another file editor on top of a mirrored canonical KB without falling back to raw file overwrite for supported entity and source edits.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: point a real tenant mirror at a protected Cloudflare KB, edit one entity markdown file and one source markdown file in Obsidian, run the daemon semantic pass, and confirm the canonical KB reflects the compiled mutations after refresh.
+- Automated coverage: `npm run build:public`; `npm run typecheck`; `node --import tsx/esm --test tests/kb-autoresearch.test.ts tests/kb-cli-docs.test.ts tests/kb-cli.test.ts tests/kb-eval-cli-guard.test.ts tests/kb-flue-adapter.test.ts tests/kb-http.test.ts tests/kb-mcp.test.ts tests/kb-metadata.test.ts tests/kb-obsidian-sync.test.ts tests/kb-r2-sync.test.ts tests/kb-skills.test.ts tests/kb-storage-cloudflare.test.ts tests/kb-verify.test.ts`; `npm run eval:kb:all -- --json`; `npm run eval:kb:admin-world -- --split dev -- --json`; `npm run eval:kb:admin-world -- --split holdout -- --json`; `npm run eval:kb:gbrain-world -- --json`
+- Needs iteration: yes
+- Follow-up: resolve the `tests/kb-benchmark.test.ts` graph-first stall in the generic `npm test` path and record one real human semantic-sync run against a deployed canonical KB.
+
 ## 2026-06-10 - Make KB Publish Idempotent Across Mixed Package Versions
 
 - Area: package
