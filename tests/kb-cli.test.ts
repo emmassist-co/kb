@@ -730,6 +730,35 @@ test('kb sync status can disclose changed paths on demand', () => {
   });
 });
 
+test('kb sync status surfaces support-only local edits as rejected semantic drift', () => {
+  const summary = summarizeKnowledgeBaseSyncResult({
+    ok: true,
+    command: 'status',
+    tenantId: 'acme',
+    mirrorRoot: '/tmp/acme',
+    prefix: '.kb/acme/',
+    entries: [
+      { path: 'events/evt-1.json', state: 'rejected-local' }
+    ]
+  }, { changes: true });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'sync',
+    action: 'status',
+    state: 'rejected',
+    counts: {
+      changed: 1,
+      conflicts: 0,
+      rejected: 1
+    },
+    hints: ['has_rejected_local_edits'],
+    changes: {
+      rejectedLocal: ['events/evt-1.json']
+    }
+  });
+});
+
 test('kb daemon status defaults to a compact health envelope', () => {
   const summary = summarizeKnowledgeBaseSyncDaemonResult({
     stdout: 'kb daemon running (pid 123)\n{"state":"idle","action":"pull","detail":"ok","updatedAt":"2026-05-13T10:00:00.000Z"}',
@@ -767,6 +796,37 @@ test('kb daemon status does not surface stale running hints when the daemon is d
       detail: 'next pull at 1781098216',
       pid: 32278,
       updatedAt: '2026-06-10T13:25:01.049Z'
+    }
+  });
+});
+
+test('kb daemon status surfaces semantic sync blockage when payload reports rejected edits or conflicts', () => {
+  const summary = summarizeKnowledgeBaseSyncDaemonResult({
+    stdout: 'kb daemon running (pid 123)\n{"state":"idle","action":"push","detail":"ok","semanticSync":{"state":"blocked","rejectedEdits":2,"conflicts":1},"updatedAt":"2026-06-11T10:00:00.000Z"}',
+    stderr: '',
+    exitCode: 0
+  }, { stats: true });
+
+  assert.deepEqual(summary, {
+    ok: true,
+    command: 'daemon',
+    action: 'status',
+    state: 'semantic_blocked',
+    counts: {
+      rejectedEdits: 2,
+      semanticConflicts: 1
+    },
+    hints: ['running', 'semantic_sync_blocked'],
+    stats: {
+      state: 'idle',
+      action: 'push',
+      detail: 'ok',
+      semanticSync: {
+        state: 'blocked',
+        rejectedEdits: 2,
+        conflicts: 1
+      },
+      updatedAt: '2026-06-11T10:00:00.000Z'
     }
   });
 });

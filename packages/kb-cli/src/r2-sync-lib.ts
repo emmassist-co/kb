@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { classifySemanticMirrorPath } from './semantic-sync/contract.js';
 
 export interface TenantKbMirrorRootInput {
   cwd: string;
@@ -50,6 +51,7 @@ export type TenantKbSyncFileState =
   | 'added-remote'
   | 'deleted-local'
   | 'deleted-remote'
+  | 'rejected-local'
   | 'conflict';
 
 export interface TenantKbStatusEntry {
@@ -440,19 +442,26 @@ function classifyPath(input: {
   remote?: TenantKbRemoteObject;
   local?: TenantKbLocalFile;
 }): TenantKbSyncFileState {
+  const localOnlyState = (state: TenantKbSyncFileState): TenantKbSyncFileState => {
+    if (state !== 'modified-local' && state !== 'added-local' && state !== 'deleted-local') return state;
+    const path = input.local?.path ?? input.manifest?.key ?? input.remote?.key;
+    if (!path) return state;
+    return classifySemanticMirrorPath(path).pathClass === 'editable-record' ? state : 'rejected-local';
+  };
+
   if (input.manifest && input.remote && input.local) {
     const remoteMatches = input.remote.hash === input.manifest.remoteHash;
     const localMatches = input.local.hash === input.manifest.localHash;
     if (remoteMatches && localMatches) return 'unchanged';
-    if (remoteMatches && !localMatches) return 'modified-local';
+    if (remoteMatches && !localMatches) return localOnlyState('modified-local');
     if (!remoteMatches && localMatches) return 'modified-remote';
     return 'conflict';
   }
   if (input.manifest && !input.remote && input.local) return 'deleted-remote';
-  if (input.manifest && input.remote && !input.local) return 'deleted-local';
-  if (input.manifest && !input.remote && !input.local) return 'deleted-local';
+  if (input.manifest && input.remote && !input.local) return localOnlyState('deleted-local');
+  if (input.manifest && !input.remote && !input.local) return localOnlyState('deleted-local');
   if (!input.manifest && input.remote && input.local) return input.remote.hash === input.local.hash ? 'added-remote' : 'conflict';
   if (!input.manifest && input.remote) return 'added-remote';
-  if (!input.manifest && input.local) return 'added-local';
+  if (!input.manifest && input.local) return localOnlyState('added-local');
   return 'unchanged';
 }

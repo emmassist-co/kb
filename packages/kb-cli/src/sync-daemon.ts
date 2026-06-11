@@ -58,8 +58,10 @@ export function summarizeKnowledgeBaseSyncDaemonResult(
 
   const status = parseDaemonStatusPayload(result.stdout);
   const running = isRunningStatusOutput(result.stdout, result.exitCode);
+  const semantic = readSemanticStatus(status);
   const hints = compactHints([
     running ? 'running' : 'not_running',
+    semantic?.state === 'blocked' ? 'semantic_sync_blocked' : null,
     status?.detail === 'failed; see log' ? 'check_logs' : null
   ]);
   const summary: Record<string, unknown> = {
@@ -67,9 +69,16 @@ export function summarizeKnowledgeBaseSyncDaemonResult(
     command: 'daemon',
     action,
     state: running
-      ? status?.state ?? 'running'
+      ? semantic?.state === 'blocked'
+        ? 'semantic_blocked'
+        : status?.state ?? 'running'
       : 'stopped',
-    counts: {},
+    counts: semantic
+      ? {
+          ...(typeof semantic.rejectedEdits === 'number' && semantic.rejectedEdits > 0 ? { rejectedEdits: semantic.rejectedEdits } : {}),
+          ...(typeof semantic.conflicts === 'number' && semantic.conflicts > 0 ? { semanticConflicts: semantic.conflicts } : {})
+        }
+      : {},
     hints
   };
   if (options.stats && status) {
@@ -314,6 +323,22 @@ function parseDaemonStatusPayload(stdout: string): Record<string, unknown> | nul
   } catch {
     return null;
   }
+}
+
+function readSemanticStatus(status: Record<string, unknown> | null): {
+  state?: string;
+  rejectedEdits?: number;
+  conflicts?: number;
+} | null {
+  if (!status) return null;
+  const semantic = status.semanticSync;
+  if (!semantic || typeof semantic !== 'object' || Array.isArray(semantic)) return null;
+  const value = semantic as Record<string, unknown>;
+  return {
+    state: typeof value.state === 'string' ? value.state : undefined,
+    rejectedEdits: typeof value.rejectedEdits === 'number' && Number.isFinite(value.rejectedEdits) ? value.rejectedEdits : undefined,
+    conflicts: typeof value.conflicts === 'number' && Number.isFinite(value.conflicts) ? value.conflicts : undefined
+  };
 }
 
 function isRunningStatusOutput(stdout: string, exitCode: number): boolean {
