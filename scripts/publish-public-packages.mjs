@@ -11,7 +11,8 @@ const packages = [
   { name: '@emmassist-co/kb-storage-cloudflare', manifestPath: 'packages/kb-storage-cloudflare/package.json' },
   { name: '@emmassist-co/kb-http', manifestPath: 'packages/kb-http/package.json' },
   { name: '@emmassist-co/kb-mcp', manifestPath: 'packages/kb-mcp/package.json' },
-  { name: '@emmassist-co/kb-cli', manifestPath: 'packages/kb-cli/package.json' }
+  { name: '@emmassist-co/kb-cli', manifestPath: 'packages/kb-cli/package.json' },
+  { name: '@emmassist-co/kb-flue-adapter', manifestPath: 'packages/kb-flue-adapter/package.json' }
 ];
 
 for (const pkg of packages) {

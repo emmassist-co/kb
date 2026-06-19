@@ -57,13 +57,12 @@ The staged open-source package set is:
 - `@emmassist-co/kb-http`
 - `@emmassist-co/kb-mcp`
 - `@emmassist-co/kb-cli`
+- `@emmassist-co/kb-flue-adapter`
 
-These packages form the Cloudflare-first product spine for public consumers.
+These packages form the Cloudflare-first product spine for public consumers, including the Flue runtime command surface.
 
 Not yet in the staged public package set:
 
-- `@emmassist-co/kb-flue-adapter`
-  Deferred until the remaining host-specific runtime coupling is removed.
 - `@emmassist-co/kb-autoresearch`
   Still private while its product surface, packaging contract, and runtime assumptions are narrowed.
 
@@ -97,7 +96,7 @@ Current package boundaries already reflect the intended shape:
 - `packages/kb-http`: canonical `GET`/`POST`/`PUT`/`DELETE` contract with both Node and Worker hosts
 - `packages/kb-mcp`: Streamable HTTP MCP adapter over the same tenant-scoped Worker runtime and auth model
 - `packages/kb-cli`: local operator CLI, daemon mode, HTTP client mode, and installable skills
-- `packages/kb-flue-adapter`: deferred from the staged public package set until its remaining host-specific wiring is removed
+- `packages/kb-flue-adapter`: published Flue runtime adapter with a structural command contract that survives Flue SDK export changes
 - `packages/kb-autoresearch`: private package and repo-owned research tooling surface, not a staged public install target
 
 ## Cloudflare-First Deployment Shape

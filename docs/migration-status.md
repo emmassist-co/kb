@@ -9,12 +9,13 @@ The following surfaces already work from the extracted `emmassist/kb` monorepo:
 - `@emmassist-co/kb-http`
 - `@emmassist-co/kb-mcp`
 - `@emmassist-co/kb-cli`
+- `@emmassist-co/kb-flue-adapter`
 - `@emmassist-co/kb-autoresearch` source tree copied into the repo
 
 Verified locally:
 
 - `npm run typecheck`
-- `./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts tests/kb-mcp.test.ts`
+- `./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts tests/kb-mcp.test.ts tests/kb-flue-adapter.test.ts`
 - `./node_modules/.bin/tsx scripts/kb-verify.ts --mode all`
 
 ## Staged Public Package Set
@@ -27,13 +28,12 @@ The current staged public package set for open-source distribution is:
 - `@emmassist-co/kb-http`
 - `@emmassist-co/kb-mcp`
 - `@emmassist-co/kb-cli`
+- `@emmassist-co/kb-flue-adapter`
 
-These packages define the public Cloudflare-first KB product spine.
+These packages define the public Cloudflare-first KB product spine, including the Flue runtime command boundary.
 
 Deferred from the staged public package set:
 
-- `@emmassist-co/kb-flue-adapter`
-  Still carries host-oriented runtime assumptions and should not be treated as public-ready until that boundary is removed.
 - `@emmassist-co/kb-autoresearch`
   Remains private while its runtime, product, and packaging shape are narrowed.
 
@@ -41,14 +41,7 @@ Deferred from the staged public package set:
 
 ### `kb-flue-adapter`
 
-Still imports repo-local host code from `administrative`, including:
-
-- product config resolution
-- chat logging
-- GWS formatting/parsing
-- runtime KB service construction
-
-This package needs a host adapter boundary so the KB repo owns the Flue-facing API but the consuming repo provides host-specific wiring.
+The package now owns the shared Flue-facing contract without importing repo-local host code or legacy Flue subpath exports. Consumers still provide host-specific runtime wiring, but the package boundary itself is now upstream-owned and publishable.
 
 ### `kb-storage-cloudflare`
 
@@ -89,7 +82,7 @@ These should either:
 
 ## Next Extraction Steps
 
-1. Replace `kb-flue-adapter` direct imports with host-provided interfaces.
+1. Keep downstream consumers on the published `kb-flue-adapter` contract instead of repo-local adapter forks.
 2. Extract KB-owned DO state logic from `state-cloudflare-do.ts`.
 3. Move KB sync logic into the KB repo and rewrite `kb-r2-sync`.
 4. Separate package tests from host integration tests.

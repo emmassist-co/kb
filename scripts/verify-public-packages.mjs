@@ -53,6 +53,12 @@ const publicPackages = [
     workspace: '@emmassist-co/kb-cli',
     expectedEntries: ['package/bin/kb-local.mjs', 'package/dist/index.js', 'package/dist/main.js', 'package/dist/r2-sync-lib.js'],
     forbiddenEntries: ['package/src/']
+  },
+  {
+    name: '@emmassist-co/kb-flue-adapter',
+    workspace: '@emmassist-co/kb-flue-adapter',
+    expectedEntries: ['package/dist/index.js', 'package/dist/index.d.ts', 'package/dist/command.js', 'package/dist/config.js'],
+    forbiddenEntries: ['package/src/']
   }
 ];
 
@@ -109,11 +115,13 @@ try {
         "const mcp = await import('@emmassist-co/kb-mcp');",
         "const storage = await import('@emmassist-co/kb-storage-file');",
         "const cloudflare = await import('@emmassist-co/kb-storage-cloudflare');",
+        "const flueAdapter = await import('@emmassist-co/kb-flue-adapter');",
         "if (typeof core.KnowledgeBaseService !== 'function') throw new Error('kb-core export missing');",
         "if (typeof http.startKnowledgeBaseNodeServer !== 'function') throw new Error('kb-http export missing');",
         "if (typeof mcp.createKnowledgeBaseMcpServer !== 'function') throw new Error('kb-mcp export missing');",
         "if (typeof storage.FileKnowledgeStore !== 'function') throw new Error('kb-storage-file export missing');",
-        "if (typeof cloudflare.R2CanonicalKbStore !== 'function') throw new Error('kb-storage-cloudflare export missing');"
+        "if (typeof cloudflare.R2CanonicalKbStore !== 'function') throw new Error('kb-storage-cloudflare export missing');",
+        "if (typeof flueAdapter.createKbCommand !== 'function') throw new Error('kb-flue-adapter export missing');"
       ].join(' ')
     ],
     { cwd: consumerDir, stdio: 'inherit' }

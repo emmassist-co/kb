@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import type { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
 import { createKbCommand } from '../packages/kb-flue-adapter/src/command.js';
 
@@ -175,4 +177,18 @@ test('kb flue adapter help exposes runtime context and operator-only repair topi
   assert.match(operator.stdout, /kb operator surface/);
   assert.match(operator.stdout, /kb capture-source --json @payload\.json/);
   assert.match(operator.stdout, /Use these only for direct KB repair, cleanup, or inspection\./);
+});
+
+
+test('kb flue adapter avoids legacy Flue SDK subpath imports and advertises the widened peer range', async () => {
+  const commandSourcePath = path.resolve(process.cwd(), 'packages/kb-flue-adapter/src/command.ts');
+  const packageJsonPath = path.resolve(process.cwd(), 'packages/kb-flue-adapter/package.json');
+  const [commandSource, packageJsonText] = await Promise.all([
+    readFile(commandSourcePath, 'utf8'),
+    readFile(packageJsonPath, 'utf8')
+  ]);
+  const packageJson = JSON.parse(packageJsonText) as { peerDependencies?: Record<string, string> };
+
+  assert.doesNotMatch(commandSource, /@flue\/sdk\/client/);
+  assert.match(packageJson.peerDependencies?.['@flue/sdk'] ?? '', /1\.0\.0-beta\.1/);
 });

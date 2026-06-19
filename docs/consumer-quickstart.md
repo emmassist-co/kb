@@ -33,6 +33,16 @@ npm install @emmassist-co/kb-cli
 
 This gives you `kb-local`.
 
+## 1.1. Flue Runtime Consumers
+
+If your agent runtime already uses Flue and you want the KB command surface inside that runtime, install the adapter alongside your local Flue SDK:
+
+```bash
+npm install @emmassist-co/kb-flue-adapter @flue/sdk
+```
+
+The adapter no longer depends on legacy Flue subpath exports, so the same package works for Flue `0.3.x` and the root-export Flue `1.x` line. The returned command is structural, so consumers can assign it to their local Flue `Command` type.
+
 ## 2. Local In-Process Mode
 
 ```bash

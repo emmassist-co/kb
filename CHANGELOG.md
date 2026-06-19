@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-06-19 - Release Flue v1-Compatible KB Adapter Contract
+
+- Area: adapter, package
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: removed the adapter's dependency on legacy `@flue/sdk` subpath types, widened the peer compatibility range to cover the Flue v1 root-export line, and updated the package and consumer docs so downstream runtimes can consume the upstream adapter contract directly.
+- Customer-visible impact: Flue runtime consumers can install one published `@emmassist-co/kb-flue-adapter` package across the old `0.3.x` and new `1.x` SDK lines without carrying repo-local type patches.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: install the published adapter in one Flue `0.3.x` consumer and one Flue `1.x` consumer, mount the `kb` command, and confirm basic `help`, `inspect`, and `search` flows still work through the runtime boundary.
+- Automated coverage: pending local rerun after branch changes
+- Needs iteration: no
+- Follow-up: publish `@emmassist-co/kb-flue-adapter@0.6.0` and cut downstream consumers over to the released package.
+
 ## 2026-06-11 - Add Obsidian Semantic Sync For Canonical KB Mirrors
 
 - Area: package, CLI command, HTTP surface, adapter

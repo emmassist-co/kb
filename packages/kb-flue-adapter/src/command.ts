@@ -1,4 +1,14 @@
-import type { Command } from '@flue/sdk/client';
+// Keep the adapter structurally typed so it survives Flue SDK export changes.
+export interface FlueCommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export interface FlueCommandLike {
+  name: string;
+  execute(args: string[]): Promise<FlueCommandResult>;
+}
 import { runKnowledgeBaseCli, type KnowledgeBaseCliExecutor } from '@emmassist-co/kb-cli';
 import type { KnowledgeBaseService } from '@emmassist-co/kb-core';
 import { createKbRuntimeContext, renderKbRuntimeContract } from './runtime-contract.js';
@@ -38,7 +48,7 @@ export function createKbCommand(
   fs: WorkspaceFsLike,
   env: Record<string, unknown>,
   options: CreateKbCommandOptions = {}
-): Command {
+): FlueCommandLike {
   return {
     name: 'kb',
     execute: async (args: string[]) => {
