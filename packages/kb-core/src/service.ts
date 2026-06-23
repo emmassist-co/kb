@@ -53,6 +53,7 @@ import type {
   KnowledgeLexicalBackend,
   KnowledgeLink,
   KnowledgeLinkRule,
+  KnowledgeDoctorIssueDetail,
   KnowledgeRelationQueryInput,
   KnowledgeRelationQueryResult,
   KnowledgeMutationResult,
@@ -1047,45 +1048,133 @@ export class KnowledgeBaseService {
     };
   }
 
-  async doctor(): Promise<{ ok: boolean; issues: string[]; counts: Record<string, number> }> {
+  async doctor(): Promise<{ ok: boolean; issues: string[]; details: KnowledgeDoctorIssueDetail[]; counts: Record<string, number> }> {
     const entities = await this.loadEntities();
     const registry = await this.loadRegistry(entities);
     const sources = await this.loadSources();
     const events = await this.loadEvents();
     const links = await this.store.listLinks();
     const issues: string[] = [];
+    const details: KnowledgeDoctorIssueDetail[] = [];
+    const addIssue = (message: string, detail: Omit<KnowledgeDoctorIssueDetail, 'message' | 'severity'> & { severity?: KnowledgeDoctorIssueDetail['severity'] }) => {
+      issues.push(message);
+      details.push({
+        severity: detail.severity ?? 'error',
+        message,
+        ...detail
+      });
+    };
     const sourceIds = new Set(sources.map((source) => source.meta.id));
     const entityIds = new Set(entities.map((entity) => entity.meta.id));
 
     for (const entity of entities) {
-      for (const issue of validateEntityDocument(entity)) issues.push(`${entity.meta.id}: ${issue}`);
+      for (const issue of validateEntityDocument(entity)) {
+        addIssue(`${entity.meta.id}: ${issue}`, {
+          code: 'entity_validation',
+          entityId: entity.meta.id,
+          path: `entities/${entity.meta.id}.md`,
+          nextAction: 'fix_entity_markdown'
+        });
+      }
       for (const sourceId of entity.sources) {
-        if (!sourceIds.has(sourceId)) issues.push(`${entity.meta.id}: missing source reference ${sourceId}`);
+        if (!sourceIds.has(sourceId)) {
+          addIssue(`${entity.meta.id}: missing source reference ${sourceId}`, {
+            code: 'missing_source_reference',
+            entityId: entity.meta.id,
+            sourceId,
+            path: `entities/${entity.meta.id}.md`,
+            nextAction: 'restore_source_or_remove_reference'
+          });
+        }
       }
       if (entity.meta.freshnessStatus === 'fresh' && !entity.meta.lastReviewedAt) {
-        issues.push(`${entity.meta.id}: freshnessStatus=fresh requires lastReviewedAt`);
+        addIssue(`${entity.meta.id}: freshnessStatus=fresh requires lastReviewedAt`, {
+          code: 'freshness_review_missing',
+          entityId: entity.meta.id,
+          path: `entities/${entity.meta.id}.md`,
+          nextAction: 'set_last_reviewed_at_or_change_freshness'
+        });
       }
       for (const targetId of entity.meta.supersedes ?? []) {
-        if (!entityIds.has(targetId)) issues.push(`${entity.meta.id}: missing supersession target ${targetId}`);
+        if (!entityIds.has(targetId)) {
+          addIssue(`${entity.meta.id}: missing supersession target ${targetId}`, {
+            code: 'missing_supersession_target',
+            entityId: entity.meta.id,
+            relatedIds: [targetId],
+            path: `entities/${entity.meta.id}.md`,
+            nextAction: 'restore_target_or_remove_supersession'
+          });
+        }
       }
     }
     for (const source of sources) {
-      for (const issue of validateSourceDocument(source)) issues.push(`${source.meta.id}: ${issue}`);
+      for (const issue of validateSourceDocument(source)) {
+        addIssue(`${source.meta.id}: ${issue}`, {
+          code: 'source_validation',
+          sourceId: source.meta.id,
+          path: `sources/${source.meta.id}.md`,
+          nextAction: 'fix_source_markdown'
+        });
+      }
       if (source.meta.freshnessStatus === 'fresh' && !source.meta.lastReviewedAt) {
-        issues.push(`${source.meta.id}: freshnessStatus=fresh requires lastReviewedAt`);
+        addIssue(`${source.meta.id}: freshnessStatus=fresh requires lastReviewedAt`, {
+          code: 'freshness_review_missing',
+          sourceId: source.meta.id,
+          path: `sources/${source.meta.id}.md`,
+          nextAction: 'set_last_reviewed_at_or_change_freshness'
+        });
       }
       for (const targetId of source.meta.supersedes ?? []) {
-        if (!sourceIds.has(targetId)) issues.push(`${source.meta.id}: missing supersession target ${targetId}`);
+        if (!sourceIds.has(targetId)) {
+          addIssue(`${source.meta.id}: missing supersession target ${targetId}`, {
+            code: 'missing_supersession_target',
+            sourceId: source.meta.id,
+            relatedIds: [targetId],
+            path: `sources/${source.meta.id}.md`,
+            nextAction: 'restore_target_or_remove_supersession'
+          });
+        }
       }
     }
     for (const event of events) {
-      if (!event.entityIds.length) issues.push(`${event.id}: event has no entityIds`);
+      if (!event.entityIds.length) {
+        addIssue(`${event.id}: event has no entityIds`, {
+          code: 'event_missing_entity_refs',
+          eventId: event.id,
+          path: `events/${event.id}.json`,
+          nextAction: 'attach_event_to_entity_or_delete_event'
+        });
+      }
     }
     for (const link of links) {
-      if (!entityIds.has(link.fromId)) issues.push(`${link.id}: missing from entity ${link.fromId}`);
-      if (!entityIds.has(link.toId)) issues.push(`${link.id}: missing to entity ${link.toId}`);
+      if (!entityIds.has(link.fromId)) {
+        addIssue(`${link.id}: missing from entity ${link.fromId}`, {
+          code: 'link_missing_from_entity',
+          linkId: link.id,
+          entityId: link.fromId,
+          path: `links/${link.originKind ?? 'unknown'}/${link.originId ?? link.id}.json`,
+          nextAction: 'restore_entity_or_remove_relation'
+        });
+      }
+      if (!entityIds.has(link.toId)) {
+        addIssue(`${link.id}: missing to entity ${link.toId}`, {
+          code: 'link_missing_to_entity',
+          linkId: link.id,
+          entityId: link.toId,
+          path: `links/${link.originKind ?? 'unknown'}/${link.originId ?? link.id}.json`,
+          nextAction: 'restore_entity_or_remove_relation'
+        });
+      }
       for (const sourceId of link.sourceIds) {
-        if (!sourceIds.has(sourceId)) issues.push(`${link.id}: missing source reference ${sourceId}`);
+        if (!sourceIds.has(sourceId)) {
+          addIssue(`${link.id}: missing source reference ${sourceId}`, {
+            code: 'link_missing_source_reference',
+            linkId: link.id,
+            sourceId,
+            path: `links/${link.originKind ?? 'unknown'}/${link.originId ?? link.id}.json`,
+            nextAction: 'restore_source_or_remove_relation_source'
+          });
+        }
       }
     }
 
@@ -1100,7 +1189,11 @@ export class KnowledgeBaseService {
     for (const [alias, ownerIds] of aliasOwners) {
       const uniqueOwners = uniqueStrings(ownerIds);
       if (uniqueOwners.length > 1) {
-        issues.push(`duplicate alias "${alias}" across entities: ${uniqueOwners.join(', ')}`);
+        addIssue(`duplicate alias "${alias}" across entities: ${uniqueOwners.join(', ')}`, {
+          code: 'duplicate_alias',
+          relatedIds: uniqueOwners,
+          nextAction: 'rename_alias_or_merge_entities'
+        });
       }
     }
 
@@ -1116,7 +1209,13 @@ export class KnowledgeBaseService {
     }
     for (const [key, targets] of contradictions) {
       if (targets.size > 1) {
-        issues.push(`contradictory active facts for ${key}: ${[...targets].join(', ')}`);
+        const [entityId, relationType] = key.split(':');
+        addIssue(`contradictory active facts for ${key}: ${[...targets].join(', ')}`, {
+          code: 'contradictory_active_fact',
+          entityId,
+          relatedIds: [...targets],
+          nextAction: `resolve_active_${relationType}_relations`
+        });
       }
     }
 
@@ -1125,12 +1224,17 @@ export class KnowledgeBaseService {
       ...sources.map((source) => ({ id: source.meta.id, supersedes: source.meta.supersedes ?? [] }))
     ]);
     for (const cycle of supersessionCycles) {
-      issues.push(`supersession cycle detected: ${cycle.join(' -> ')}`);
+      addIssue(`supersession cycle detected: ${cycle.join(' -> ')}`, {
+        code: 'supersession_cycle',
+        relatedIds: cycle,
+        nextAction: 'break_supersession_cycle'
+      });
     }
 
     return {
       ok: issues.length === 0,
       issues,
+      details,
       counts: {
         entities: entities.length,
         registry: registry.length,

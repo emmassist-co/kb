@@ -84,11 +84,13 @@ export KB_R2_MIRROR_ROOT="$PWD/.kb-sync"
 
 npx kb-local sync status
 npx kb-local sync pull
+npx kb-local validate-mirror
+npx kb-local health
 ```
 
 This is a support and debugging path, not a second production architecture. Canonical production writes still belong on the Cloudflare-hosted KB surface.
 
-If humans want to edit the tenant mirror directly in Obsidian while canonical writes still go through KB semantics, use the semantic authoring workflow in `docs/operations/kb-obsidian-semantic-sync.md`. In that mode, `entities/*.md` and `sources/*.md` are the only supported authoring targets and the daemon translates those edits onto the canonical Cloudflare KB surface.
+If humans want to edit the tenant mirror directly in Obsidian while canonical writes still go through KB semantics, use the semantic authoring workflow in `docs/operations/kb-obsidian-semantic-sync.md`. In that mode, `entities/*.md` and `sources/*.md` are the only supported authoring targets and the daemon translates those edits onto the canonical Cloudflare KB surface. Run `npx kb-local validate-mirror` before applying edits and `npx kb-local health --stats` when an agent or operator needs one readiness envelope across sync, daemon, validation, and conflict state.
 
 ## 5. Install Skills For Agents
 

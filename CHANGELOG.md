@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-06-23 - Add KB Mirror Operator Reliability Commands
+
+- Area: CLI command, package
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added local-only `kb validate-mirror`, `kb health`, and `kb conflicts list|show|resolve` surfaces for R2 mirror operators, plus structured `kb doctor.details` issue metadata while preserving existing string issues.
+- Customer-visible impact: AI operators and humans using tenant mirrors can validate editable markdown, see one health envelope, and repair conflict artifacts without manually inspecting `.kb-sync-*` sidecar directories.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: install the published `@emmassist-co/kb-cli@1.5.0` and `@emmassist-co/kb-core@0.4.1` in a real tenant mirror consumer, run `inspect`, `sync status`, `validate-mirror`, `health --stats`, and one `conflicts list/show` flow against a mirror with known conflict artifacts.
+- Automated coverage: `npm run typecheck`; `node --import tsx/esm --test tests/kb-cli.test.ts tests/kb-cli-docs.test.ts tests/kb-r2-sync.test.ts tests/kb-obsidian-sync.test.ts`; `npm run build:public`; `npm test`
+- Needs iteration: no
+- Follow-up: publish `@emmassist-co/kb-cli@1.5.0` and `@emmassist-co/kb-core@0.4.1`, update `administrativo`, and update the `marketeer` agent wrapper that reported the daemon/status issue.
+
 ## 2026-06-19 - Release Flue v1-Compatible KB Adapter Contract
 
 - Area: adapter, package

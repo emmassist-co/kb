@@ -76,6 +76,8 @@ KB_BACKEND=r2-mirror npx kb-local sync status --changes
 KB_BACKEND=r2-mirror npx kb-local sync pull --verbose
 KB_BACKEND=r2-mirror npx kb-local daemon start
 KB_BACKEND=r2-mirror npx kb-local daemon status --stats
+KB_BACKEND=r2-mirror npx kb-local validate-mirror --changes
+KB_BACKEND=r2-mirror npx kb-local health --stats
 ```
 
 Daemon:
@@ -120,6 +122,9 @@ npx kb-local capture-source --json @source.json
 npx kb-local events
 npx kb-local drafts
 npx kb-local relations --entity-id vendor-stripe
+npx kb-local conflicts list
+npx kb-local conflicts show --path entities/vendor-acme.md --contents
+npx kb-local conflicts resolve --path entities/vendor-acme.md --from file --file ./resolved.md
 ```
 
 ## Verification

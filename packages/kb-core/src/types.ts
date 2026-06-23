@@ -46,6 +46,19 @@ export type KnowledgeLinkSourceSurface =
   | 'event-summary'
   | 'structured';
 
+export interface KnowledgeDoctorIssueDetail {
+  code: string;
+  severity: 'error' | 'warning';
+  message: string;
+  entityId?: string;
+  sourceId?: string;
+  eventId?: string;
+  linkId?: string;
+  path?: string;
+  relatedIds?: string[];
+  nextAction?: string;
+}
+
 export interface KnowledgeLinkRule {
   id: string;
   type: string;
