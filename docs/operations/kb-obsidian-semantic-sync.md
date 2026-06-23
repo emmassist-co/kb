@@ -36,6 +36,7 @@ Pull canonical state first:
 
 ```bash
 npx kb-local sync pull
+npx kb-local validate-mirror
 ```
 
 Start the daemon:
@@ -48,9 +49,10 @@ npx kb-local daemon start
 
 1. Pull canonical state into the tenant mirror.
 2. Edit only `entities/*.md` and `sources/*.md` in Obsidian.
-3. Let the daemon detect local edits and compile them into canonical mutations.
-4. Let the daemon pull canonical state again after successful writes.
-5. Inspect semantic status with `npx kb-local daemon status --stats`.
+3. Run `npx kb-local validate-mirror` to catch malformed markdown, unsupported generated-file edits, missing baselines, and drift signals before apply.
+4. Let the daemon detect local edits and compile them into canonical mutations.
+5. Let the daemon pull canonical state again after successful writes.
+6. Inspect semantic status with `npx kb-local daemon status --stats` or the composed operator envelope with `npx kb-local health --stats`.
 
 ## Safety Rules
 
@@ -64,3 +66,6 @@ npx kb-local daemon start
 - `state: semantic_blocked` means the daemon is running but human edits need intervention.
 - `counts.rejectedEdits` means a local edit touched an unsupported file or unsupported mutation shape.
 - `counts.semanticConflicts` means canonical state changed since the last baseline or the daemon could not reconcile the edit safely.
+- `kb validate-mirror --changes` reports path-specific parse, validation, support-only edit, missing-baseline, and remote-drift blockers.
+- `kb health --stats` composes `inspect`, `sync status`, `validate-mirror`, `daemon status`, and conflict scan into one local operator readiness envelope.
+- `kb conflicts list`, `kb conflicts show --path PATH --contents`, and `kb conflicts resolve --path PATH --from local|remote|merged|file` inspect and repair `.kb-sync-conflicts` artifacts without manually navigating sidecar directories.

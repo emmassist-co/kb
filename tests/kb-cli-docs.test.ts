@@ -65,6 +65,9 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(readme, /KB_API_TOKEN/);
   assert.match(readme, /kb-local cloudflare deploy/);
   assert.match(readme, /kb-local cloudflare verify/);
+  assert.match(readme, /kb-local validate-mirror --changes/);
+  assert.match(readme, /kb-local health --stats/);
+  assert.match(readme, /kb-local conflicts list/);
   assert.doesNotMatch(readme, /npm\.pkg\.github\.com/);
 
   const mcpReadme = readFileSync(path.resolve(process.cwd(), 'packages/kb-mcp/README.md'), 'utf8');
@@ -83,6 +86,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(quickstart, /KB_ROOT_DIR/);
   assert.match(quickstart, /npm install @emmassist-co\/kb-cli/);
   assert.match(quickstart, /npx kb-local sync status/);
+  assert.match(quickstart, /npx kb-local validate-mirror/);
+  assert.match(quickstart, /npx kb-local health/);
   assert.match(quickstart, /support and debugging path/);
   assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-local-setup/);
   assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-cloudflare-setup/);
@@ -104,6 +109,9 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(obsidianGuide, /Raw `kb sync push` remains a support-mode escape hatch/);
   assert.match(obsidianGuide, /Destructive entity rewrites/);
   assert.match(obsidianGuide, /state: semantic_blocked/);
+  assert.match(obsidianGuide, /kb validate-mirror --changes/);
+  assert.match(obsidianGuide, /kb health --stats/);
+  assert.match(obsidianGuide, /kb conflicts list/);
 
   const cloudflareGuide = readFileSync(path.resolve(process.cwd(), 'docs/cloudflare-agent-setup.md'), 'utf8');
   assert.match(cloudflareGuide, /canonical KB surface on Cloudflare/);

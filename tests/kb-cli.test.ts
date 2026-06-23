@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
@@ -14,6 +15,8 @@ import { startKnowledgeBaseNodeServer } from '../packages/kb-http/src/node-serve
 import { buildSubcommandArgv, runKnowledgeBaseCli } from '../packages/kb-cli/src/index.js';
 import { summarizeKnowledgeBaseSyncResult } from '../packages/kb-cli/src/sync.js';
 import { applyKnowledgeBaseSemanticSyncEdits, summarizeKnowledgeBaseSyncDaemonResult } from '../packages/kb-cli/src/sync-daemon.js';
+import { validateKnowledgeBaseMirrorEntries } from '../packages/kb-cli/src/mirror-validation.js';
+import { summarizeKnowledgeBaseHealthChecks } from '../packages/kb-cli/src/health.js';
 import { isSandboxListenError } from './helpers.js';
 
 test('kb cli local mode can record and search in-process', async () => {
@@ -1015,6 +1018,235 @@ test('kb daemon semantic pass fails closed on support-only local edits', async (
       code: 'rejected_local',
       message: 'Support-only mirror file was edited locally.'
     }]
+  });
+});
+
+test('kb validate-mirror helper returns structured parse and support-only issues', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-validate-mirror-'));
+  const mirrorRoot = path.join(rootDir, 'mirror');
+
+  try {
+    mkdirSync(path.join(mirrorRoot, 'entities'), { recursive: true });
+    mkdirSync(path.join(mirrorRoot, 'events'), { recursive: true });
+    writeFileSync(path.join(mirrorRoot, 'entities', 'vendor-acme.md'), `---
+id: [
+---
+`);
+    writeFileSync(path.join(mirrorRoot, 'events', 'evt-1.json'), '{"id":"evt-1"}\n');
+
+    const result = await validateKnowledgeBaseMirrorEntries({
+      mirrorRoot,
+      entries: [
+        { path: 'entities/vendor-acme.md', state: 'added-local' },
+        { path: 'events/evt-1.json', state: 'rejected-local' }
+      ]
+    });
+
+    assert.deepEqual(result.checkedPaths, ['entities/vendor-acme.md', 'events/evt-1.json']);
+    assert.deepEqual(result.issues.map((issue) => ({
+      path: issue.path,
+      code: issue.code,
+      severity: issue.severity,
+      nextAction: issue.nextAction
+    })), [
+      {
+        path: 'entities/vendor-acme.md',
+        code: 'parse_error',
+        severity: 'error',
+        nextAction: 'fix_markdown_and_rerun_validate_mirror'
+      },
+      {
+        path: 'events/evt-1.json',
+        code: 'support_only_edit',
+        severity: 'error',
+        nextAction: 'revert_support_only_edit_or_use_operator_repair'
+      }
+    ]);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb conflicts list show and resolve local conflict artifacts', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-conflicts-'));
+  const mirrorRoot = path.join(rootDir, 'tenant-a');
+  const conflictRoot = path.join(mirrorRoot, '.kb-sync-conflicts', '2026-06-23T10-00-00-000Z', 'entities');
+
+  try {
+    mkdirSync(conflictRoot, { recursive: true });
+    writeFileSync(path.join(conflictRoot, 'vendor-acme.md.base'), 'base\n');
+    writeFileSync(path.join(conflictRoot, 'vendor-acme.md.local'), 'local\n');
+    writeFileSync(path.join(conflictRoot, 'vendor-acme.md.remote'), 'remote\n');
+    writeFileSync(path.join(conflictRoot, 'vendor-acme.md.merged-with-conflicts'), 'merged\n');
+
+    const env = {
+      KB_BACKEND: 'r2-mirror',
+      KB_TENANT_ID: 'tenant-a',
+      KB_R2_MIRROR_ROOT: rootDir
+    };
+    const list = await runKnowledgeBaseCli(['conflicts', 'list'], { env });
+    assert.equal(list.exitCode, 0);
+    const listPayload = JSON.parse(list.stdout) as { state: string; counts: { conflicts: number }; conflicts: Array<{ path: string }> };
+    assert.equal(listPayload.state, 'blocked');
+    assert.equal(listPayload.counts.conflicts, 1);
+    assert.equal(listPayload.conflicts[0].path, 'entities/vendor-acme.md');
+
+    const show = await runKnowledgeBaseCli(['conflicts', 'show', '--path', 'entities/vendor-acme.md', '--contents'], { env });
+    assert.equal(show.exitCode, 0);
+    const showPayload = JSON.parse(show.stdout) as { contents: { local: string; remote: string } };
+    assert.equal(showPayload.contents.local, 'local\n');
+    assert.equal(showPayload.contents.remote, 'remote\n');
+
+    const resolve = await runKnowledgeBaseCli(['conflicts', 'resolve', '--path', 'entities/vendor-acme.md', '--from', 'local'], { env });
+    assert.equal(resolve.exitCode, 0);
+    const resolved = await import('node:fs').then((fs) => fs.readFileSync(path.join(mirrorRoot, 'entities', 'vendor-acme.md'), 'utf8'));
+    assert.equal(resolved, 'local\n');
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb conflicts resolve from remote updates baseline and manifest hashes', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-conflicts-remote-'));
+  const mirrorRoot = path.join(rootDir, 'tenant-a');
+  const conflictRoot = path.join(mirrorRoot, '.kb-sync-conflicts', '2026-06-23T10-00-00-000Z', 'entities');
+  const manifestPath = path.join(mirrorRoot, '.kb-sync-manifest.json');
+
+  try {
+    mkdirSync(conflictRoot, { recursive: true });
+    writeFileSync(path.join(conflictRoot, 'vendor-acme.md.base'), 'base\n');
+    writeFileSync(path.join(conflictRoot, 'vendor-acme.md.local'), 'local\n');
+    writeFileSync(path.join(conflictRoot, 'vendor-acme.md.remote'), 'remote\n');
+    writeFileSync(manifestPath, JSON.stringify({
+      tenantId: 'tenant-a',
+      bucketName: 'kb',
+      prefix: '.kb/tenant-a/',
+      pulledAt: null,
+      pushedAt: null,
+      files: {
+        'entities/vendor-acme.md': {
+          key: 'entities/vendor-acme.md',
+          size: 5,
+          remoteHash: 'old-remote',
+          localHash: 'old-local'
+        }
+      }
+    }));
+
+    const env = {
+      KB_BACKEND: 'r2-mirror',
+      KB_TENANT_ID: 'tenant-a',
+      KB_R2_MIRROR_ROOT: rootDir
+    };
+    const resolve = await runKnowledgeBaseCli(['conflicts', 'resolve', '--path', 'entities/vendor-acme.md', '--from', 'remote'], { env });
+    assert.equal(resolve.exitCode, 0);
+    const payload = JSON.parse(resolve.stdout) as { manifestUpdated: boolean };
+    assert.equal(payload.manifestUpdated, true);
+    assert.equal(readFileSync(path.join(mirrorRoot, 'entities', 'vendor-acme.md'), 'utf8'), 'remote\n');
+    assert.equal(readFileSync(path.join(mirrorRoot, '.kb-sync-base', 'entities', 'vendor-acme.md'), 'utf8'), 'remote\n');
+
+    const expectedHash = createHash('sha256').update('remote\n').digest('hex');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      files: Record<string, { remoteHash?: string; localHash?: string; size?: number; lastSyncedAt?: string }>;
+    };
+    assert.equal(manifest.files['entities/vendor-acme.md']?.remoteHash, expectedHash);
+    assert.equal(manifest.files['entities/vendor-acme.md']?.localHash, expectedHash);
+    assert.equal(manifest.files['entities/vendor-acme.md']?.size, 7);
+    assert.ok(manifest.files['entities/vendor-acme.md']?.lastSyncedAt);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb doctor preserves string issues and adds structured details', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-doctor-details-'));
+
+  try {
+    const service = new KnowledgeBaseService(
+      'acme',
+      {
+        enabled: true,
+        mode: 'basic',
+        writePolicy: 'mixed',
+        persistence: {
+          backend: 'file',
+          cacheRefreshPolicy: 'none',
+          rootDir
+        },
+        ingest: {
+          agentTurns: false,
+          userCorrections: false,
+          workspaceSignals: false,
+          externalResearch: false
+        }
+      },
+      new FileKnowledgeStore(rootDir, 'basic')
+    );
+    await service.record({
+      entity: {
+        id: 'vendor-acme',
+        kind: 'vendor',
+        title: 'Acme',
+        currentTruth: 'Acme owns billing.',
+        sources: ['src_missing']
+      }
+    });
+
+    const result = await service.doctor();
+
+    assert.equal(result.ok, false);
+    assert.match(result.issues[0], /missing source reference src_missing/);
+    assert.deepEqual(result.details[0], {
+      code: 'missing_source_reference',
+      severity: 'error',
+      message: 'vendor-acme: missing source reference src_missing',
+      entityId: 'vendor-acme',
+      sourceId: 'src_missing',
+      path: 'entities/vendor-acme.md',
+      nextAction: 'restore_source_or_remove_reference'
+    });
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb health summary prioritizes blockers and next actions', () => {
+  const summary = summarizeKnowledgeBaseHealthChecks({
+    tenantId: 'tenant-a',
+    sync: {
+      state: 'rejected',
+      counts: { changed: 1, conflicts: 0 }
+    },
+    validation: {
+      ok: false,
+      counts: { blockers: 1 }
+    },
+    daemon: {
+      ok: false
+    },
+    conflicts: {
+      counts: { conflicts: 0 }
+    }
+  });
+
+  assert.deepEqual(summary, {
+    ok: false,
+    command: 'health',
+    state: 'blocked',
+    tenantId: 'tenant-a',
+    workspace: {
+      backend: 'r2-mirror',
+      canonical: false
+    },
+    counts: {
+      syncChanged: 1,
+      syncConflicts: 0,
+      validationBlockers: 1,
+      conflicts: 0
+    },
+    blockers: ['rejected_local_edits', 'mirror_validation_failed'],
+    warnings: ['daemon_not_running'],
+    nextActions: ['run_validate_mirror', 'start_daemon']
   });
 });
 

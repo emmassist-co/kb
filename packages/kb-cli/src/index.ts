@@ -27,6 +27,18 @@ import {
   renderKnowledgeBaseSyncDaemonHelp,
   summarizeKnowledgeBaseSyncDaemonResult
 } from './sync-daemon.js';
+import {
+  executeKnowledgeBaseMirrorValidationCommand,
+  renderKnowledgeBaseMirrorValidationHelp
+} from './mirror-validation.js';
+import {
+  executeKnowledgeBaseConflictsCommand,
+  renderKnowledgeBaseConflictsHelp
+} from './conflicts.js';
+import {
+  executeKnowledgeBaseHealthCommand,
+  renderKnowledgeBaseHealthHelp
+} from './health.js';
 import type {
   SemanticRecordInput,
   SemanticRecordSourceInput
@@ -196,6 +208,30 @@ export async function runKnowledgeBaseCli(
           : '',
         stderr: result.stderr ? `${result.stderr}\n` : '',
         exitCode: result.exitCode
+      };
+    }
+    if (command === 'validate-mirror') {
+      const result = await executeKnowledgeBaseMirrorValidationCommand(buildSubcommandArgv(parsed, 1), options);
+      return {
+        stdout: `${renderOutput(result, 'json')}\n`,
+        stderr: '',
+        exitCode: 0
+      };
+    }
+    if (command === 'conflicts') {
+      const result = await executeKnowledgeBaseConflictsCommand(buildSubcommandArgv(parsed, 1), options);
+      return {
+        stdout: `${renderOutput(result, 'json')}\n`,
+        stderr: '',
+        exitCode: 0
+      };
+    }
+    if (command === 'health') {
+      const result = await executeKnowledgeBaseHealthCommand(buildSubcommandArgv(parsed, 1), options);
+      return {
+        stdout: `${renderOutput(result, 'json')}\n`,
+        stderr: '',
+        exitCode: 0
       };
     }
     if (command === 'cloudflare') {
@@ -755,6 +791,9 @@ function renderHelp(topic?: string): string {
       '  kb relations [--entity-id ENTITY_ID] [--origin-kind entity|source|event|seed] [--origin-id ORIGIN_ID] [--type RELATION]',
       '  kb replace-relations --json @payload.json',
       '  kb clear-relations --origin-kind entity|source|event|seed --origin-id ORIGIN_ID',
+      '  kb conflicts list',
+      '  kb conflicts show --path PATH [--timestamp ID] [--contents]',
+      '  kb conflicts resolve --path PATH [--timestamp ID] --from local|remote|merged|file [--file PATH]',
       '',
       'Use these only for direct KB repair, cleanup, or inspection.',
       'Default agent work should stay on `search`, `query-relations`, `remember`, `record`, `relate`, and `annotate`.'
@@ -787,6 +826,8 @@ function renderHelp(topic?: string): string {
     '  kb serve [--host 127.0.0.1] [--port 3001]',
     '  kb sync <pull|status|push>',
     '  kb daemon <start|stop|restart|status|logs|once>',
+    '  kb validate-mirror',
+    '  kb health',
     '  kb cloudflare deploy --tenant-id TENANT_ID [--workspace PATH] [--worker-name NAME] [--bucket NAME] [--host-url URL] [--secret VALUE]',
     '  kb cloudflare verify [--host-url URL] [--token VALUE] [--tenant-id ID]',
     '  kb help operator',
@@ -805,10 +846,14 @@ function renderHelp(topic?: string): string {
     '  - Operator-only repair surfaces are intentionally hidden from the default help. Run `kb help operator` only when you need direct state repair or inspection.',
     '  - Prefer `kb validate ... --json @file.json` before large write batches.',
     '  - `kb sync` and `kb daemon` are local-only mirror operations for `KB_BACKEND=r2-mirror`.',
+    '  - `kb validate-mirror` and `kb health` summarize local mirror operator readiness.',
     '',
     'Local Mirror Help:',
     `  ${renderKnowledgeBaseSyncHelp()}`,
-    `  ${renderKnowledgeBaseSyncDaemonHelp()}`
+    `  ${renderKnowledgeBaseSyncDaemonHelp()}`,
+    `  ${renderKnowledgeBaseMirrorValidationHelp()}`,
+    `  ${renderKnowledgeBaseHealthHelp()}`,
+    `  ${renderKnowledgeBaseConflictsHelp()}`
   ].join('\n');
 }
 
