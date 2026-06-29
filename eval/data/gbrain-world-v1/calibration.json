@@ -1,0 +1,24 @@
+{
+  "status": "degraded-proxy",
+  "calibratedAt": "2026-06-22",
+  "upstreamCommit": "b8cf8ad057635cbb03c0f3996acb693afbcae605",
+  "summary": "Vendored corpus provenance is pinned and local corpus size matches the committed ledger. All 225 public BrainBench queries are now committed locally, including Tier 5 and Tier 5.5, but 10 non-retrieval query contracts are still not runnable in the local KB benchmark harness and scorer parity against the real upstream harness is still missing.",
+  "parity": {
+    "provenance": {
+      "passed": true,
+      "reason": "Pinned upstream repository, corpus path, commit, and local mirror path are all recorded."
+    },
+    "corpus": {
+      "passed": true,
+      "reason": "Local JSON page count matches the committed world ledger."
+    },
+    "queryParity": {
+      "passed": false,
+      "reason": "Local mirror now commits all 225 public BrainBench queries, but 10 non-retrieval contracts are still not runnable in the local KB benchmark harness."
+    },
+    "scorerParity": {
+      "passed": false,
+      "reason": "No upstream harness parity evidence has been recorded yet."
+    }
+  }
+}

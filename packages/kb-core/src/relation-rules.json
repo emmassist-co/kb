@@ -58,7 +58,35 @@
     "keywords": ["member of", "part of", "works at", "works on", "joined"],
     "direction": "forward",
     "confidence": 0.84,
-    "explicitReferenceBoost": 0.04
+    "explicitReferenceBoost": 0.04,
+    "pagePriors": [
+      {
+        "primaryKinds": ["person"],
+        "pageFamilies": ["entity"],
+        "activationSurfaces": ["current-truth", "source-summary", "source-content", "event-summary", "structured"],
+        "direction": "forward",
+        "sourceKinds": ["person"],
+        "targetKinds": ["company", "team"],
+        "cuePatterns": [
+          "\\b(found(?:er)?|co-founder|ceo|cto|chief\\s+[a-z]+\\s+officer)\\s+of\\b",
+          "\\b(engineer|employee|researcher|designer|manager|lead|director|operator)\\s+at\\b"
+        ],
+        "confidence": 0.72
+      },
+      {
+        "primaryKinds": ["company"],
+        "pageFamilies": ["entity"],
+        "activationSurfaces": ["current-truth", "source-summary", "source-content", "event-summary", "structured"],
+        "direction": "forward",
+        "sourceKinds": ["company"],
+        "targetKinds": ["person"],
+        "cuePatterns": [
+          "\\b(found(?:ed|er)?|co-founder|built|started)\\b",
+          "\\b(ceo|cto|employee|team)\\b"
+        ],
+        "confidence": 0.72
+      }
+    ]
   },
   {
     "id": "invested_in",
@@ -68,17 +96,65 @@
     "keywords": ["invested in", "backed", "investor in", "co-lead investor"],
     "direction": "forward",
     "confidence": 0.9,
-    "explicitReferenceBoost": 0.05
+    "explicitReferenceBoost": 0.05,
+    "pagePriors": [
+      {
+        "primaryKinds": ["company"],
+        "pageFamilies": ["entity"],
+        "activationSurfaces": ["current-truth", "source-summary", "source-content", "event-summary", "structured"],
+        "direction": "forward",
+        "sourceKinds": ["company"],
+        "targetKinds": ["person"],
+        "cuePatterns": [
+          "\\b(seed|series\\s+[a-z])\\b",
+          "\\b(fund(?:ing|ed)|raised)\\b",
+          "\\b(back(?:er|ing)?|invest(?:ed|or|ment)?|led)\\b"
+        ],
+        "confidence": 0.72
+      }
+    ]
   },
   {
     "id": "advises",
     "type": "advises",
     "sourceKinds": ["person", "company"],
     "targetKinds": ["company", "project", "team"],
-    "keywords": ["advisor to", "advises", "serves as an advisor", "advisory relationship"],
+    "keywords": [
+      "advisor to",
+      "advises",
+      "serves as an advisor",
+      "advisory relationship",
+      "advisory contract",
+      "advisory side",
+      "strategic advisor",
+      "technical advisor",
+      "advisory role",
+      "began advising",
+      "joined as advisor",
+      "joined as strategic advisor",
+      "joined as technical advisor",
+      "renewed advisory contract",
+      "brought in",
+      "leans on"
+    ],
     "direction": "forward",
     "confidence": 0.88,
-    "explicitReferenceBoost": 0.05
+    "explicitReferenceBoost": 0.05,
+    "pagePriors": [
+      {
+        "primaryKinds": ["company"],
+        "pageFamilies": ["entity"],
+        "activationSurfaces": ["current-truth", "source-summary", "source-content", "event-summary", "structured"],
+        "direction": "forward",
+        "sourceKinds": ["company"],
+        "targetKinds": ["person"],
+        "cuePatterns": [
+          "\\b(advisor|advisory)\\b",
+          "\\b(joined as|comes? on as|brought in|leans on)\\b"
+        ],
+        "confidence": 0.72
+      }
+    ]
   },
   {
     "id": "reports_to",
@@ -108,7 +184,62 @@
     "keywords": ["attended", "attends", "participant", "joined the meeting", "join for", "sits in on"],
     "direction": "forward",
     "confidence": 0.9,
-    "explicitReferenceBoost": 0.05
+    "explicitReferenceBoost": 0.05,
+    "pagePriors": [
+      {
+        "primaryKinds": ["meeting"],
+        "pageFamilies": ["meeting"],
+        "activationSurfaces": ["current-truth", "source-summary", "source-content", "event-summary", "structured"],
+        "direction": "forward",
+        "sourceKinds": ["meeting"],
+        "targetKinds": ["person", "team"],
+        "cuePatterns": [
+          "\\b(attend|attended|attendee|attendees|attendance|present|dialed in|in person|joined the meeting)\\b",
+          "\\b(the room included|rounded out the attendees|taking notes|led the session|facilitated|all members present)\\b"
+        ],
+        "confidence": 0.72
+      },
+      {
+        "primaryKinds": ["meeting"],
+        "pageFamilies": ["meeting"],
+        "activationSurfaces": ["current-truth", "source-summary", "source-content", "event-summary", "structured"],
+        "direction": "forward",
+        "sourceKinds": ["meeting"],
+        "targetKinds": ["person", "team"],
+        "titlePatterns": [
+          "\\bboard meeting\\b",
+          "\\bdemo day\\b",
+          "\\b1:1\\b",
+          "\\bone on one\\b",
+          "\\bone-on-one\\b"
+        ],
+        "cuePatterns": [
+          "\\b1:1\\b",
+          "\\bone on one\\b",
+          "\\bone-on-one\\b",
+          "\\b(asked|questioned|asked pointed questions|followed up with questions|raised concerns|raised governance matters|pushed back|pushed on|opened with|opened the session|discussion centered|walked through|came prepared|stay connected|discussion shifted|presented the financial overview|led discussion|noted afterward)\\b",
+          "\\b(sync cadence|regular sync|met with|conversation|investor contingent|panel of investors and partners|full board|all members present)\\b"
+        ],
+        "matchMode": "all",
+        "confidence": 0.68
+      },
+      {
+        "primaryKinds": ["meeting"],
+        "pageFamilies": ["meeting"],
+        "activationSurfaces": ["current-truth", "source-summary", "source-content", "event-summary", "structured"],
+        "direction": "forward",
+        "sourceKinds": ["meeting"],
+        "targetKinds": ["person", "team"],
+        "titlePatterns": [
+          "\\bboard meeting\\b",
+          "\\bdemo day\\b",
+          "\\b1:1\\b",
+          "\\bone on one\\b",
+          "\\bone-on-one\\b"
+        ],
+        "confidence": 0.62
+      }
+    ]
   },
   {
     "id": "uses_system",

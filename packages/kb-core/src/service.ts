@@ -15,14 +15,18 @@ import {
   applyAmbiguityCalibration,
   assistQuery,
   bm25RelationPenalty,
+  buildQueryRetrievalPlan,
   buildConsolidatedEntity,
   buildId,
   buildSearchGraphBoostResults,
   compactExcerpt,
+  computeProfileQueryBias,
   computeIdentityQueryBias,
+  computeExpectedAnswerKindBias,
   dedupeLinks,
   defaultLexicalBackend,
   defaultSearchMode,
+  inferExpectedAnswerKinds,
   isLinkVisibleAt,
   mergeExploratoryGraphResults,
   normalizeResolverText,
@@ -37,15 +41,24 @@ import {
   suggestEntityIds,
   summarizeLinks,
   titleFromId,
+  tokenizeLexicalQuery,
   tokenizeSearch,
   uniqueStrings
 } from './service-helpers.js';
-import { classifyRelationQuery, defaultRelationRules, extractLinksFromText, relationResultMode } from './relations.js';
+import {
+  classifyRelationQuery,
+  defaultRelationRules,
+  extractRelationProposalsFromText,
+  inferQueryIntent,
+  materializeRelationLinks,
+  relationResultMode
+} from './relations.js';
 import type { KnowledgeLinkOrigin, KnowledgeStore } from './store.js';
 import type {
   EntityDocument,
   EntityDraft,
   KnowledgeBaseConfig,
+  KnowledgeCandidateRetrievalPlan,
   KnowledgeEntityKind,
   KnowledgeEntityRegistryEntry,
   KnowledgeEvent,
@@ -809,11 +822,12 @@ export class KnowledgeBaseService {
     const entities = await this.loadEntities();
     const registry = await this.loadRegistry(entities);
     const links = await this.store.listLinks();
+    const intent = inferQueryIntent(input.query);
     const classification = classifyRelationQuery(input.query);
-    const anchor = classification.anchorQuery
-      ? resolveAnchorEntity(classification.anchorQuery, classification.relationType, input.query, registry, entities, links)
+    const anchor = intent.anchorQuery
+      ? resolveAnchorEntity(intent.anchorQuery, intent.relationType, input.query, registry, entities, links)
       : null;
-    const relationType = classification.relationType;
+    const relationType = intent.relationType;
     const currentOnly = input.currentOnly ?? !input.asOf;
     const traversedLinks = anchor && relationType
       ? links.filter((link) =>
@@ -854,7 +868,8 @@ export class KnowledgeBaseService {
           anchorId: anchor?.meta.id ?? null,
           confidence: 0,
           degraded: true,
-          candidateRelationTypes: classification.candidateRelationTypes ?? []
+          candidateRelationTypes: classification.candidateRelationTypes ?? [],
+          intent
         },
         results: degradedResults,
         traversedLinks: [] as KnowledgeLink[]
@@ -882,7 +897,8 @@ export class KnowledgeBaseService {
           anchorId: anchor?.meta.id ?? null,
           confidence: classification.confidence,
           degraded: false,
-          candidateRelationTypes: classification.candidateRelationTypes ?? []
+          candidateRelationTypes: classification.candidateRelationTypes ?? [],
+          intent
         },
         results: graphResults.map((result) => ({ ...result, retrievalMode: 'graph-only' as const })),
         traversedLinks
@@ -909,7 +925,8 @@ export class KnowledgeBaseService {
         anchorId: anchor?.meta.id ?? null,
         confidence: classification.confidence,
         degraded: false,
-        candidateRelationTypes: classification.candidateRelationTypes ?? []
+        candidateRelationTypes: classification.candidateRelationTypes ?? [],
+        intent
       },
       results: graphResults.map((result) => ({ ...result, retrievalMode: 'graph-first-hybrid' as const })),
       traversedLinks
@@ -1478,10 +1495,16 @@ export class KnowledgeBaseService {
     const links = await this.store.listLinks();
     const effectiveQuery = input.query.trim();
     const assistedQuery = input.assistQuery ? assistQuery(effectiveQuery) : undefined;
+    const retrievalPlan = buildQueryRetrievalPlan(effectiveQuery);
     const relationClassification = classifyRelationQuery(effectiveQuery);
     const anchor = relationClassification.anchorQuery
       ? resolveAnchorEntity(relationClassification.anchorQuery, relationClassification.relationType, effectiveQuery, registry, entities, links)
       : null;
+    const expectedAnswerKinds = inferExpectedAnswerKinds({
+      query: effectiveQuery,
+      relationType: relationClassification.relationType,
+      candidateRelationTypes: relationClassification.candidateRelationTypes ?? []
+    });
     const lexicalBackend = input.lexicalBackend ?? DEFAULT_LEXICAL_BACKEND;
     const sourceEntityContext = new Map(
       entities.map((entity) => [
@@ -1489,33 +1512,49 @@ export class KnowledgeBaseService {
         [entity.meta.title, entity.meta.aliases.join(' '), entity.meta.handles.join(' '), entity.meta.tags.join(' ')].join(' ').trim()
       ])
     );
+    const entityMap = new Map(entities.map((entity) => [entity.meta.id, entity]));
 
     if (lexicalBackend === 'bm25-lexical') {
+      const plannerExpandedLimit =
+        retrievalPlan.activation === 'degraded-non-relation-set'
+          ? Math.max((input.limit ?? 10) * 10, 80)
+          : input.limit ?? 10;
       const index = this.getBm25Index(entities, sources);
       const indexedResults = scoreBm25Index({
         index,
         query: [effectiveQuery, assistedQuery].filter(Boolean).join(' '),
-        limit: input.limit ?? 10,
+        limit: plannerExpandedLimit,
         kind: input.kind
       });
       const results = indexedResults.map((entry) => {
         if (entry.kind !== 'entity' || !entry.entityKind) {
           const suppression = bm25RelationPenalty(entry, relationClassification.relationType, anchor?.meta.id ?? null, effectiveQuery);
-          const score = Number((entry.score - suppression).toFixed(3));
+          const intentPenalty = expectedAnswerKinds.length > 0 ? 3 : 0;
+          const score = Number((entry.score - suppression - intentPenalty).toFixed(3));
           return {
             ...entry,
             score,
+            reason: uniqueStrings([
+              ...entry.reason,
+              ...(suppression > 0 ? [`suppress:${suppression.toFixed(1)}`] : []),
+              ...(intentPenalty > 0 ? ['intent-kind-source-suppression'] : [])
+            ]),
             confidence: scoreToConfidence(score),
             ambiguous: score < 8
           };
         }
         const suppression = bm25RelationPenalty(entry, relationClassification.relationType, anchor?.meta.id ?? null, effectiveQuery);
-        const score = Number((entry.score - suppression).toFixed(3));
+        const kindBias = computeExpectedAnswerKindBias({
+          expectedKinds: expectedAnswerKinds,
+          kind: entry.entityKind
+        });
+        const score = Number((entry.score - suppression + kindBias.scoreAdjustment).toFixed(3));
         return {
           ...entry,
           score,
           reason: uniqueStrings([
             ...entry.reason,
+            ...kindBias.reason,
             ...(suppression > 0 ? [`suppress:${suppression.toFixed(1)}`] : [])
           ]),
           confidence: scoreToConfidence(score),
@@ -1525,23 +1564,33 @@ export class KnowledgeBaseService {
           )
         };
       });
+      const mergedResults = applyAmbiguityCalibration(
+        mergeExploratoryGraphResults(
+          results
+            .filter((entry) => entry.score > 0)
+            .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))
+            .slice(0, plannerExpandedLimit),
+          buildSearchGraphBoostResults(entities, links, relationClassification.relationType, anchor?.meta.id ?? null, effectiveQuery, plannerExpandedLimit),
+          plannerExpandedLimit
+        )
+      );
       return {
         query: effectiveQuery,
         assistedQuery,
-        results: applyAmbiguityCalibration(
-          mergeExploratoryGraphResults(
-            results
-              .filter((entry) => entry.score > 0)
-              .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))
-              .slice(0, input.limit ?? 10),
-            buildSearchGraphBoostResults(entities, links, relationClassification.relationType, anchor?.meta.id ?? null, effectiveQuery, input.limit ?? 10),
-            input.limit ?? 10
-          )
+        results: applyCandidateRetrievalPlan(
+          mergedResults,
+          {
+            plan: retrievalPlan,
+            entities,
+            entityMap,
+            links
+          },
+          input.limit ?? 10
         )
       };
     }
 
-    const tokens = tokenizeSearch([effectiveQuery, assistedQuery].filter(Boolean).join(' '));
+    const tokens = tokenizeLexicalQuery([effectiveQuery, assistedQuery].filter(Boolean).join(' '));
     const results: KnowledgeSearchResult[] = [];
 
     for (const entity of entities) {
@@ -1557,28 +1606,59 @@ export class KnowledgeBaseService {
       ];
       const match = scoreMatch(tokens, haystacks);
       if (match.score > 0) {
+        const relationTypes = uniqueStrings(
+          links.filter((link) => link.fromId === entity.meta.id || link.toId === entity.meta.id).map((link) => link.type)
+        );
         const identityBias = computeIdentityQueryBias({
           query: effectiveQuery,
           relationType: relationClassification.relationType,
           kind: 'entity',
           entity
         });
+        const profileBias = computeProfileQueryBias({
+          query: effectiveQuery,
+          relationType: relationClassification.relationType,
+          kind: 'entity',
+          entity,
+          relationTypes
+        });
+        const kindBias = computeExpectedAnswerKindBias({
+          expectedKinds: expectedAnswerKinds,
+          kind: entity.meta.kind
+        });
+        const connectedAnchorBias = computeConnectedAnchorBias({
+          query: effectiveQuery,
+          entity,
+          entityMap,
+          links,
+          expectedKinds: expectedAnswerKinds
+        });
+        const totalScore =
+          match.score +
+          identityBias.scoreAdjustment +
+          profileBias.scoreAdjustment +
+          kindBias.scoreAdjustment +
+          connectedAnchorBias.scoreAdjustment;
         results.push({
           id: entity.meta.id,
           kind: 'entity',
           entityKind: entity.meta.kind,
           title: entity.meta.title,
-          score: Number((match.score + identityBias.scoreAdjustment).toFixed(3)),
-          reason: uniqueStrings([...match.reason, ...identityBias.reason]),
+          score: Number(totalScore.toFixed(3)),
+          reason: uniqueStrings([
+            ...match.reason,
+            ...identityBias.reason,
+            ...profileBias.reason,
+            ...kindBias.reason,
+            ...connectedAnchorBias.reason
+          ]),
           matchedFields: uniqueStrings(match.matchedFields),
           sourceIds: uniqueStrings([...entity.sources, ...entity.meta.sources]),
-          confidence: scoreToConfidence(match.score + identityBias.scoreAdjustment),
-          ambiguous: match.score + identityBias.scoreAdjustment < 8,
+          confidence: scoreToConfidence(totalScore),
+          ambiguous: totalScore < 8,
           excerpt: compactExcerpt(entity.currentTruth || entity.timeline[0] || entity.meta.title),
           retrievalMode: 'search-only',
-          relationTypes: uniqueStrings(
-            links.filter((link) => link.fromId === entity.meta.id || link.toId === entity.meta.id).map((link) => link.type)
-          )
+          relationTypes
         });
       }
     }
@@ -1601,16 +1681,28 @@ export class KnowledgeBaseService {
           relationType: relationClassification.relationType,
           kind: 'source'
         });
+        const profileBias = computeProfileQueryBias({
+          query: effectiveQuery,
+          relationType: relationClassification.relationType,
+          kind: 'source'
+        });
+        const intentPenalty = expectedAnswerKinds.length > 0 ? 3 : 0;
+        const totalScore = match.score + identityBias.scoreAdjustment + profileBias.scoreAdjustment - intentPenalty;
         results.push({
           id: source.meta.id,
           kind: 'source',
           title: source.meta.title,
-          score: Number((match.score + identityBias.scoreAdjustment).toFixed(3)),
-          reason: uniqueStrings([...match.reason, ...identityBias.reason]),
+          score: Number(totalScore.toFixed(3)),
+          reason: uniqueStrings([
+            ...match.reason,
+            ...identityBias.reason,
+            ...profileBias.reason,
+            ...(intentPenalty > 0 ? ['intent-kind-source-suppression'] : [])
+          ]),
           matchedFields: match.matchedFields,
           sourceIds: [source.meta.id],
-          confidence: scoreToConfidence(match.score + identityBias.scoreAdjustment),
-          ambiguous: match.score + identityBias.scoreAdjustment < 8,
+          confidence: scoreToConfidence(totalScore),
+          ambiguous: totalScore < 8,
           excerpt: compactExcerpt(source.summary || source.content || source.meta.title),
           retrievalMode: 'search-only'
         });
@@ -1618,15 +1710,25 @@ export class KnowledgeBaseService {
     }
 
     results.sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
+    const mergedResults = applyAmbiguityCalibration(
+      mergeExploratoryGraphResults(
+        results,
+        buildSearchGraphBoostResults(entities, links, relationClassification.relationType, anchor?.meta.id ?? null, effectiveQuery, input.limit ?? 10),
+        input.limit ?? 10
+      )
+    );
     return {
       query: effectiveQuery,
       assistedQuery,
-      results: applyAmbiguityCalibration(
-        mergeExploratoryGraphResults(
-          results.slice(0, input.limit ?? 10),
-          buildSearchGraphBoostResults(entities, links, relationClassification.relationType, anchor?.meta.id ?? null, effectiveQuery, input.limit ?? 10),
-          input.limit ?? 10
-        )
+      results: applyCandidateRetrievalPlan(
+        mergedResults,
+        {
+          plan: retrievalPlan,
+          entities,
+          entityMap,
+          links
+        },
+        input.limit ?? 10
       )
     };
   }
@@ -1818,8 +1920,23 @@ export class KnowledgeBaseService {
     if (!markdown) return 0;
     const entity = parseEntityDocument(markdown);
     const entities = await this.loadEntities();
-    const links = extractLinksFromText(
-      { tenantId: this.tenantId, entities, sources: [] },
+    const relationContext = { tenantId: this.tenantId, entities, sources: [] };
+    const titleProposals = extractRelationProposalsFromText(
+      relationContext,
+      this.relationRules,
+      {
+        originKind: 'entity',
+        originId: entityId,
+        text: entity.meta.title,
+        sourceIds: entity.sources,
+        evidenceKind: 'summary',
+        sourceSurface: 'structured',
+        createdAt: entity.meta.updatedAt,
+        primaryEntityId: entityId
+      }
+    );
+    const proposals = extractRelationProposalsFromText(
+      relationContext,
       this.relationRules,
       {
         originKind: 'entity',
@@ -1832,8 +1949,8 @@ export class KnowledgeBaseService {
         primaryEntityId: entityId
       }
     );
-    const timelineLinks = extractLinksFromText(
-      { tenantId: this.tenantId, entities, sources: [] },
+    const timelineProposals = extractRelationProposalsFromText(
+      relationContext,
       this.relationRules,
       {
         originKind: 'entity',
@@ -1846,8 +1963,13 @@ export class KnowledgeBaseService {
         primaryEntityId: entityId
       }
     );
+    const titleLinks = materializeRelationLinks(this.tenantId, titleProposals);
+    const links = materializeRelationLinks(this.tenantId, proposals);
+    const timelineLinks = materializeRelationLinks(this.tenantId, timelineProposals);
     const entityMap = new Map(entities.map((entry) => [entry.meta.id, entry]));
-    const allLinks = dedupeLinks([...links, ...timelineLinks]).map((link) => annotateLinkTemporalState(link, entity, entityMap.get(link.toId) ?? entityMap.get(link.fromId) ?? null));
+    const allLinks = dedupeLinks([...titleLinks, ...links, ...timelineLinks]).map((link) =>
+      annotateLinkTemporalState(link, entity, entityMap.get(link.toId) ?? entityMap.get(link.fromId) ?? null)
+    );
     await this.store.replaceLinksForOrigin({ kind: 'entity', id: entityId }, allLinks);
     return allLinks.length;
   }
@@ -1857,11 +1979,11 @@ export class KnowledgeBaseService {
     if (!markdown) return 0;
     const source = parseSourceDocument(markdown);
     const entities = await this.loadEntities();
+    const relationContext = { tenantId: this.tenantId, entities, sources: [] };
     const summaryLinks = source.summary
-      ? extractLinksFromText(
-          { tenantId: this.tenantId, entities, sources: [] },
-          this.relationRules,
-          {
+      ? materializeRelationLinks(
+          this.tenantId,
+          extractRelationProposalsFromText(relationContext, this.relationRules, {
             originKind: 'source',
             originId: sourceId,
             text: source.summary,
@@ -1869,14 +1991,13 @@ export class KnowledgeBaseService {
             evidenceKind: 'summary',
             sourceSurface: 'source-summary',
             createdAt: source.meta.createdAt
-          }
+          })
         )
       : [];
     const contentLinks = source.content
-      ? extractLinksFromText(
-          { tenantId: this.tenantId, entities, sources: [] },
-          this.relationRules,
-          {
+      ? materializeRelationLinks(
+          this.tenantId,
+          extractRelationProposalsFromText(relationContext, this.relationRules, {
             originKind: 'source',
             originId: sourceId,
             text: source.content,
@@ -1884,7 +2005,7 @@ export class KnowledgeBaseService {
             evidenceKind: 'direct',
             sourceSurface: 'source-content',
             createdAt: source.meta.createdAt
-          }
+          })
         )
       : [];
     const entityMap = new Map(entities.map((entry) => [entry.meta.id, entry]));
@@ -1895,19 +2016,22 @@ export class KnowledgeBaseService {
 
   private async reindexEvent(event: KnowledgeEvent): Promise<number> {
     const entities = await this.loadEntities();
-    const links = extractLinksFromText(
-      { tenantId: this.tenantId, entities, sources: [] },
-      this.relationRules,
-      {
-        originKind: 'event',
-        originId: event.id,
-        text: event.summary,
-        sourceIds: event.sourceIds,
-        evidenceKind: 'timeline',
-        sourceSurface: 'event-summary',
-        createdAt: event.createdAt,
-        primaryEntityId: event.entityIds[0]
-      }
+    const links = materializeRelationLinks(
+      this.tenantId,
+      extractRelationProposalsFromText(
+        { tenantId: this.tenantId, entities, sources: [] },
+        this.relationRules,
+        {
+          originKind: 'event',
+          originId: event.id,
+          text: event.summary,
+          sourceIds: event.sourceIds,
+          evidenceKind: 'timeline',
+          sourceSurface: 'event-summary',
+          createdAt: event.createdAt,
+          primaryEntityId: event.entityIds[0]
+        }
+      )
     );
     const entityMap = new Map(entities.map((entry) => [entry.meta.id, entry]));
     const annotatedLinks = links.map((link) => annotateLinkTemporalState(link, null, entityMap.get(link.toId) ?? entityMap.get(link.fromId) ?? null));
@@ -2005,6 +2129,429 @@ export class KnowledgeBaseService {
     }
     return removed.length;
   }
+}
+
+function computeConnectedAnchorBias(input: {
+  query: string;
+  entity: EntityDocument;
+  entityMap: Map<string, EntityDocument>;
+  links: KnowledgeLink[];
+  expectedKinds: KnowledgeEntityKind[];
+}): { scoreAdjustment: number; reason: string[] } {
+  if (!input.expectedKinds.includes('person')) return { scoreAdjustment: 0, reason: [] };
+  if (input.entity.meta.kind !== 'person') return { scoreAdjustment: 0, reason: [] };
+  const normalizedQuery = normalizeResolverText(input.query);
+  if (!normalizedQuery) return { scoreAdjustment: 0, reason: [] };
+
+  const connected = input.links
+    .filter((link) => link.fromId === input.entity.meta.id || link.toId === input.entity.meta.id)
+    .map((link) => input.entityMap.get(link.fromId === input.entity.meta.id ? link.toId : link.fromId) ?? null)
+    .filter((entity): entity is EntityDocument => entity !== null)
+    .filter((entity) => entity.meta.kind === 'company' || entity.meta.kind === 'team' || entity.meta.kind === 'meeting');
+
+  const anchorMatches = connected.filter((entity) => {
+    const normalizedTitle = normalizeResolverText(entity.meta.title);
+    if (!normalizedTitle) return false;
+    if (normalizedQuery.includes(normalizedTitle)) return true;
+    return entity.meta.aliases.some((alias) => {
+      const normalizedAlias = normalizeResolverText(alias);
+      return normalizedAlias ? normalizedQuery.includes(normalizedAlias) : false;
+    });
+  });
+
+  if (anchorMatches.length === 0) return { scoreAdjustment: 0, reason: [] };
+  return {
+    scoreAdjustment: Math.min(6, 3 + anchorMatches.length * 1.5),
+    reason: anchorMatches.map((entity) => `connected-anchor:${entity.meta.id}`)
+  };
+}
+
+function applyCandidateRetrievalPlan(
+  results: KnowledgeSearchResult[],
+  context: {
+    plan: KnowledgeCandidateRetrievalPlan;
+    entities: EntityDocument[];
+    entityMap: Map<string, EntityDocument>;
+    links: KnowledgeLink[];
+  },
+  limit: number
+): KnowledgeSearchResult[] {
+  if (context.plan.activation !== 'degraded-non-relation-set') {
+    return results.slice(0, limit);
+  }
+
+  const expectedKinds = new Set(context.plan.expectedKinds);
+  const resultMap = new Map(results.map((result) => [result.id, result]));
+  const candidateScores = new Map<
+    string,
+    {
+      scoreAdjustment: number;
+      reason: string[];
+      matchedFields: string[];
+      sourceIds: Set<string>;
+    }
+  >();
+
+  for (const entity of context.entities) {
+    if (expectedKinds.size > 0 && !expectedKinds.has(entity.meta.kind)) continue;
+    const score = scoreEntityAgainstPlanner(entity, context.plan, context.entityMap, context.links);
+    if (!score) continue;
+    candidateScores.set(entity.meta.id, score);
+  }
+
+  if (context.plan.requireRelationshipDepthEvidence) {
+    for (const [entityId, projected] of projectRelationshipDepthCandidates(context.plan, context.entities, context.entityMap, context.links)) {
+      const existing = candidateScores.get(entityId);
+      if (existing) {
+        existing.scoreAdjustment += projected.scoreAdjustment;
+        existing.reason = uniqueStrings([...existing.reason, ...projected.reason]);
+        existing.matchedFields = uniqueStrings([...existing.matchedFields, ...projected.matchedFields]);
+        for (const sourceId of projected.sourceIds) existing.sourceIds.add(sourceId);
+      } else {
+        candidateScores.set(entityId, projected);
+      }
+    }
+  }
+
+  const planned = [...candidateScores.entries()]
+    .map(([entityId, plannerScore]) => {
+      const entity = context.entityMap.get(entityId);
+      if (!entity) return null;
+      const existing = resultMap.get(entityId);
+      const baseScore =
+        context.plan.requireRelationshipDepthEvidence
+          ? Number(((existing?.score ?? 0) * 0.2).toFixed(3))
+          : (existing?.score ?? 0);
+      const totalScore = Number((baseScore + plannerScore.scoreAdjustment).toFixed(3));
+      return {
+        id: entity.meta.id,
+        kind: 'entity' as const,
+        entityKind: entity.meta.kind,
+        title: entity.meta.title,
+        score: totalScore,
+        reason: uniqueStrings([...(existing?.reason ?? []), ...plannerScore.reason]),
+        matchedFields: uniqueStrings([...(existing?.matchedFields ?? []), ...plannerScore.matchedFields]),
+        sourceIds: uniqueStrings([...(existing?.sourceIds ?? []), ...plannerScore.sourceIds]),
+        confidence: scoreToConfidence(totalScore),
+        ambiguous: totalScore < 8,
+        excerpt: existing?.excerpt ?? compactExcerpt(entity.currentTruth || entity.timeline[0] || entity.meta.title),
+        retrievalMode: existing?.retrievalMode ?? ('search-only' as const),
+        relationTypes:
+          existing?.relationTypes ??
+          uniqueStrings(context.links.filter((link) => link.fromId === entity.meta.id || link.toId === entity.meta.id).map((link) => link.type))
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
+
+  return planned.slice(0, limit);
+}
+
+function scoreEntityAgainstPlanner(
+  entity: EntityDocument,
+  plan: KnowledgeCandidateRetrievalPlan,
+  entityMap: Map<string, EntityDocument>,
+  links: KnowledgeLink[]
+):
+  | {
+      scoreAdjustment: number;
+      reason: string[];
+      matchedFields: string[];
+      sourceIds: Set<string>;
+    }
+  | null {
+  const directLinks = links.filter((link) => link.fromId === entity.meta.id || link.toId === entity.meta.id);
+  const relationTypes = new Set(directLinks.map((link) => link.type));
+  const ownText = normalizeResolverText(
+    [
+      entity.meta.title,
+      entity.meta.aliases.join(' '),
+      entity.meta.tags.join(' '),
+      entity.currentTruth,
+      entity.timeline.join(' ')
+    ].join(' ')
+  );
+  const connectedEntities = directLinks
+    .map((link) => entityMap.get(link.fromId === entity.meta.id ? link.toId : link.fromId) ?? null)
+    .filter((value): value is EntityDocument => value !== null);
+  const connectedText = normalizeResolverText(
+    connectedEntities.map((entry) => [entry.meta.title, entry.meta.tags.join(' '), entry.currentTruth].join(' ')).join(' ')
+  );
+  const sourceIds = new Set<string>([...entity.sources, ...entity.meta.sources]);
+  const reason: string[] = [];
+  const matchedFields: string[] = [];
+  let scoreAdjustment = 0;
+
+  const roleMatches = countPlannerTokenMatches(plan.roleTerms, ownText);
+  const ownAttributeMatches = countPlannerTokenMatches(plan.attributeTerms, ownText);
+  const connectedAttributeMatches = countPlannerTokenMatches(plan.attributeTerms, connectedText);
+  const attributeMatches = countPlannerTokenMatches(plan.attributeTerms, `${ownText} ${connectedText}`);
+  const relationMatches = plan.intent.candidateRelationTypes.filter((relationType: string) => relationTypes.has(relationType)).length;
+
+  if (plan.requireRoleEvidence && roleMatches === 0 && relationMatches === 0) {
+    return null;
+  }
+  if (plan.minimumAttributeMatches > 0 && attributeMatches < plan.minimumAttributeMatches) {
+    return null;
+  }
+  if (plan.requireRelationshipDepthEvidence) {
+    return null;
+  }
+
+  if (roleMatches > 0) {
+    scoreAdjustment += roleMatches * 4;
+    reason.push(`planner-role:${roleMatches}`);
+    matchedFields.push('planner:role');
+  }
+  if (relationMatches > 0) {
+    scoreAdjustment += relationMatches * 3.5;
+    reason.push(`planner-relation:${relationMatches}`);
+    matchedFields.push('planner:relation');
+  }
+  if (attributeMatches > 0) {
+    scoreAdjustment += ownAttributeMatches * 3.5 + connectedAttributeMatches * 5;
+    if (plan.minimumAttributeMatches > 0 && attributeMatches > plan.minimumAttributeMatches) {
+      scoreAdjustment += (attributeMatches - plan.minimumAttributeMatches) * 2.5;
+      reason.push(`planner-attribute-coverage:${attributeMatches}`);
+      matchedFields.push('planner:attribute-coverage');
+    }
+    if (connectedAttributeMatches > 0) {
+      reason.push(`planner-connected-attributes:${connectedAttributeMatches}`);
+      matchedFields.push('planner:connected-attribute');
+    }
+    reason.push(`planner-attributes:${attributeMatches}`);
+    matchedFields.push('planner:attribute');
+  }
+  if (plan.prefersConnectedAnchor) {
+    const anchorMatches = countPlannerTokenMatches(plan.anchorTokens, connectedText);
+    if (anchorMatches > 0) {
+      scoreAdjustment += Math.min(4.5, 2 + anchorMatches);
+      reason.push(`planner-anchor:${anchorMatches}`);
+      matchedFields.push('planner:anchor');
+    }
+  }
+  if (plan.intent.temporalFocus === 'historical') {
+    const historicalMatches = countPlannerTokenMatches(['previous', 'prior', 'before', 'formerly'], ownText);
+    if (historicalMatches > 0 || entity.timeline.length > 0) {
+      scoreAdjustment += 1.5;
+      reason.push('planner-historical');
+      matchedFields.push('planner:historical');
+    }
+  }
+
+  for (const link of directLinks) {
+    for (const sourceId of link.sourceIds) sourceIds.add(sourceId);
+  }
+
+  return scoreAdjustment > 0
+    ? {
+        scoreAdjustment,
+        reason,
+        matchedFields,
+        sourceIds
+      }
+    : null;
+}
+
+function projectRelationshipDepthCandidates(
+  plan: KnowledgeCandidateRetrievalPlan,
+  entities: EntityDocument[],
+  entityMap: Map<string, EntityDocument>,
+  links: KnowledgeLink[]
+): Map<
+  string,
+  {
+    scoreAdjustment: number;
+    reason: string[];
+    matchedFields: string[];
+    sourceIds: Set<string>;
+    supporterCount?: number;
+  }
+> {
+  const projected = new Map<
+    string,
+    {
+      scoreAdjustment: number;
+      reason: string[];
+      matchedFields: string[];
+      sourceIds: Set<string>;
+      supporterCount?: number;
+    }
+  >();
+  const expectedKinds = new Set(plan.expectedKinds);
+  const relevantRelationTypes = inferPlannerRelationTypes(plan);
+
+  for (const entity of entities) {
+    if (entity.meta.kind !== 'person') continue;
+    const personLinks = links.filter((link) => link.fromId === entity.meta.id || link.toId === entity.meta.id);
+    const relationMatches = personLinks.filter((link) => relevantRelationTypes.size === 0 || relevantRelationTypes.has(link.type));
+    const ownText = normalizeResolverText([entity.meta.title, entity.currentTruth, entity.timeline.join(' '), entity.meta.tags.join(' ')].join(' '));
+    const roleMatches = countPlannerTokenMatches(plan.roleTerms, ownText);
+    if (roleMatches === 0 && relationMatches.length === 0) continue;
+
+    const supporterScore = roleMatches * 2.5 + Math.min(5, relationMatches.length * 1.5);
+    const groupedByTarget = new Map<string, KnowledgeLink[]>();
+    for (const link of personLinks) {
+      const targetId = link.fromId === entity.meta.id ? link.toId : link.fromId;
+      const target = entityMap.get(targetId);
+      if (!target || !expectedKinds.has(target.meta.kind)) continue;
+      const primaryRelationMatch = relevantRelationTypes.size === 0 || relevantRelationTypes.has(link.type);
+      const auxiliaryAdvisorMatch =
+        plan.roleTerms.includes('advisors') &&
+        link.type === 'member_of' &&
+        advisorHistoricalCue(link);
+      if (!primaryRelationMatch && !auxiliaryAdvisorMatch) continue;
+      const bucket = groupedByTarget.get(targetId) ?? [];
+      bucket.push(link);
+      groupedByTarget.set(targetId, bucket);
+    }
+
+    for (const [targetId, candidateLinks] of groupedByTarget.entries()) {
+      const targetCurrentAdvisorSupport = new Set(
+        links
+          .filter(
+            (link) =>
+              link.fromId === targetId &&
+              (relevantRelationTypes.size === 0 || relevantRelationTypes.has(link.type)) &&
+              (link.sourceSurface === 'current-truth' || link.sourceSurface === 'structured')
+          )
+          .map((link) => link.toId)
+      );
+      const distinctSources = new Set(candidateLinks.flatMap((link) => link.sourceIds));
+      const surfaces = new Set(candidateLinks.map((link) => link.sourceSurface).filter(Boolean));
+      const hasHistorical = candidateLinks.some((link) => link.status === 'historical' || link.evidenceKind === 'timeline');
+      const hasCurrent = candidateLinks.some((link) => (link.status ?? 'active') === 'active' && link.evidenceKind !== 'timeline');
+      const relationTypeMatches = uniqueLinkEvidenceCount(
+        candidateLinks.filter((link) => relevantRelationTypes.size === 0 || relevantRelationTypes.has(link.type))
+      );
+      const explicitCurrentMatches = uniqueLinkEvidenceCount(
+        candidateLinks.filter(
+          (link) =>
+            (link.type === 'advises' || relevantRelationTypes.has(link.type)) &&
+            (link.sourceSurface === 'current-truth' || link.sourceSurface === 'structured')
+        )
+      );
+      const pairYears = new Set(candidateLinks.flatMap((link) => extractEvidenceYears(link.evidenceText ?? '')));
+      const pairYearSpan = calculateYearSpan(pairYears);
+      const continuationCueCount = candidateLinks.filter((link) => hasRelationshipContinuationCue(link.evidenceText ?? '')).length;
+      const continuityDepthBonus = continuationCueCount > 0 && pairYearSpan > 0 ? 6 : 0;
+      const pairEvidenceCount = uniqueLinkEvidenceCount(candidateLinks);
+      if (relationTypeMatches === 0 && distinctSources.size < 2 && !(hasHistorical && hasCurrent)) continue;
+
+      const depthScore =
+        supporterScore +
+        Math.min(4, relationTypeMatches * 1.5) +
+        Math.min(2.5, explicitCurrentMatches * 1.25) +
+        Math.min(8, targetCurrentAdvisorSupport.size * 3) +
+        Math.min(6, pairYearSpan * 2) +
+        Math.min(6, continuationCueCount * 3) +
+        continuityDepthBonus +
+        Math.min(2, pairEvidenceCount * 0.5) +
+        Math.min(2, distinctSources.size * 0.75) +
+        Math.min(2, surfaces.size * 0.5) +
+        (hasHistorical && hasCurrent ? 2.5 : hasHistorical || hasCurrent ? 1 : 0);
+      const existing = projected.get(targetId) ?? {
+        scoreAdjustment: 0,
+        reason: [],
+        matchedFields: [],
+        sourceIds: new Set<string>(),
+        supporterCount: 0
+      };
+      const supporterCount = existing.supporterCount ?? 0;
+      existing.scoreAdjustment += supporterCount < 2 ? depthScore : Math.min(3, depthScore * 0.12);
+      existing.supporterCount = supporterCount + 1;
+      existing.reason = uniqueStrings([
+        ...existing.reason,
+        `planner-depth-support:${entity.meta.id}`,
+        ...(relationTypeMatches > 0 ? [`planner-depth-relations:${relationTypeMatches}`] : []),
+        ...(explicitCurrentMatches > 0 ? [`planner-depth-explicit:${explicitCurrentMatches}`] : []),
+        ...(targetCurrentAdvisorSupport.size > 0 ? [`planner-depth-target-current:${targetCurrentAdvisorSupport.size}`] : []),
+        ...(pairYearSpan > 0 ? [`planner-depth-year-span:${pairYearSpan}`] : []),
+        ...(continuationCueCount > 0 ? [`planner-depth-continuation:${continuationCueCount}`] : []),
+        ...(continuityDepthBonus > 0 ? ['planner-depth-continuity-bonus'] : []),
+        ...(distinctSources.size > 1 ? [`planner-depth-sources:${distinctSources.size}`] : []),
+        ...(hasHistorical && hasCurrent ? ['planner-depth-temporal-span'] : [])
+      ]);
+      existing.matchedFields = uniqueStrings([
+        ...existing.matchedFields,
+        'planner:relationship-depth',
+        ...(relationTypeMatches > 0 ? ['planner:relation'] : []),
+        ...(explicitCurrentMatches > 0 ? ['planner:explicit-current'] : []),
+        ...(targetCurrentAdvisorSupport.size > 0 ? ['planner:target-explicit-current'] : []),
+        ...(pairYearSpan > 0 ? ['planner:year-span'] : []),
+        ...(continuationCueCount > 0 ? ['planner:continuation'] : []),
+        ...(continuityDepthBonus > 0 ? ['planner:continuity-depth'] : []),
+        ...(distinctSources.size > 0 ? ['planner:source'] : [])
+      ]);
+      for (const sourceId of distinctSources) existing.sourceIds.add(sourceId);
+      projected.set(targetId, existing);
+    }
+  }
+
+  return projected;
+}
+
+function countPlannerTokenMatches(tokens: string[], normalizedText: string): number {
+  if (!normalizedText) return 0;
+  return uniqueStrings(tokens)
+    .map((token) => token.toLowerCase())
+    .filter((token) => {
+      if (!token) return false;
+      if (normalizedText.includes(token)) return true;
+      if (token.endsWith('s') && token.length > 3) return normalizedText.includes(token.slice(0, -1));
+      return false;
+    }).length;
+}
+
+function advisorHistoricalCue(link: KnowledgeLink): boolean {
+  const text = normalizeResolverText(link.evidenceText ?? '');
+  if (!text) return false;
+  return /\badvisor|advisory|advisors|board\b/.test(text);
+}
+
+function extractEvidenceYears(text: string): number[] {
+  return [...text.matchAll(/\b(20\d{2})\b/g)].map((match) => Number(match[1])).filter((year) => Number.isFinite(year));
+}
+
+function calculateYearSpan(years: Set<number>): number {
+  if (years.size < 2) return 0;
+  const ordered = [...years].sort((left, right) => left - right);
+  return ordered[ordered.length - 1]! - ordered[0]!;
+}
+
+function uniqueLinkEvidenceCount(links: KnowledgeLink[]): number {
+  return new Set(
+    links.map((link) =>
+      [
+        link.type,
+        link.sourceSurface ?? '',
+        link.evidenceKind,
+        (link.evidenceText ?? '').trim().toLowerCase(),
+        [...link.sourceIds].sort().join(',')
+      ].join('|')
+    )
+  ).size;
+}
+
+function hasRelationshipContinuationCue(text: string): boolean {
+  const normalized = normalizeResolverText(text);
+  if (!normalized) return false;
+  return /\b(renew|renewed|renewal|extend|extended|extension|ongoing|continues|continued|continuing|multi year|multiyear|long running|through 20\d{2}|until 20\d{2}|another \d+ (month|months|year|years))\b/.test(
+    normalized
+  );
+}
+
+function inferPlannerRelationTypes(plan: KnowledgeCandidateRetrievalPlan): Set<string> {
+  if (plan.intent.candidateRelationTypes.length > 0) {
+    return new Set(plan.intent.candidateRelationTypes);
+  }
+  const inferred = new Set<string>();
+  for (const term of plan.roleTerms) {
+    if (term.startsWith('advisor')) inferred.add('advises');
+    if (term.startsWith('engineer') || term.startsWith('employee') || term.startsWith('founder') || term === 'staff') inferred.add('member_of');
+    if (term.startsWith('investor')) inferred.add('invested_in');
+  }
+  return inferred;
 }
 
 function replayJaccard(previous: string[], current: string[], limit: number): number {

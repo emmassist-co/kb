@@ -4,9 +4,9 @@ import path from 'node:path';
 import type { CandidateScore } from './types.js';
 
 const CACHE_INPUT_FILES = [
-  'src/lib/kb/service.ts',
-  'src/lib/kb/relations.ts',
-  'src/lib/kb/relation-rules.json',
+  'packages/kb-core/src/service.ts',
+  'packages/kb-core/src/relations.ts',
+  'packages/kb-core/src/relation-rules.json',
   'eval/runner/cat1-retrieval.ts',
   'eval/runner/cat2-temporal.ts',
   'eval/runner/cat3-identity.ts',
@@ -17,10 +17,10 @@ const CACHE_INPUT_FILES = [
   'eval/runner/kb-benchmark.ts',
   'eval/runner/shared.ts',
   'eval/runner/types.ts',
-  'src/lib/kb-autoresearch/evaluator.ts',
-  'src/lib/kb-autoresearch/scorer.ts',
-  'src/lib/kb-autoresearch/inspect.ts',
-  'src/lib/kb-autoresearch/cache.ts'
+  'packages/kb-autoresearch/src/evaluator.ts',
+  'packages/kb-autoresearch/src/scorer.ts',
+  'scripts/kb-autoresearch-inspect.ts',
+  'packages/kb-autoresearch/src/cache.ts'
 ];
 
 export function computeBaselineCacheKey(repoRoot: string, _headCommit: string): string {

@@ -12,7 +12,15 @@ export function buildCompactBestScoreSummary(score: CandidateScore) {
     adminWorld: {
       dev: summarizeRun(score.snapshot.adminWorldDev),
       holdout: summarizeRun(score.snapshot.adminWorldHoldout),
-      gbrainWorld: summarizeRun(score.snapshot.gbrainWorld)
+      gbrainWorld: summarizeRun(score.snapshot.gbrainWorld),
+      gbrainHeldout: summarizeRun(score.snapshot.gbrainHeldout),
+      gbrainUpstream: {
+        precisionAt5: score.snapshot.gbrainUpstream.precisionAt5,
+        recallAt5: score.snapshot.gbrainUpstream.recallAt5,
+        runs: score.snapshot.gbrainUpstream.runs,
+        queries: score.snapshot.gbrainUpstream.queries,
+        deltaVsPublished: score.snapshot.gbrainUpstream.deltaVsPublished
+      }
     },
     failures: {
       devCategories: collectFailedCategories(score.snapshot.devScorecard),

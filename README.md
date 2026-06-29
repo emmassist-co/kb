@@ -150,8 +150,16 @@ The public bar for `kb` is not "some tests pass." The eval stack has three disti
 - `admin-world-v3` is the product-core retrieval benchmark.
   We optimize on `admin-world-v3 dev` and confirm on `admin-world-v3 holdout`.
   The current corpus carries `288 retrieval queries`, including `72 holdout queries`, across `9 relation families`.
-- `gbrain-world` is the external-reference retrieval benchmark.
-  In this repo, that means the exact public GBrain GitHub benchmark contract: `145` queries across attendance, employment, investing, and advising, not a repo-local reinterpretation of the vendored corpus.
+- `gbrain-evals-upstream` is the external-reference retrieval benchmark.
+  In this repo, that means the literal upstream `gbrain-evals` harness run side-by-side against real `gbrain` and our KB on the public `world-v1` benchmark.
+  Local reporting uses the same precision denominator as upstream GBrain: `hits / returned_docs`, not `hits / 5`.
+  If the runner, corpus, query set, or metric semantics differ, it is not an apples-to-apples GBrain comparison.
+- `gbrain-evals` synthetic heldout is the anti-overfitting diagnostic rail.
+  It uses the local adapter snapshot runner on the vendored synthetic query set and exists to reject benchmark-shaped wins that do not survive wording or answer-surface variation.
+- `gbrain-world` is a faster local diagnostic rail.
+  It uses the vendored `world-v1` corpus and the public relational contract, but it is not the final external claim.
+- relation extraction assumptions are being pushed into workspace-configurable rule data in `packages/kb-core/src/relation-rules.json`.
+  Page priors now declare their page families and allowed source surfaces in config rather than relying only on imperative guards in core code.
 - `core-six` is the deterministic floor-raising suite.
   It covers retrieval, temporal behavior, identity, provenance, contradictions, and fuzzy recall without model-judge noise.
 
@@ -162,26 +170,36 @@ Current public benchmark posture:
 | `core-six` | deterministic floor | `72 retrieval + 28 non-retrieval` | `30.0%` | `94.4%` | `93.1%` | `88.4%` | `pass` |
 | `admin-world-v3 dev` | product-core optimize rail | `216 queries` | `41.5%` | `99.3%` | `98.7%` | `92.6%` | `floor reached` |
 | `admin-world-v3 holdout` | product-core confirm rail | `72 queries` | `41.7%` | `99.3%` | `100.0%` | `93.6%` | `floor reached` |
-| `gbrain-world` | exact public external rail | `145 queries` | `35.6%` | `99.3%` | `100.0%` | `99.5%` | `guardrails passed` |
+| `gbrain-evals-upstream` | strict public external rail | `145 queries` | `76.6%` | `99.5%` | `n/a` | `n/a` | `real gbrain side-by-side` |
+| `gbrain-evals` synthetic heldout | anti-overfitting rail | `47 queries` | `32.1%` | `88.3%` | `76.1%` | `77.4%` | `held-out improving` |
+| `gbrain-world` | local diagnostic rail | `145 queries` | `35.6%` | `99.3%` | `100.0%` | `99.5%` | `diagnostic only` |
 
 External reference, kept separate from our measured score:
 
-| Reference | P@5 | R@5 |
+| System | P@5 | R@5 |
 | --- | ---: | ---: |
-| `GBrain` public headline used in the side-by-side runner | `49.1%` | `97.9%` |
+| `GBrain` real upstream adapter on the same run | `49.1%` | `97.9%` |
+| `kb-upstream` on the same real upstream run | `76.6%` | `99.5%` |
 
 - Latest deterministic scorecard: [`docs/benchmarks/kb-scorecard-latest.md`](./docs/benchmarks/kb-scorecard-latest.md)
   Current result: `core-six` passes `100%` of categories.
-- Latest external-reference snapshot: `npm run eval:kb:gbrain-world`
-  Current measured KB score on the exact public GBrain GitHub benchmark: `P@5 35.6%`, `R@5 99.3%`, `MRR 100.0%`, `nDCG 99.5%`.
-  Current GBrain reference headline used in the side-by-side runner: `P@5 49.1%`, `R@5 97.9%`.
+- Latest external-reference snapshot: `npm run eval:kb:gbrain-evals-upstream`
+  Default command compares both systems on the real upstream harness.
+  Current real side-by-side result: `gbrain P@5 49.1%, R@5 97.9%` versus `kb-upstream P@5 76.6%, R@5 99.5%`.
+  For machine-only KB scoring, use `npm run eval:kb:gbrain-evals-upstream:kb`.
+  The same-harness result now shows KB ahead on recall and `correctInTopK`, while still keeping a higher precision score under the upstream `hits / returned_docs` definition.
+- Latest held-out anti-overfitting snapshot: `KB_GBRAIN_QUERY_SET=synthetic KB_GBRAIN_COMPACT=true node --import tsx/esm scripts/run-gbrain-evals-kb-adapter.ts`
+  Current measured held-out result: `P@5 32.1%, R@5 88.3%, MRR 76.1%, nDCG 77.4%`.
+  The latest kept change fixed the previously isolated `relationship-depth` miss without moving the real upstream rail.
+- Latest local diagnostic snapshot: `npm run eval:kb:gbrain-world`
+  Current measured KB score on the repo-local diagnostic rail: `P@5 35.6%`, `R@5 99.3%`, `MRR 100.0%`, `nDCG 99.5%`.
 
 That means the repo is not claiming "we beat GBrain." It is claiming:
 
 - the eval surface is explicit and public
 - the product-core benchmark is separated from the external-reference benchmark
 - the deterministic KB quality floor is visible and repeatable
-- the external benchmark is the exact public GBrain GitHub benchmark contract rather than a KB-local reinterpretation
+- the external benchmark is the literal upstream GBrain harness with real `gbrain` and `kb-upstream` scored in the same runner
 - the external-reference gap is measurable in the README instead of hidden in internal notes
 
 Release policy:
@@ -190,7 +208,9 @@ Release policy:
 - confirm on `admin-world-v3 holdout`
 - block regressions on `core-six dev` and `core-six holdout`
 - require both `admin-world-v3 dev` and `admin-world-v3 holdout` to run in CI verification
-- run the exact `gbrain-world` GitHub benchmark contract as the public external reference rail, not a direct "ship only if it wins" target
+- run the literal upstream `gbrain-evals` harness as the public external reference rail
+- keep the synthetic held-out rail green enough to avoid accepting benchmark-shaped regressions
+- keep `gbrain-world` as a faster local diagnostic rail, not the final external claim
 - after any major KB change, rerun the benchmark rails and refresh the published benchmark snapshot in this README and `docs/benchmarks/kb-scorecard-latest.*`
 
 Major changes that should trigger a benchmark refresh include:

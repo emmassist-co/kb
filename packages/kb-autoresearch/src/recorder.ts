@@ -5,7 +5,9 @@ import { buildCompactBestScoreSummary } from './inspect.js';
 import type { AutoresearchStatus, CandidateScore, ExperimentLedgerEntry, KbAutoresearchRunConfig } from './types.js';
 
 export class ExperimentRecorder {
-  constructor(private readonly config: KbAutoresearchRunConfig) {}
+  constructor(private readonly config: KbAutoresearchRunConfig) {
+    this.writeCurrentConfig();
+  }
 
   initialize(score: CandidateScore): void {
     mkdirSync(this.config.paths.runRoot, { recursive: true });
@@ -20,6 +22,7 @@ export class ExperimentRecorder {
 
   writeStatus(status: AutoresearchStatus): void {
     mkdirSync(this.config.paths.currentRoot, { recursive: true });
+    this.writeCurrentConfig();
     writeFileSync(this.config.paths.currentStatusPath, `${JSON.stringify(status, null, 2)}\n`, 'utf8');
     writeFileSync(this.config.paths.currentStatusMarkdownPath, `${renderStatus(status)}\n`, 'utf8');
     this.appendLog(`[status] phase=${status.phase} state=${status.state}${typeof status.iteration === 'number' ? ` iteration=${status.iteration}` : ''} message=${status.message}`);
@@ -103,8 +106,7 @@ export class ExperimentRecorder {
   }
 
   finalizeCurrentRun(): void {
-    mkdirSync(this.config.paths.currentRoot, { recursive: true });
-    writeFileSync(this.config.paths.currentConfigPath, `${JSON.stringify(this.config, null, 2)}\n`, 'utf8');
+    this.writeCurrentConfig();
   }
 
   pruneOldRunArtifacts(): void {
@@ -122,6 +124,11 @@ export class ExperimentRecorder {
     rmSync(this.config.paths.promptRoot, { recursive: true, force: true });
     rmSync(path.join(this.config.paths.runRoot, 'worktrees'), { recursive: true, force: true });
     rmSync(path.join(this.config.paths.runRoot, 'benchmarks'), { recursive: true, force: true });
+  }
+
+  private writeCurrentConfig(): void {
+    mkdirSync(this.config.paths.currentRoot, { recursive: true });
+    writeFileSync(this.config.paths.currentConfigPath, `${JSON.stringify(this.config, null, 2)}\n`, 'utf8');
   }
 }
 

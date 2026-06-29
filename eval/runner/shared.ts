@@ -1,14 +1,14 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { mkdtempSync } from 'node:fs';
 import { KnowledgeBaseService } from '../../packages/kb-core/src/service.js';
 import type { KnowledgeBaseConfig } from '../../packages/kb-core/src/types.js';
-import { FileKnowledgeStore } from '../../packages/kb-storage-file/src/file-store.js';
+import { SnapshotKnowledgeStore, createEmptyPersistedKnowledgeState } from '../../packages/kb-core/src/snapshot-store.js';
 import type { EntityDraft, KnowledgeEntityKind, KnowledgeEvent, KnowledgeExportSnapshot, KnowledgeSearchResult } from '../../packages/kb-core/src/types.js';
 import type { EvalCategoryResult, EvalPage, EvalScorecard } from './types.js';
 
 export interface SeededKnowledgeBaseInput {
+  relationProfile?: string;
   pages?: EvalPage[];
   entities?: Array<{
     id: string;
@@ -40,97 +40,115 @@ export interface SeededKnowledgeBaseInput {
   consolidate?: string[];
 }
 
+export interface SeededKnowledgeBaseContext {
+  service: KnowledgeBaseService;
+  rootDir: string;
+  snapshot: () => Promise<KnowledgeExportSnapshot>;
+  cleanup: () => void;
+}
+
+export async function createSeededKnowledgeBaseContext(
+  input: SeededKnowledgeBaseInput
+): Promise<SeededKnowledgeBaseContext> {
+  const kbRootDir = mkdtempSync(path.join(tmpdir(), 'kb-eval-'));
+  const config = createEvalKnowledgeBaseConfig();
+  const service = createKnowledgeBaseService(config);
+
+  for (const page of input.pages ?? []) {
+    await service.createEntity({
+      id: page.id,
+      kind: mapKind(page.type),
+      title: page.title,
+      aliases: page.aliases,
+      handles: page.handles,
+      tags: page.tags ?? [page.type],
+      sources: page.sources,
+      currentTruth: page.compiledTruth,
+      timeline: page.timeline ? page.timeline.split('\n').map((line) => line.trim()).filter(Boolean) : []
+    });
+  }
+
+  for (const page of input.pages ?? []) {
+    if (!page.relations?.length) continue;
+    await service.importStructuredLinks({
+      origin: { kind: 'seed', id: page.id },
+      links: page.relations.flatMap((relation) =>
+        relation.targets.map((targetId) => ({
+          type: relation.type,
+          fromId: page.id,
+          toId: targetId,
+          confidence: 0.97,
+          evidenceKind: 'structured' as const
+        }))
+      )
+    });
+  }
+
+  for (const entity of input.entities ?? []) {
+    await service.createEntity(entity);
+  }
+
+  const entityIdsToReindex = [
+    ...(input.pages ?? []).map((page) => page.id),
+    ...(input.entities ?? []).map((entity) => entity.id),
+    ...(input.consolidate ?? [])
+  ];
+  for (const entityId of new Set(entityIdsToReindex)) {
+    await service.consolidate(entityId);
+  }
+
+  for (const source of input.sources ?? []) {
+    await service.captureSource({
+      id: source.id,
+      kind: source.kind,
+      title: source.title,
+      url: source.url,
+      authors: source.authors,
+      tags: source.tags,
+      linkedEntities: source.linkedEntities,
+      summary: source.summary,
+      content: source.content,
+      citations: source.citations,
+      extractEntities: false,
+      createdAt: source.createdAt
+    });
+  }
+
+  for (const event of input.events ?? []) {
+    await service.appendEvent(event);
+  }
+
+  for (const draft of input.drafts ?? []) {
+    await service.updateEntityDraft({
+      entityId: draft.entityId,
+      title: draft.title,
+      kind: draft.kind,
+      summary: draft.summary,
+      openQuestions: draft.openQuestions,
+      sourceIds: draft.sourceIds,
+      timelineNotes: draft.timelineNotes
+    });
+  }
+
+  return {
+    service,
+    rootDir: kbRootDir,
+    snapshot: () => service.export(),
+    cleanup: () => {
+      rmSync(kbRootDir, { force: true, recursive: true });
+    }
+  };
+}
+
 export async function withSeededKnowledgeBase<T>(
   input: SeededKnowledgeBaseInput,
   run: (ctx: { service: KnowledgeBaseService; rootDir: string; snapshot: () => Promise<KnowledgeExportSnapshot> }) => Promise<T>
 ): Promise<T> {
-  const kbRootDir = mkdtempSync(path.join(tmpdir(), 'kb-eval-'));
-  const env = {
-    KB_ROOT_DIR: kbRootDir,
-    WORKSPACE_TENANT_ID: 'workspace-template'
-  };
-  const config = createEvalKnowledgeBaseConfig();
-  const service = createKnowledgeBaseService(env, 'workspace-template', config);
-
+  const ctx = await createSeededKnowledgeBaseContext(input);
   try {
-    for (const page of input.pages ?? []) {
-      await service.createEntity({
-        id: page.id,
-        kind: mapKind(page.type),
-        title: page.title,
-        aliases: page.aliases,
-        handles: page.handles,
-        tags: page.tags ?? [page.type],
-        sources: page.sources,
-        currentTruth: page.compiledTruth,
-        timeline: page.timeline ? page.timeline.split('\n').map((line) => line.trim()).filter(Boolean) : []
-      });
-    }
-
-    for (const page of input.pages ?? []) {
-      if (!page.relations?.length) continue;
-      await service.importStructuredLinks({
-        origin: { kind: 'seed', id: page.id },
-        links: page.relations.flatMap((relation) =>
-          relation.targets.map((targetId) => ({
-            type: relation.type,
-            fromId: page.id,
-            toId: targetId,
-            confidence: 0.97,
-            evidenceKind: 'structured' as const
-          }))
-        )
-      });
-    }
-
-    for (const entity of input.entities ?? []) {
-      await service.createEntity(entity);
-    }
-
-    for (const source of input.sources ?? []) {
-      await service.captureSource({
-        id: source.id,
-        kind: source.kind,
-        title: source.title,
-        url: source.url,
-        authors: source.authors,
-        tags: source.tags,
-        linkedEntities: source.linkedEntities,
-        summary: source.summary,
-        content: source.content,
-        citations: source.citations,
-        extractEntities: false,
-        createdAt: source.createdAt
-      });
-    }
-
-    for (const event of input.events ?? []) {
-      await service.appendEvent(event);
-    }
-
-    for (const draft of input.drafts ?? []) {
-      await service.updateEntityDraft({
-        entityId: draft.entityId,
-        title: draft.title,
-        kind: draft.kind,
-        summary: draft.summary,
-        openQuestions: draft.openQuestions,
-        sourceIds: draft.sourceIds,
-        timelineNotes: draft.timelineNotes
-      });
-    }
-
-    for (const entityId of input.consolidate ?? []) {
-      await service.consolidate(entityId);
-    }
-
-    return await run({
-      service,
-      rootDir: kbRootDir,
-      snapshot: () => service.export()
-    });
+    return await run(ctx);
   } finally {
-    rmSync(kbRootDir, { force: true, recursive: true });
+    ctx.cleanup();
   }
 }
 
@@ -153,15 +171,11 @@ function createEvalKnowledgeBaseConfig(): KnowledgeBaseConfig {
   };
 }
 
-function createKnowledgeBaseService(env: Record<string, unknown>, tenantId: string, config: KnowledgeBaseConfig): KnowledgeBaseService {
-  const configuredRoot = config.persistence.rootDir || '.kb';
-  const rootDir = typeof env.KB_ROOT_DIR === 'string' && env.KB_ROOT_DIR !== ''
-    ? env.KB_ROOT_DIR
-    : path.resolve(process.cwd(), configuredRoot, tenantId);
+function createKnowledgeBaseService(config: KnowledgeBaseConfig): KnowledgeBaseService {
   return new KnowledgeBaseService(
-    tenantId,
+    'workspace-template',
     config,
-    new FileKnowledgeStore(rootDir, config.mode)
+    new SnapshotKnowledgeStore(createEmptyPersistedKnowledgeState(config.mode))
   );
 }
 

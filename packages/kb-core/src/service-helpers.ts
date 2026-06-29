@@ -1,6 +1,8 @@
 import { createEmptyEntity } from './documents.js';
-import { classifyRelationQuery, findEntityByQuery } from './relations.js';
+import { inferPageFamily } from './page-families.js';
+import { classifyRelationQuery, findEntityByQuery, inferQueryIntent } from './relations.js';
 import type {
+  KnowledgeCandidateRetrievalPlan,
   EntityDocument,
   EntityDraft,
   KnowledgeBaseConfig,
@@ -9,6 +11,7 @@ import type {
   KnowledgeEvent,
   KnowledgeLexicalBackend,
   KnowledgeLink,
+  KnowledgeQueryIntent,
   KnowledgeSearchResult
 } from './types.js';
 
@@ -61,7 +64,9 @@ export function assistQuery(query: string): string {
       .toLowerCase()
       .split(/[^a-z0-9@._-]+/i)
       .map((token) => token.trim())
-      .filter((token) => token.length >= 4)
+      .map((token) => singularizeToken(token))
+      .filter((token) => token.length >= 3)
+      .filter((token) => !ASSIST_QUERY_STOPWORDS.has(token))
   ).join(' ');
 }
 
@@ -73,6 +78,10 @@ export function tokenizeSearch(query: string): string[] {
       .map((token) => token.trim())
       .filter(Boolean)
   );
+}
+
+export function tokenizeLexicalQuery(query: string): string[] {
+  return tokenizeSearch(query).filter((token) => !LEXICAL_QUERY_STOPWORDS.has(token));
 }
 
 export function scoreMatch(
@@ -153,6 +162,116 @@ export function computeIdentityQueryBias(input: {
   return { scoreAdjustment: boost, reason };
 }
 
+export function computeProfileQueryBias(input: {
+  query: string;
+  relationType: string | null;
+  kind: 'entity' | 'source';
+  entity?: EntityDocument;
+  relationTypes?: string[];
+}): { scoreAdjustment: number; reason: string[] } {
+  if (input.relationType) return { scoreAdjustment: 0, reason: [] };
+  const queryTokens = tokenizeSearch(input.query);
+  const normalizedQuery = normalizeResolverText(input.query);
+  const profileLike =
+    PROFILE_QUERY_LEADINS.some((pattern) => pattern.test(input.query)) ||
+    queryTokens.some((token) => PROFILE_QUERY_CUES.has(token)) ||
+    queryTokens.some((token) => PROFILE_ROLE_CUES.has(token));
+  if (!profileLike) return { scoreAdjustment: 0, reason: [] };
+
+  if (input.kind === 'source') {
+    return {
+      scoreAdjustment: -4,
+      reason: ['profile-source-suppression']
+    };
+  }
+
+  const entity = input.entity;
+  if (!entity) return { scoreAdjustment: 0, reason: [] };
+
+  if (entity.meta.kind !== 'person') {
+    const nonPersonPenalty = NON_PERSON_PROFILE_PENALTIES[entity.meta.kind];
+    if (typeof nonPersonPenalty === 'number') {
+      return {
+        scoreAdjustment: nonPersonPenalty,
+        reason: ['profile-non-person-penalty']
+      };
+    }
+    return { scoreAdjustment: 0, reason: [] };
+  }
+
+  const evidenceText = normalizeResolverText([entity.currentTruth, ...entity.timeline, ...entity.meta.tags].join(' '));
+  const relationTypes = new Set(input.relationTypes ?? []);
+  let boost = 6;
+  const reason = ['profile-person-preference'];
+
+  const roleHits = [...PROFILE_ROLE_CUES].filter((token) => queryTokens.includes(token));
+  for (const token of roleHits) {
+    if (evidenceText.includes(token)) {
+      boost += 2;
+      reason.push(`profile-role:${token}`);
+    }
+  }
+
+  if (queryTokens.includes('advisor') || queryTokens.includes('advises')) {
+    if (relationTypes.has('advises')) {
+      boost += 4;
+      reason.push('profile-relation:advises');
+    }
+  }
+  if (queryTokens.some((token) => ['founder', 'engineer', 'employee', 'staff'].includes(token))) {
+    if (relationTypes.has('member_of')) {
+      boost += 4;
+      reason.push('profile-relation:member_of');
+    }
+  }
+  if (queryTokens.some((token) => ['investor', 'invested'].includes(token))) {
+    if (relationTypes.has('invested_in')) {
+      boost += 4;
+      reason.push('profile-relation:invested_in');
+    }
+  }
+
+  if (normalizedQuery.includes('difference between') || normalizedQuery.includes('our network')) {
+    boost += 2;
+    reason.push('profile-compare-or-network');
+  }
+
+  return { scoreAdjustment: boost, reason };
+}
+
+export function computeExpectedAnswerKindBias(input: {
+  expectedKinds: KnowledgeEntityKind[];
+  kind: KnowledgeEntityKind;
+}): { scoreAdjustment: number; reason: string[] } {
+  if (input.expectedKinds.length === 0) return { scoreAdjustment: 0, reason: [] };
+  if (input.expectedKinds.includes(input.kind)) {
+    return { scoreAdjustment: 5, reason: ['intent-kind-match'] };
+  }
+  return { scoreAdjustment: -4, reason: ['intent-kind-mismatch'] };
+}
+
+export function inferExpectedAnswerKinds(input: {
+  query: string;
+  relationType: string | null;
+  candidateRelationTypes?: string[];
+}): KnowledgeEntityKind[] {
+  const queryTokens = tokenizeSearch(input.query);
+  const relationType = input.relationType ?? (input.candidateRelationTypes?.length === 1 ? input.candidateRelationTypes[0] ?? null : null);
+  if (queryTokens.includes('company') || queryTokens.includes('companies')) {
+    return ['company'];
+  }
+  if (
+    queryTokens.some((token) =>
+      ['who', 'person', 'people', 'anyone', 'someone', 'advisor', 'advisors', 'founder', 'engineer', 'engineers', 'employee', 'employees'].includes(token)
+    )
+  ) {
+    return ['person'];
+  }
+  if (relationType === 'attends') return ['person', 'team'];
+  if (relationType === 'member_of' || relationType === 'advises' || relationType === 'invested_in') return ['person'];
+  return [];
+}
+
 export function rankGraphResults(input: {
   relationType: string | null;
   anchorId: string | null;
@@ -173,6 +292,9 @@ export function rankGraphResults(input: {
       historicalOnly: boolean;
       explicitSupport: boolean;
       evidenceKinds: Set<string>;
+      anchorOriginSupport: number;
+      evidenceTexts: Set<string>;
+      evidenceSpanCount: number;
     }
   >();
 
@@ -188,18 +310,26 @@ export function rankGraphResults(input: {
       sourceSurfaces: new Set<string>(),
       historicalOnly: true,
       explicitSupport: false,
-      evidenceKinds: new Set<string>()
+      evidenceKinds: new Set<string>(),
+      anchorOriginSupport: 0,
+      evidenceTexts: new Set<string>(),
+      evidenceSpanCount: 0
     };
     entry.score += scoreLink(link);
     entry.linkTypes.add(link.type);
     entry.evidenceKinds.add(link.evidenceKind);
     if (link.sourceSurface) entry.sourceSurfaces.add(link.sourceSurface);
+    if (link.originKind === 'entity' && link.originId === input.anchorId) {
+      entry.anchorOriginSupport += 1;
+    }
     if (link.evidenceKind !== 'timeline') {
       entry.historicalOnly = false;
     }
     if (link.explicitReference || link.evidenceStrength === 'explicit-ref') {
       entry.explicitSupport = true;
     }
+    if (link.evidenceText) entry.evidenceTexts.add(link.evidenceText);
+    if (link.evidenceSpan) entry.evidenceSpanCount += 1;
     for (const sourceId of link.sourceIds) entry.sourceIds.add(sourceId);
     scored.set(candidateId, entry);
   }
@@ -212,9 +342,29 @@ export function rankGraphResults(input: {
       const supportBoost = Math.min(4, entry.sourceIds.size * 0.75);
       const supportSurfaceBoost = Math.min(3, entry.sourceSurfaces.size * 0.6);
       const explicitBoost = entry.explicitSupport ? 1.5 : 0;
+      const anchorOriginBoost = Math.min(4.5, entry.anchorOriginSupport * 2.25);
+      const corroborationBoost = Math.min(3.5, Math.max(0, entry.evidenceTexts.size - 1) * 1.15);
+      const evidenceSpanBoost = Math.min(1.5, entry.evidenceSpanCount * 0.3);
       const backlinkBoost = Math.min(2, input.links.filter((link) => link.fromId === entity.meta.id || link.toId === entity.meta.id).length * 0.2);
       const currentTruthBoost = entry.historicalOnly ? -4 : 3;
-      const totalScore = entry.score + typeBoost + supportBoost + supportSurfaceBoost + explicitBoost + backlinkBoost + currentTruthBoost;
+      const totalScore =
+        entry.score +
+        typeBoost +
+        supportBoost +
+        supportSurfaceBoost +
+        explicitBoost +
+        anchorOriginBoost +
+        corroborationBoost +
+        evidenceSpanBoost +
+        backlinkBoost +
+        currentTruthBoost;
+      const matchedFields = uniqueStrings([
+        'graph',
+        ...(entry.anchorOriginSupport > 0 ? ['graph:anchor-origin'] : []),
+        ...(entry.evidenceSpanCount > 0 ? ['graph:evidence-span'] : []),
+        ...(entry.sourceSurfaces.size > 0 ? [...entry.sourceSurfaces].map((surface) => `graph:surface:${surface}`) : []),
+        ...(entry.evidenceKinds.size > 0 ? [...entry.evidenceKinds].map((kind) => `graph:evidence-kind:${kind}`) : [])
+      ]);
       return {
         id: entity.meta.id,
         kind: 'entity' as const,
@@ -226,9 +376,14 @@ export function rankGraphResults(input: {
           `anchor:${input.anchorId}`,
           ...(typeBoost > 0 ? [`type:${entity.meta.kind}`] : []),
           ...(entry.explicitSupport ? ['explicit-ref'] : []),
+          ...(entry.sourceIds.size > 1 ? [`sources:${entry.sourceIds.size}`] : []),
+          ...(entry.sourceSurfaces.size > 1 ? [`surfaces:${entry.sourceSurfaces.size}`] : []),
+          ...(entry.evidenceTexts.size > 1 ? [`corroboration:${entry.evidenceTexts.size}`] : []),
+          ...(entry.anchorOriginSupport > 0 ? [`anchor-origin:${entry.anchorOriginSupport}`] : []),
+          ...(entry.evidenceSpanCount > 0 ? [`evidence-spans:${entry.evidenceSpanCount}`] : []),
           ...(currentTruthBoost > 0 ? ['current-truth'] : entry.historicalOnly ? ['historical-only'] : [])
         ]),
-        matchedFields: ['graph'],
+        matchedFields,
         sourceIds: [...entry.sourceIds],
         confidence: scoreToConfidence(totalScore),
         ambiguous: totalScore < 10,
@@ -440,6 +595,43 @@ export function relationClassificationOrNull(query: string): string | null {
   return classifyRelationQuery(query).relationType;
 }
 
+export function buildQueryRetrievalPlan(query: string): KnowledgeCandidateRetrievalPlan {
+  const intent = inferQueryIntent(query);
+  const anchorTokens = intent.anchorQuery ? tokenizeLexicalQuery(intent.anchorQuery) : [];
+  const intentTokens = uniqueStrings([...intent.attributeTerms, ...intent.roleTerms, ...anchorTokens]);
+  const activationReason = deriveCandidatePlannerActivationReason(intent);
+  const relationshipDepth = intent.modes.includes('relationship-depth');
+  const attributeIntersection = intent.modes.includes('attribute-intersection');
+  return {
+    intent,
+    activation: activationReason.length > 0 ? 'degraded-non-relation-set' : 'none',
+    activationReason,
+    matchTokens: uniqueStrings([...tokenizeLexicalQuery(query), ...(intentTokens.length > 0 ? intentTokens : [])]),
+    expectedKinds: intent.expectedKinds,
+    anchorQuery: intent.anchorQuery,
+    anchorTokens,
+    roleTerms: intent.roleTerms,
+    attributeTerms: intent.attributeTerms,
+    sourceSuppression: intent.expectsMultiple || intent.modes.includes('background') ? 4 : intent.expectedKinds.length > 0 ? 3 : 0,
+    prefersConnectedAnchor: Boolean(intent.anchorQuery && intent.expectedKinds.includes('person')),
+    requireExpectedKind: intent.expectedKinds.length > 0,
+    requireRoleEvidence: intent.modes.includes('aggregation') && intent.roleTerms.length > 0,
+    minimumAttributeMatches: attributeIntersection ? Math.min(2, Math.max(1, intent.attributeTerms.length)) : 0,
+    requireRelationshipDepthEvidence: relationshipDepth
+  };
+}
+
+function deriveCandidatePlannerActivationReason(intent: KnowledgeQueryIntent): string[] {
+  if (intent.relationType) return [];
+  if (!intent.modes.includes('entity-set')) return [];
+  const reasons: string[] = [];
+  if (intent.modes.includes('aggregation')) reasons.push('aggregation');
+  if (intent.modes.includes('attribute-intersection')) reasons.push('attribute-intersection');
+  if (intent.modes.includes('relationship-depth')) reasons.push('relationship-depth');
+  if (intent.modes.includes('background')) reasons.push('background');
+  return reasons;
+}
+
 export function resolveRememberSourceContent(summary: string, content: string | undefined, url: string | undefined): string {
   const normalizedContent = (content ?? '').trim();
   if (normalizedContent) return normalizedContent;
@@ -503,17 +695,134 @@ export function dedupeLinks(links: KnowledgeLink[]): KnowledgeLink[] {
 }
 
 const IDENTITY_STOPWORDS = new Set(['resolve', 'from', 'the', 'a', 'an']);
+const ASSIST_QUERY_STOPWORDS = new Set([
+  'about',
+  'all',
+  'also',
+  'and',
+  'any',
+  'anyone',
+  'can',
+  'difference',
+  'else',
+  'find',
+  'have',
+  'here',
+  'i',
+  'in',
+  'is',
+  'know',
+  'need',
+  'network',
+  'of',
+  'on',
+  'our',
+  'please',
+  'pull',
+  'someone',
+  'the',
+  'there',
+  'they',
+  'up',
+  'what',
+  'which',
+  'who',
+  'would',
+  'you'
+]);
+const PROFILE_QUERY_CUES = new Set([
+  'background',
+  'difference',
+  'educational',
+  'experience',
+  'expert',
+  'focuses',
+  'history',
+  'keynote',
+  'network',
+  'published'
+]);
 
-function inferPageFamily(kind: KnowledgeEntityKind): KnowledgeEntityRegistryEntry['pageFamily'] {
-  if (kind === 'process') return 'process';
-  if (kind === 'meeting') return 'meeting';
-  if (kind === 'project') return 'project';
-  if (kind === 'decision') return 'decision';
-  if (kind === 'policy') return 'policy';
-  if (kind === 'system') return 'system';
-  if (kind === 'team') return 'team';
-  return 'entity';
-}
+const LEXICAL_QUERY_STOPWORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'at',
+  'be',
+  'but',
+  'by',
+  'can',
+  'did',
+  'do',
+  'does',
+  'else',
+  'for',
+  'from',
+  'had',
+  'has',
+  'have',
+  'how',
+  'i',
+  'in',
+  'into',
+  'is',
+  'it',
+  'need',
+  'of',
+  'on',
+  'or',
+  'our',
+  'please',
+  'pull',
+  'show',
+  'than',
+  'that',
+  'the',
+  'their',
+  'them',
+  'there',
+  'these',
+  'this',
+  'those',
+  'to',
+  'up',
+  'we',
+  'what',
+  'which',
+  'who',
+  'would',
+  'you',
+  'your'
+]);
+const PROFILE_ROLE_CUES = new Set([
+  'advisor',
+  'advises',
+  'engineer',
+  'employee',
+  'founder',
+  'invested',
+  'investor',
+  'staff'
+]);
+const PROFILE_QUERY_LEADINS = [
+  /\bwho\b/i,
+  /\bpeople\b/i,
+  /\bperson\b/i,
+  /\banyone\b/i,
+  /\bsomeone\b/i
+];
+const NON_PERSON_PROFILE_PENALTIES: Partial<Record<KnowledgeEntityKind, number>> = {
+  company: -4,
+  meeting: -7,
+  decision: -5,
+  project: -4,
+  process: -3,
+  policy: -3,
+  system: -3,
+  vendor: -3,
+  team: -2
+};
 
 function buildCanonicalForms(values: string[]): string[] {
   const synonyms: Record<string, string> = {
@@ -588,7 +897,8 @@ function scoreLink(link: KnowledgeLink): number {
           ? 0.75
           : 1;
   const multiSourceBoost = Math.min(2.5, Math.max(0, link.sourceIds.length - 1) * 0.85);
-  return 10 * link.confidence + evidenceBoost + currentSurfaceBoost + multiSourceBoost + (link.explicitReference ? 1.5 : 0);
+  const evidenceSpanBoost = link.evidenceSpan ? 0.5 : 0;
+  return 10 * link.confidence + evidenceBoost + currentSurfaceBoost + multiSourceBoost + evidenceSpanBoost + (link.explicitReference ? 1.5 : 0);
 }
 
 function expectedAnswerTypeBoost(relationType: string | null, entityKind: KnowledgeEntityKind, query: string): number {

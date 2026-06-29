@@ -4,5 +4,6 @@ export * from './bm25.js';
 export * from './relations.js';
 export * from './service.js';
 export * from './service-helpers.js';
+export * from './page-families.js';
 export * from './store.js';
 export * from './snapshot-store.js';

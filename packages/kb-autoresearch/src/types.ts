@@ -2,6 +2,7 @@ import type { EvalScorecard, EvalRunResult } from '../../../eval/runner/types.js
 
 export interface KbAutoresearchCliOptions {
   iterations: number;
+  maxIteration?: number;
   timeBudgetMin: number;
   agentBackend?: 'codex' | 'pi';
   agentCommand?: string;
@@ -100,6 +101,41 @@ export interface BenchmarkSnapshot {
   repoDocsDev?: EvalRunResult;
   repoDocsHoldout?: EvalRunResult;
   gbrainWorld: EvalRunResult;
+  gbrainHeldout: EvalRunResult;
+  gbrainUpstream: UpstreamGbrainRunResult;
+}
+
+export interface UpstreamGbrainRunResult {
+  adapter: string;
+  benchmark: 'gbrain-evals-upstream';
+  queries: number;
+  corpus: number;
+  runs: number;
+  precisionAt5: number;
+  recallAt5: number;
+  correctInTopK: number;
+  totalExpected: number;
+  stddevPrecisionAt5: number;
+  stddevRecallAt5: number;
+  publishedReference: {
+    precisionAt5: number;
+    recallAt5: number;
+  };
+  realGbrain?: {
+    precisionAt5: number;
+    recallAt5: number;
+    correctInTopK: number;
+    totalExpected: number;
+  };
+  deltaVsPublished: {
+    precisionAt5: number;
+    recallAt5: number;
+  };
+  deltaVsRealGbrain?: {
+    precisionAt5: number;
+    recallAt5: number;
+    correctInTopK: number;
+  };
 }
 
 export interface ScreeningSummary {
@@ -111,6 +147,14 @@ export interface ScreeningDelta {
   weightedDelta: number;
   introducedGuardrailFailures: string[];
   guardrailFailures: string[];
+  gbrainWeightedDelta?: number;
+  gbrainIntroducedGuardrailFailures?: string[];
+  gbrainGuardrailFailures?: string[];
+  gbrainImproved?: boolean;
+  heldoutWeightedDelta?: number;
+  heldoutIntroducedGuardrailFailures?: string[];
+  heldoutGuardrailFailures?: string[];
+  heldoutImproved?: boolean;
   improved: boolean;
 }
 
@@ -136,6 +180,14 @@ export interface ScoreDelta {
   protectedMetricRegressions: string[];
   introducedGuardrailFailures: string[];
   guardrailFailures: string[];
+  gbrainWeightedDelta?: number;
+  gbrainIntroducedGuardrailFailures?: string[];
+  gbrainGuardrailFailures?: string[];
+  gbrainImproved?: boolean;
+  heldoutWeightedDelta?: number;
+  heldoutIntroducedGuardrailFailures?: string[];
+  heldoutGuardrailFailures?: string[];
+  heldoutImproved?: boolean;
   improved: boolean;
 }
 
@@ -147,8 +199,22 @@ export interface CandidateEvaluation {
   score?: CandidateScore;
   screening?: ScreeningSummary;
   adminWorldDev?: EvalRunResult;
+  gbrainWorld?: EvalRunResult;
+  gbrainHeldout?: EvalRunResult;
+  gbrainUpstream?: UpstreamGbrainRunResult;
   rejectReason?: string;
   commandOutputs: Array<{ command: string; exitCode: number; stdout: string; stderr: string }>;
+}
+
+export interface KbAutoresearchEvaluatorLike {
+  evaluateBaseline(worktreePath: string, fixturesRoot: string): Promise<CandidateEvaluation>;
+  evaluateScreening(worktreePath: string, fixturesRoot: string): Promise<CandidateEvaluation>;
+  evaluatePromoted(
+    worktreePath: string,
+    fixturesRoot: string,
+    screeningOutputs: CandidateEvaluation['commandOutputs']
+  ): Promise<CandidateEvaluation>;
+  writeSnapshotArtifacts(runRoot: string, label: string, snapshot: BenchmarkSnapshot): void;
 }
 
 export interface CandidateMutationResult {
@@ -177,7 +243,7 @@ export interface ExperimentLedgerEntry {
   branchName: string;
   changedFiles: string[];
   unifiedDiffLines: number;
-  decision: 'accepted' | 'rejected' | 'noop' | 'failed';
+  decision: 'accepted' | 'carried' | 'rejected' | 'noop' | 'failed';
   rejectReason?: string;
   promptPath?: string;
   promptSha256: string;
@@ -207,6 +273,9 @@ export interface AgentPromptContext {
   focus: {
     targetCategories: string[];
     targetCases: string[];
+    failureBuckets: string[];
+    querySamples: string[];
+    externalTargets: string[];
     currentBest: {
       categoryPasses: number;
       holdoutCategoryPasses: number;
@@ -239,7 +308,12 @@ export interface AgentAdapter {
 }
 
 export interface CommandRunner {
-  run(command: string, args: string[], options: { cwd: string; env?: Record<string, string | undefined>; stdinText?: string }): Promise<{
+  run(command: string, args: string[], options: {
+    cwd: string;
+    env?: Record<string, string | undefined>;
+    stdinText?: string;
+    timeoutMs?: number;
+  }): Promise<{
     exitCode: number;
     stdout: string;
     stderr: string;

@@ -6,7 +6,7 @@ import { KbAutoresearchEvaluator } from './evaluator.js';
 import { isAllowedPath, validateCandidateDiff } from './guards.js';
 import { AgentConfigurationError } from './pi-adapter.js';
 import { buildAutoresearchBriefing, promptSha256 } from './prompt.js';
-import { compareScores, compareScreening } from './scorer.js';
+import { compareScores, compareScreening, compareScreeningWithExternal } from './scorer.js';
 import { ExperimentRecorder } from './recorder.js';
 import { CandidateWorkspaceManager } from './workspace.js';
 import type { EvalFailure, EvalScorecard } from '../../../eval/runner/types.js';
@@ -168,7 +168,12 @@ export class LoopRunner {
     const startedAt = Date.now();
     let consecutiveFailures = 0;
     const acceptedIterations: number[] = [];
-    for (let iteration = startingIteration; iteration < startingIteration + config.iterations; iteration += 1) {
+    const absoluteIterationCeiling =
+      typeof config.maxIteration === 'number' && config.maxIteration >= startingIteration
+        ? config.maxIteration + 1
+        : Number.POSITIVE_INFINITY;
+    const maxIterationExclusive = Math.min(startingIteration + config.iterations, absoluteIterationCeiling);
+    for (let iteration = startingIteration; iteration < maxIterationExclusive; iteration += 1) {
       if ((Date.now() - startedAt) / 60_000 >= config.timeBudgetMin) break;
       if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) break;
 
@@ -502,8 +507,84 @@ export class LoopRunner {
           continue;
         }
 
-        const screeningDelta = compareScreening(bestScore, screening.adminWorldDev ?? bestScore.snapshot.adminWorldDev);
+        const screeningDelta = compareScreeningWithExternal(
+          bestScore,
+          screening.adminWorldDev ?? bestScore.snapshot.adminWorldDev,
+          screening.gbrainUpstream ?? bestScore.snapshot.gbrainUpstream,
+          screening.gbrainHeldout ?? bestScore.snapshot.gbrainHeldout
+        );
         if (!screeningDelta.improved) {
+          const screeningCarryForward = shouldCarryForwardScreeningCandidate({
+            ledger: this.recorder.readLedger(),
+            screeningDelta,
+            changedFiles: diffSummary.changedFiles
+          });
+          if (screeningCarryForward) {
+            this.recorder.writeStatus(buildStatus(config, {
+              runStartedAt,
+              state: 'running',
+              phase: 'accepting',
+              iteration,
+              message: 'Carrying forward a neutral screening candidate to continue the search from a better architecture.',
+              bestScore
+            }));
+            const commit = config.dryRun
+              ? candidate.baseCommit
+              : await this.workspaceManager.commitCandidate(candidate.worktreePath, `kb-autoresearch: carry iteration ${iteration}`);
+            if (!config.dryRun) {
+              await this.workspaceManager.fastForwardResearchBranch(config.baseBranch, commit);
+            }
+            consecutiveFailures = 0;
+            this.recorder.append(buildLedger({
+              config,
+              iteration,
+              parentCommit: candidate.baseCommit,
+              candidateCommit: commit,
+              branchName: config.baseBranch,
+              changedFiles: diffSummary.changedFiles,
+              unifiedDiffLines: diffSummary.unifiedDiffLines,
+              decision: 'carried',
+              rejectReason: 'Flat but safe screening candidate carried forward to improve the next search neighborhood.',
+              promptPath,
+              promptSha256: promptDigest,
+              sessionId,
+              finalMessage: mutationFinalMessage,
+              startedAt: startedIterationAt,
+              completedAt: new Date().toISOString(),
+              scoreBefore: scoreBefore.summary,
+              screeningBefore: screeningDelta.before,
+              screeningAfter: screeningDelta.after,
+              screeningDelta: {
+                weightedDelta: screeningDelta.weightedDelta,
+                introducedGuardrailFailures: screeningDelta.introducedGuardrailFailures,
+                guardrailFailures: screeningDelta.guardrailFailures,
+                gbrainWeightedDelta: screeningDelta.gbrainWeightedDelta,
+                gbrainIntroducedGuardrailFailures: screeningDelta.gbrainIntroducedGuardrailFailures,
+                gbrainGuardrailFailures: screeningDelta.gbrainGuardrailFailures,
+                gbrainImproved: screeningDelta.gbrainImproved,
+                heldoutWeightedDelta: screeningDelta.heldoutWeightedDelta,
+                heldoutIntroducedGuardrailFailures: screeningDelta.heldoutIntroducedGuardrailFailures,
+                heldoutGuardrailFailures: screeningDelta.heldoutGuardrailFailures,
+                heldoutImproved: screeningDelta.heldoutImproved,
+                improved: screeningDelta.improved
+              }
+            }));
+            this.recorder.writeStatus(buildStatus(config, {
+              runStartedAt,
+              state: 'running',
+              phase: 'idle',
+              iteration,
+              message: 'Carried forward a neutral screening candidate for the next iteration.',
+              bestScore,
+              latestDecision: {
+                iteration,
+                decision: 'carried',
+                changedFiles: diffSummary.changedFiles,
+                candidateCommit: commit
+              }
+            }));
+            continue;
+          }
           consecutiveFailures += 1;
           this.recorder.append(buildLedger({
             config,
@@ -527,6 +608,10 @@ export class LoopRunner {
               weightedDelta: screeningDelta.weightedDelta,
               introducedGuardrailFailures: screeningDelta.introducedGuardrailFailures,
               guardrailFailures: screeningDelta.guardrailFailures,
+              gbrainWeightedDelta: screeningDelta.gbrainWeightedDelta,
+              gbrainIntroducedGuardrailFailures: screeningDelta.gbrainIntroducedGuardrailFailures,
+              gbrainGuardrailFailures: screeningDelta.gbrainGuardrailFailures,
+              gbrainImproved: screeningDelta.gbrainImproved,
               improved: screeningDelta.improved
             }
           }));
@@ -594,6 +679,76 @@ export class LoopRunner {
 
         const delta = compareScores(bestScore, evaluation.score, config.protectedMetrics);
         if (!delta.improved) {
+          const carryForward = shouldCarryForwardCandidate({
+            ledger: this.recorder.readLedger(),
+            screeningDelta,
+            scoreDelta: delta,
+            changedFiles: diffSummary.changedFiles
+          });
+          if (carryForward) {
+            this.recorder.writeStatus(buildStatus(config, {
+              runStartedAt,
+              state: 'running',
+              phase: 'accepting',
+              iteration,
+              message: 'Carrying forward a neutral candidate to continue the search from a better architecture.',
+              bestScore
+            }));
+            const commit = config.dryRun
+              ? candidate.baseCommit
+              : await this.workspaceManager.commitCandidate(candidate.worktreePath, `kb-autoresearch: carry iteration ${iteration}`);
+            if (!config.dryRun) {
+              await this.workspaceManager.fastForwardResearchBranch(config.baseBranch, commit);
+            }
+            consecutiveFailures = 0;
+            this.recorder.append(buildLedger({
+              config,
+              iteration,
+              parentCommit: candidate.baseCommit,
+              candidateCommit: commit,
+              branchName: config.baseBranch,
+              changedFiles: diffSummary.changedFiles,
+              unifiedDiffLines: diffSummary.unifiedDiffLines,
+              decision: 'carried',
+              rejectReason: 'Flat but safe candidate carried forward to improve the next search neighborhood.',
+              promptPath,
+              promptSha256: promptDigest,
+              sessionId,
+              finalMessage: mutationFinalMessage,
+              startedAt: startedIterationAt,
+              completedAt: new Date().toISOString(),
+              scoreBefore: scoreBefore.summary,
+              scoreAfter: evaluation.score.summary,
+              scoreDelta: delta,
+              screeningBefore: screeningDelta.before,
+              screeningAfter: screeningDelta.after,
+              screeningDelta: {
+                weightedDelta: screeningDelta.weightedDelta,
+                introducedGuardrailFailures: screeningDelta.introducedGuardrailFailures,
+                guardrailFailures: screeningDelta.guardrailFailures,
+                gbrainWeightedDelta: screeningDelta.gbrainWeightedDelta,
+                gbrainIntroducedGuardrailFailures: screeningDelta.gbrainIntroducedGuardrailFailures,
+                gbrainGuardrailFailures: screeningDelta.gbrainGuardrailFailures,
+                gbrainImproved: screeningDelta.gbrainImproved,
+                improved: screeningDelta.improved
+              }
+            }));
+            this.recorder.writeStatus(buildStatus(config, {
+              runStartedAt,
+              state: 'running',
+              phase: 'idle',
+              iteration,
+              message: 'Carried forward a neutral candidate for the next iteration.',
+              bestScore,
+              latestDecision: {
+                iteration,
+                decision: 'carried',
+                changedFiles: diffSummary.changedFiles,
+                candidateCommit: commit
+              }
+            }));
+            continue;
+          }
           consecutiveFailures += 1;
           this.recorder.append(buildLedger({
             config,
@@ -748,6 +903,9 @@ function buildBootstrapPromptContext(config: KbAutoresearchRunConfig, repoRoot: 
     focus: {
       targetCategories: ['typecheck-repair'],
       targetCases: ['baseline-typecheck'],
+      failureBuckets: ['baseline typecheck failed before scoring'],
+      querySamples: ['Repair the compile failure first; do not chase benchmark deltas yet.'],
+      externalTargets: ['Improve the real upstream gbrain-evals benchmark; use the local adapter snapshot only for diagnosis.'],
       currentBest: {
         categoryPasses: 0,
         holdoutCategoryPasses: 0,
@@ -755,9 +913,9 @@ function buildBootstrapPromptContext(config: KbAutoresearchRunConfig, repoRoot: 
         holdoutWeightedScore: 0
       },
       benchmarkFiles: {
-        briefingPath: path.relative(path.join(repoRoot, 'src/lib/kb'), config.paths.currentBriefingPath),
-        bestScoreSummaryPath: path.relative(path.join(repoRoot, 'src/lib/kb'), path.join(config.paths.currentRoot, 'best-score-summary.json')),
-        inspectCommand: 'tsx ../../../scripts/kb-autoresearch-inspect.ts'
+        briefingPath: path.relative(path.join(repoRoot, 'packages/kb-core/src'), config.paths.currentBriefingPath),
+        bestScoreSummaryPath: path.relative(path.join(repoRoot, 'packages/kb-core/src'), path.join(config.paths.currentRoot, 'best-score-summary.json')),
+        inspectCommand: 'node --import tsx/esm scripts/kb-autoresearch-inspect.ts'
       },
       recentDecisions: [message]
     }
@@ -834,6 +992,9 @@ function buildPromptContext(
   const targetCases = stalled
     ? Array.from(new Set([...retrievalTargets.cases, ...failedCases]))
     : Array.from(new Set([...failedCases, ...retrievalTargets.cases]));
+  const failureBuckets = collectFailureBuckets(bestScore);
+  const querySamples = collectQuerySamples(bestScore, stalled ? 6 : 4);
+  const externalTargets = collectExternalTargets(bestScore);
   return {
     iteration,
     allowlist: config.allowlist,
@@ -841,6 +1002,9 @@ function buildPromptContext(
     focus: {
       targetCategories,
       targetCases,
+      failureBuckets,
+      querySamples,
+      externalTargets,
       currentBest: {
         categoryPasses: bestScore.summary.categoryPasses,
         holdoutCategoryPasses: bestScore.summary.holdoutCategoryPasses,
@@ -848,9 +1012,9 @@ function buildPromptContext(
         holdoutWeightedScore: bestScore.summary.holdoutWeightedScore
       },
       benchmarkFiles: {
-        briefingPath: path.relative(path.join(repoRoot, 'src/lib/kb'), config.paths.currentBriefingPath),
-        bestScoreSummaryPath: path.relative(path.join(repoRoot, 'src/lib/kb'), path.join(config.paths.currentRoot, 'best-score-summary.json')),
-        inspectCommand: 'tsx ../../../scripts/kb-autoresearch-inspect.ts'
+        briefingPath: path.relative(path.join(repoRoot, 'packages/kb-core/src'), config.paths.currentBriefingPath),
+        bestScoreSummaryPath: path.relative(path.join(repoRoot, 'packages/kb-core/src'), path.join(config.paths.currentRoot, 'best-score-summary.json')),
+        inspectCommand: 'node --import tsx/esm scripts/kb-autoresearch-inspect.ts'
       },
       recentDecisions: summarizeRecentDecisions(ledger),
       stall: stalled
@@ -881,6 +1045,9 @@ function summarizeRecentDecisions(ledger: ExperimentLedgerEntry[]): string[] {
       if (entry.decision === 'accepted') {
         return `iteration ${entry.iteration} accepted ${entry.changedFiles.join(', ') || 'no files'}${changeSummary}`;
       }
+      if (entry.decision === 'carried') {
+        return `iteration ${entry.iteration} carried forward ${entry.changedFiles.join(', ') || 'no files'}${screeningSummary}`;
+      }
       if (entry.rejectReason) {
         return `iteration ${entry.iteration} ${entry.decision}: ${entry.rejectReason}${screeningSummary}`;
       }
@@ -896,7 +1063,7 @@ function extractTypecheckFeedback(
   }
 ): { summary: string; detail: string; referencedPaths: string[] } | null {
   if (evaluation.typecheckOk) return null;
-  const output = evaluation.commandOutputs.find((entry) => /npm run typecheck/.test(entry.command));
+  const output = evaluation.commandOutputs.find((entry) => /npm run typecheck|(?:^|\/)tsc(?: |$)/.test(entry.command));
   if (!output) {
     return {
       summary: evaluation.rejectReason ?? 'Typecheck failed.',
@@ -924,7 +1091,13 @@ function extractReferencedTypecheckPaths(text: string): string[] {
     .map((match) => match.match(/((?:\.\.\/|\.\/|\/)?[\w./-]+\.(?:ts|tsx|js|json))/)?.[1] ?? '')
     .filter(Boolean)
     .map((file) => file.replace(/\\/g, '/').replace(/^\.\//, ''))
-    .map((file) => file.startsWith('/') ? file : file.replace(/^.*?(src\/|eval\/)/, '$1'));
+    .map((file) => {
+      if (file.startsWith('/')) return file;
+      const packageMatch = file.match(/(packages\/kb-core\/src\/[\w./-]+\.(?:ts|tsx|js|json))/);
+      if (packageMatch?.[1]) return packageMatch[1];
+      const localMatch = file.match(/(src\/[\w./-]+\.(?:ts|tsx|js|json)|eval\/[\w./-]+\.(?:ts|tsx|js|json))/);
+      return localMatch?.[1] ?? file;
+    });
   return Array.from(new Set(normalized));
 }
 
@@ -1002,6 +1175,12 @@ function buildStallDiagnosis(bestScore: CandidateScore, ledger: ExperimentLedger
         .join(', ')}`
     );
   }
+  if (
+    screeningRejects.length >= 3 &&
+    screeningRejects.every((entry) => (entry.screeningDelta?.weightedDelta ?? 0) === 0)
+  ) {
+    lines.push('Recent attempts are flatlined at zero delta. Prefer ranking and tie-break changes in service.ts over adding more extraction synonyms.');
+  }
   return lines.length > 0 ? lines : ['Recent attempts have not changed the benchmark failure shape. Pick a different heuristic area than the last few edits.'];
 }
 
@@ -1033,10 +1212,60 @@ function collectFailedCases(scorecard: EvalScorecard): string[] {
     .flatMap((category) => category.failures.slice(0, 1).map((failure: EvalFailure) => failure.caseId));
 }
 
+function collectFailureBuckets(bestScore: CandidateScore): string[] {
+  const dev = bestScore.snapshot.adminWorldDev;
+  const holdout = bestScore.snapshot.adminWorldHoldout;
+  const lines = [
+    `admin-world dev distractor win rate ${(dev.diagnostics?.distractorWinRate ?? 0).toFixed(3)} and historical-over-current rate ${(dev.diagnostics?.historicalOverCurrentRate ?? 0).toFixed(3)}`,
+    `admin-world holdout distractor win rate ${(holdout.diagnostics?.distractorWinRate ?? 0).toFixed(3)} and historical-over-current rate ${(holdout.diagnostics?.historicalOverCurrentRate ?? 0).toFixed(3)}`
+  ];
+  const weakFamilies = Object.entries(dev.familyBreakdown ?? {})
+    .sort((left, right) => left[1].ndcgAtK - right[1].ndcgAtK || left[1].precisionAtK - right[1].precisionAtK)
+    .slice(0, 4)
+    .map(([family, metrics]) => `${family}: P@5 ${metrics.precisionAtK.toFixed(3)}, nDCG@5 ${metrics.ndcgAtK.toFixed(3)}`);
+  const gbrainFamilies = Object.entries(bestScore.snapshot.gbrainWorld.familyBreakdown ?? {})
+    .filter(([, metrics]) => !metrics.passesFloor)
+    .sort((left, right) => left[1].precisionAtK - right[1].precisionAtK)
+    .map(([family, metrics]) => `gbrain ${family}: P@5 ${metrics.precisionAtK.toFixed(3)}, nDCG@5 ${metrics.ndcgAtK.toFixed(3)}`);
+  return [...lines, ...weakFamilies, ...gbrainFamilies].slice(0, 8);
+}
+
+function collectQuerySamples(bestScore: CandidateScore, limit: number): string[] {
+  const samples = [bestScore.snapshot.adminWorldDev, bestScore.snapshot.adminWorldHoldout]
+    .flatMap((result, index) =>
+      (result.perQuery ?? []).map((query) => ({
+        split: index === 0 ? 'dev' : 'holdout',
+        ...query
+      }))
+    )
+    .filter((query) => query.ndcgAtK < 0.999 || query.precisionAtK < 0.999 || query.recallAtK < 0.999)
+    .sort((left, right) =>
+      left.ndcgAtK - right.ndcgAtK ||
+      left.precisionAtK - right.precisionAtK ||
+      left.recallAtK - right.recallAtK
+    )
+    .slice(0, limit)
+    .map((query) => {
+      const topReturned = query.returned.slice(0, 3).map((entry) => entry.pageId).join(' > ') || 'none';
+      return `${query.split} ${query.id} "${query.text}" -> top ${topReturned}; P@5 ${query.precisionAtK.toFixed(3)}, nDCG@5 ${query.ndcgAtK.toFixed(3)}`;
+    });
+  return samples.length > 0 ? samples : ['No low-scoring admin-world query samples were available in the current best snapshot.'];
+}
+
+function collectExternalTargets(bestScore: CandidateScore): string[] {
+  const failedFamilies = Object.entries(bestScore.snapshot.gbrainWorld.familyBreakdown ?? {})
+    .filter(([, metrics]) => !metrics.passesFloor)
+    .sort((left, right) => left[1].precisionAtK - right[1].precisionAtK || left[0].localeCompare(right[0]))
+    .map(([family, metrics]) => `${family}: P@5 ${metrics.precisionAtK.toFixed(3)}, Recall@5 ${metrics.recallAtK.toFixed(3)}, nDCG@5 ${metrics.ndcgAtK.toFixed(3)}`);
+  if (failedFamilies.length > 0) return failedFamilies.slice(0, 5);
+  return [
+    `gbrain upstream P@5 ${bestScore.snapshot.gbrainUpstream.precisionAt5.toFixed(3)}, Recall@5 ${bestScore.snapshot.gbrainUpstream.recallAt5.toFixed(3)}`
+  ];
+}
+
 function collectRetrievalTargets(bestScore: CandidateScore, options: { diversify?: boolean } = {}): { categories: string[]; cases: string[] } {
   const categoryLimit = options.diversify ? 6 : 4;
-  const falsePositiveLimit = options.diversify ? 4 : 2;
-  const caseLimit = options.diversify ? 6 : 4;
+  const caseLimit = options.diversify ? 8 : 5;
   const categories: string[] = [];
   const cases: string[] = [];
   if (!bestScore.snapshot.adminWorldDev.gates?.passed || !bestScore.snapshot.adminWorldHoldout.gates?.passed) {
@@ -1046,7 +1275,7 @@ function collectRetrievalTargets(bestScore: CandidateScore, options: { diversify
     categories.push('admin-world-v3-hardness');
   }
   if (!bestScore.snapshot.gbrainWorld.gates?.passed) {
-    categories.push('gbrain-world:github-benchmark');
+    categories.push('gbrain-world');
   }
   for (const result of [bestScore.snapshot.adminWorldDev, bestScore.snapshot.adminWorldHoldout]) {
     for (const [family, metrics] of Object.entries(result.familyBreakdown ?? {})) {
@@ -1057,25 +1286,108 @@ function collectRetrievalTargets(bestScore: CandidateScore, options: { diversify
     if ((result.diagnostics?.historicalOverCurrentRate ?? 0) > 0) categories.push('diag:historical-over-current');
     if ((result.diagnostics?.wrongAnchorSelectionRate ?? 0) > 0) categories.push('diag:wrong-anchor');
   }
-  for (const result of [bestScore.snapshot.adminWorldDev, bestScore.snapshot.adminWorldHoldout]) {
-    for (const failure of result.diagnostics?.topFalsePositives?.slice(0, falsePositiveLimit) ?? []) {
-      cases.push(failure.queryId);
+  const worstQueries = [bestScore.snapshot.adminWorldDev, bestScore.snapshot.adminWorldHoldout]
+    .flatMap((result) => result.perQuery ?? [])
+    .filter((query) => query.ndcgAtK < 0.999 || query.precisionAtK < 0.999 || query.recallAtK < 0.999)
+    .sort((left, right) =>
+      left.ndcgAtK - right.ndcgAtK ||
+      left.precisionAtK - right.precisionAtK ||
+      left.recallAtK - right.recallAtK
+    )
+    .slice(0, caseLimit);
+  for (const query of worstQueries) {
+    cases.push(query.id);
+    if (query.family) categories.push(`family:${query.family}`);
+  }
+  for (const [family, metrics] of Object.entries(bestScore.snapshot.gbrainWorld.familyBreakdown ?? {})) {
+    if (!metrics.passesFloor) {
+      categories.push(`gbrain-family:${family}`);
+      cases.push(`gbrain:${family}`);
     }
   }
   return {
-    categories: categories.slice(0, categoryLimit),
-    cases: cases.slice(0, caseLimit)
+    categories: Array.from(new Set(categories)).slice(0, categoryLimit),
+    cases: Array.from(new Set(cases)).slice(0, caseLimit)
   };
 }
 
-function summarizeScreeningRejection(delta: ReturnType<typeof compareScreening>): string {
+function summarizeScreeningRejection(delta: ReturnType<typeof compareScreeningWithExternal>): string {
   if (delta.introducedGuardrailFailures.length > 0) {
     return `Admin-world dev regressed: ${delta.introducedGuardrailFailures.join(', ')}`;
+  }
+  if (delta.gbrainIntroducedGuardrailFailures.length > 0) {
+    return `Canonical gbrain adapter regressed: ${delta.gbrainIntroducedGuardrailFailures.join(', ')}`;
+  }
+  if ((delta.heldoutIntroducedGuardrailFailures?.length ?? 0) > 0) {
+    return `Held-out synthetic rail regressed: ${delta.heldoutIntroducedGuardrailFailures?.join(', ')}`;
   }
   if (delta.guardrailFailures.length > 0) {
     return `Candidate did not improve admin-world dev enough to reduce the remaining dev failures: ${delta.guardrailFailures.join(', ')}`;
   }
-  return 'Candidate did not improve admin-world dev screening score.';
+  if (delta.gbrainGuardrailFailures.length > 0) {
+    return `Candidate did not improve the real upstream gbrain-evals benchmark enough to reduce remaining external failures: ${delta.gbrainGuardrailFailures.join(', ')}`;
+  }
+  if ((delta.heldoutGuardrailFailures?.length ?? 0) > 0) {
+    return `Candidate did not preserve the held-out synthetic rail strongly enough: ${delta.heldoutGuardrailFailures?.join(', ')}`;
+  }
+  return 'Candidate did not improve admin-world dev or the real upstream gbrain-evals screening score.';
+}
+
+function shouldCarryForwardCandidate(input: {
+  ledger: ExperimentLedgerEntry[];
+  screeningDelta: ReturnType<typeof compareScreeningWithExternal>;
+  scoreDelta: ReturnType<typeof compareScores>;
+  changedFiles: string[];
+}): boolean {
+  if (input.changedFiles.length === 0) return false;
+  if (input.scoreDelta.protectedMetricRegressions.length > 0) return false;
+  if (input.scoreDelta.introducedGuardrailFailures.length > 0) return false;
+  if ((input.scoreDelta.gbrainIntroducedGuardrailFailures?.length ?? 0) > 0) return false;
+  if ((input.scoreDelta.heldoutIntroducedGuardrailFailures?.length ?? 0) > 0) return false;
+  if (input.scoreDelta.holdoutCategoryPassDelta < 0) return false;
+  if (input.scoreDelta.holdoutWeightedDelta < 0) return false;
+  if (input.scoreDelta.weightedDelta < 0) return false;
+  if ((input.scoreDelta.gbrainWeightedDelta ?? 0) < 0) return false;
+  if ((input.scoreDelta.heldoutWeightedDelta ?? 0) < 0) return false;
+  if (input.screeningDelta.weightedDelta < 0) return false;
+  if ((input.screeningDelta.gbrainWeightedDelta ?? 0) < 0) return false;
+  if ((input.screeningDelta.heldoutWeightedDelta ?? 0) < 0) return false;
+  const recentTouched = new Set(input.ledger.slice(-4).flatMap((entry) => entry.changedFiles));
+  const introducesNewLeverage = input.changedFiles.some((file) => !recentTouched.has(file));
+  const isFlatEverywhere =
+    input.scoreDelta.weightedDelta === 0 &&
+    input.scoreDelta.holdoutWeightedDelta === 0 &&
+    (input.scoreDelta.gbrainWeightedDelta ?? 0) === 0 &&
+    (input.scoreDelta.heldoutWeightedDelta ?? 0) === 0 &&
+    input.screeningDelta.weightedDelta === 0 &&
+    (input.screeningDelta.gbrainWeightedDelta ?? 0) === 0 &&
+    (input.screeningDelta.heldoutWeightedDelta ?? 0) === 0;
+  return introducesNewLeverage && isFlatEverywhere;
+}
+
+function shouldCarryForwardScreeningCandidate(input: {
+  ledger: ExperimentLedgerEntry[];
+  screeningDelta: ReturnType<typeof compareScreeningWithExternal>;
+  changedFiles: string[];
+}): boolean {
+  if (input.changedFiles.length === 0) return false;
+  if (input.screeningDelta.introducedGuardrailFailures.length > 0) return false;
+  if (input.screeningDelta.guardrailFailures.length > 0) return false;
+  if ((input.screeningDelta.gbrainIntroducedGuardrailFailures?.length ?? 0) > 0) return false;
+  if ((input.screeningDelta.gbrainGuardrailFailures?.length ?? 0) > 0) return false;
+  if ((input.screeningDelta.heldoutIntroducedGuardrailFailures?.length ?? 0) > 0) return false;
+  if ((input.screeningDelta.heldoutGuardrailFailures?.length ?? 0) > 0) return false;
+  if (input.screeningDelta.weightedDelta < 0) return false;
+  if ((input.screeningDelta.gbrainWeightedDelta ?? 0) < 0) return false;
+  if ((input.screeningDelta.heldoutWeightedDelta ?? 0) < 0) return false;
+  const recentTouched = new Set(input.ledger.slice(-4).flatMap((entry) => entry.changedFiles));
+  const introducesNewLeverage = input.changedFiles.some((file) => !recentTouched.has(file));
+  const isFlatEverywhere =
+    input.screeningDelta.weightedDelta === 0 &&
+    (input.screeningDelta.gbrainWeightedDelta ?? 0) === 0 &&
+    (input.screeningDelta.heldoutWeightedDelta ?? 0) === 0 &&
+    input.screeningDelta.gbrainImproved === false;
+  return introducesNewLeverage && isFlatEverywhere;
 }
 
 function summarizeDeltaRejection(delta: ReturnType<typeof compareScores>): string {
@@ -1093,6 +1405,9 @@ function summarizeDeltaRejection(delta: ReturnType<typeof compareScores>): strin
   }
   if (delta.guardrailFailures.length > 0) {
     return `Candidate did not improve enough to reduce the remaining guardrail set: ${delta.guardrailFailures.join(', ')}`;
+  }
+  if ((delta.heldoutGuardrailFailures?.length ?? 0) > 0) {
+    return `Held-out synthetic rail regressed or fell below floor: ${delta.heldoutGuardrailFailures?.join(', ')}`;
   }
   return 'Candidate did not improve category passes or weighted score.';
 }

@@ -13,22 +13,27 @@ import { LoopRunner } from '../packages/kb-autoresearch/src/loop.js';
 import { AgentConfigurationError, PiAgentAdapter, parsePiJsonOutput } from '../packages/kb-autoresearch/src/pi-adapter.js';
 import { buildAutoresearchBriefing, buildAutoresearchPrompt } from '../packages/kb-autoresearch/src/prompt.js';
 import { ExperimentRecorder } from '../packages/kb-autoresearch/src/recorder.js';
-import { compareScores, compareScreening, buildCandidateScore, buildScreeningSummary } from '../packages/kb-autoresearch/src/scorer.js';
+import { compareScores, compareScreening, compareScreeningWithExternal, buildCandidateScore, buildScreeningSummary } from '../packages/kb-autoresearch/src/scorer.js';
 import { CandidateWorkspaceManager } from '../packages/kb-autoresearch/src/workspace.js';
 import { computeBaselineCacheKey } from '../packages/kb-autoresearch/src/cache.js';
 import { buildEvaluationCommands, buildPromotionCommands, buildScreeningCommands } from '../packages/kb-autoresearch/src/evaluator.js';
 import type { AgentAdapter, AgentRunOptions, BenchmarkSnapshot, CandidateMutationResult } from '../packages/kb-autoresearch/src/types.js';
 import type { EvalCategoryResult, EvalRunResult, EvalScorecard } from '../eval/runner/types.js';
 
+const KB_SERVICE_PATH = 'packages/kb-core/src/service.ts';
+const KB_RELATIONS_PATH = 'packages/kb-core/src/relations.ts';
+const KB_RULES_PATH = 'packages/kb-core/src/relation-rules.json';
+const KB_AUTORESEARCH_ROOT = 'packages/kb-autoresearch/src';
+
 test('validateCandidateDiff enforces allowlist and diff size', () => {
   assert.equal(
     validateCandidateDiff(
       {
-        changedFiles: ['src/lib/kb/service.ts'],
+        changedFiles: [KB_SERVICE_PATH],
         unifiedDiffLines: 10,
         diff: ''
       },
-      ['src/lib/kb/service.ts'],
+      [KB_SERVICE_PATH],
       3,
       100
     ).ok,
@@ -42,7 +47,7 @@ test('validateCandidateDiff enforces allowlist and diff size', () => {
         unifiedDiffLines: 10,
         diff: ''
       },
-      ['src/lib/kb/service.ts'],
+      [KB_SERVICE_PATH],
       3,
       100
     ).reason ?? '',
@@ -76,6 +81,20 @@ test('compareScreening promotes only admin-world dev improvements', () => {
   assert.equal(improved.improved, true);
   assert.equal(improved.weightedDelta > 0, true);
   assert.equal(flat.improved, false);
+});
+
+test('compareScreeningWithExternal rejects upstream wins that regress the synthetic heldout rail', () => {
+  const previous = buildCandidateScore(makeSnapshot({ weightedHint: 1, falseCertaintyRate: 0 }));
+  const delta = compareScreeningWithExternal(
+    previous,
+    makeRunResult(2, 'product-core'),
+    makeUpstreamGbrainResult(2),
+    makeHeldoutGbrainResult(0)
+  );
+
+  assert.equal(delta.gbrainImproved, true);
+  assert.equal(delta.heldoutWeightedDelta! < 0, true);
+  assert.equal(delta.improved, false);
 });
 
 test('screening summary prefers higher admin-world precision and penalizes ranking noise', () => {
@@ -136,7 +155,7 @@ test('parsePiJsonOutput captures assistant-level context overflow errors', () =>
 test('buildAutoresearchPrompt points the agent at a bounded briefing instead of growing artifacts', () => {
   const prompt = buildAutoresearchPrompt('base prompt', {
     iteration: 12,
-    allowlist: ['src/lib/kb/service.ts'],
+    allowlist: [KB_SERVICE_PATH],
     kbRuntime: {
       tenantId: 'acme',
       backend: 'cloudflare',
@@ -160,7 +179,7 @@ test('buildAutoresearchPrompt points the agent at a bounded briefing instead of 
         inspectCommand: 'tsx ../../../scripts/kb-autoresearch-inspect.ts'
       },
       recentDecisions: [
-        'iteration 10 accepted src/lib/kb/service.ts (+165.000 dev, +2.500 holdout)',
+        `iteration 10 accepted ${KB_SERVICE_PATH} (+165.000 dev, +2.500 holdout)`,
         'iteration 11 rejected: Protected metrics regressed: falseCertaintyRate'
       ]
     }
@@ -181,7 +200,7 @@ test('buildAutoresearchPrompt points the agent at a bounded briefing instead of 
 test('buildAutoresearchPrompt diagnosis mode forbids edits and edit mode applies diagnosis', () => {
   const context = {
     iteration: 12,
-    allowlist: ['src/lib/kb/service.ts'],
+    allowlist: [KB_SERVICE_PATH],
     kbRuntime: {
       tenantId: 'acme',
       backend: 'file',
@@ -221,7 +240,7 @@ test('buildAutoresearchPrompt diagnosis mode forbids edits and edit mode applies
 test('buildAutoresearchBriefing includes stall diagnosis when the loop is stuck', () => {
   const briefing = buildAutoresearchBriefing({
     iteration: 5,
-    allowlist: ['src/lib/kb/service.ts'],
+    allowlist: [KB_SERVICE_PATH],
     kbRuntime: {
       tenantId: 'acme',
       backend: 'r2-mirror',
@@ -248,7 +267,7 @@ test('buildAutoresearchBriefing includes stall diagnosis when the loop is stuck'
         consecutiveFailures: 3,
         diagnosis: [
           'Three consecutive attempts failed without changing the guardrail set.',
-          'Recent edits clustered in src/lib/kb/relations.ts.'
+          `Recent edits clustered in ${KB_RELATIONS_PATH}.`
         ]
       }
     }
@@ -265,12 +284,16 @@ test('buildEvaluationCommands uses KB-only tests instead of full npm test', () =
   const promotion = buildPromotionCommands('/tmp/fixtures');
   const commands = buildEvaluationCommands('/tmp/fixtures');
 
-  assert.equal(screening[0]?.command, 'npm');
-  assert.deepEqual(screening[0]?.args, ['run', 'typecheck']);
-  assert.match([screening[1]?.command, ...(screening[1]?.args ?? [])].join(' '), /tests\/kb\.test\.ts/);
+  assert.equal(screening[0]?.command, './node_modules/.bin/tsc');
+  assert.match((screening[0]?.args ?? []).join(' '), /packages\/kb-core\/src\/service\.ts/);
   assert.match([screening[1]?.command, ...(screening[1]?.args ?? [])].join(' '), /tests\/kb-benchmark\.test\.ts/);
   assert.match([screening[1]?.command, ...(screening[1]?.args ?? [])].join(' '), /tests\/kb-autoresearch\.test\.ts/);
   assert.doesNotMatch([screening[1]?.command, ...(screening[1]?.args ?? [])].join(' '), /npm test/);
+  assert.match([screening[3]?.command, ...(screening[3]?.args ?? [])].join(' '), /run-gbrain-evals-upstream\.ts/);
+  assert.match([screening[4]?.command, ...(screening[4]?.args ?? [])].join(' '), /run-gbrain-evals-kb-adapter\.ts/);
+  assert.equal(screening[4]?.env?.KB_GBRAIN_QUERY_SET, 'canonical');
+  assert.match([screening[5]?.command, ...(screening[5]?.args ?? [])].join(' '), /run-gbrain-evals-kb-adapter\.ts/);
+  assert.equal(screening[5]?.env?.KB_GBRAIN_QUERY_SET, 'synthetic');
   assert.equal(screening.some((entry) => entry.args.includes('repo-docs')), false);
   assert.equal(promotion.some((entry) => entry.args.includes('repo-docs')), false);
   assert.deepEqual(commands, [...screening, ...promotion]);
@@ -292,9 +315,18 @@ test('pi backend defaults point to a direct local binary and codex subscription 
     assert.match(config.agentCommand ?? '', /node_modules\/\.bin\/pi$/);
     assert.equal(config.agentProvider, 'openai-codex');
     assert.equal(config.model, 'gpt-5.3-codex-spark');
-    assert.deepEqual(config.benchmarkPolicy.screening, ['admin-world-v3 dev']);
-    assert.deepEqual(config.benchmarkPolicy.acceptance, ['admin-world-v3 holdout']);
-    assert.deepEqual(config.benchmarkPolicy.guardrails, ['core-six dev', 'core-six holdout', 'gbrain-world:github-benchmark']);
+    assert.deepEqual(config.benchmarkPolicy.screening, [
+      'admin-world-v3 dev',
+      'gbrain-evals upstream gold',
+      'gbrain-evals adapter canonical diagnostic',
+      'gbrain-evals synthetic heldout diagnostic'
+    ]);
+    assert.deepEqual(config.benchmarkPolicy.acceptance, [
+      'admin-world-v3 holdout',
+      'gbrain-evals upstream gold',
+      'gbrain-evals synthetic heldout no-regression'
+    ]);
+    assert.deepEqual(config.benchmarkPolicy.guardrails, ['core-six dev', 'core-six holdout']);
     assert.deepEqual(config.benchmarkPolicy.skippedFromLoop, ['repo-docs dev', 'repo-docs holdout']);
   } finally {
     rmSync(repoRoot, { force: true, recursive: true });
@@ -305,7 +337,7 @@ test('computeBaselineCacheKey changes when benchmark inputs change', () => {
   const repoRoot = createFixtureRepo();
   try {
     const first = computeBaselineCacheKey(repoRoot, 'abc123');
-    writeFileSync(path.join(repoRoot, 'src/lib/kb-autoresearch/scorer.ts'), 'changed\n', 'utf8');
+    writeFileSync(path.join(repoRoot, KB_AUTORESEARCH_ROOT, 'scorer.ts'), 'changed\n', 'utf8');
     const second = computeBaselineCacheKey(repoRoot, 'abc123');
     assert.notEqual(first, second);
   } finally {
@@ -329,7 +361,7 @@ test('computeBaselineCacheKey changes when KB logic changes', () => {
   const repoRoot = createFixtureRepo();
   try {
     const first = computeBaselineCacheKey(repoRoot, 'abc123');
-    writeFileSync(path.join(repoRoot, 'src/lib/kb/service.ts'), 'export const kbHeuristic = "changed";\n', 'utf8');
+    writeFileSync(path.join(repoRoot, KB_SERVICE_PATH), 'export const kbHeuristic = "changed";\n', 'utf8');
     const second = computeBaselineCacheKey(repoRoot, 'abc123');
     assert.notEqual(first, second);
   } finally {
@@ -400,8 +432,8 @@ test('loop repairs a baseline typecheck failure before starting iterations', asy
   const repoRoot = createFixtureRepo();
   const runner = new ShellCommandRunner();
   const workspaceManager = new CandidateWorkspaceManager(runner, repoRoot);
-  appendFileSync(path.join(repoRoot, 'src/lib/kb/service.ts'), '\nBROKEN_BASELINE\n', 'utf8');
-  spawnSync('git', ['add', 'src/lib/kb/service.ts'], { cwd: repoRoot });
+  appendFileSync(path.join(repoRoot, KB_SERVICE_PATH), '\nBROKEN_BASELINE\n', 'utf8');
+  spawnSync('git', ['add', KB_SERVICE_PATH], { cwd: repoRoot });
   spawnSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-m', 'break baseline'], { cwd: repoRoot });
   const config = buildRunConfig(repoRoot, {
     iterations: 1,
@@ -476,7 +508,7 @@ test('research branch snapshots dirty tracked and untracked workspace state', as
   const repoRoot = createFixtureRepo();
   const runner = new ShellCommandRunner();
   const manager = new CandidateWorkspaceManager(runner, repoRoot);
-  const trackedPath = path.join(repoRoot, 'src/lib/kb/service.ts');
+  const trackedPath = path.join(repoRoot, KB_SERVICE_PATH);
   const untrackedPath = path.join(repoRoot, 'src/lib/chat/snapshot-helper.ts');
   writeFileSync(trackedPath, 'export const kbHeuristic = "dirty";\n', 'utf8');
   mkdirSync(path.dirname(untrackedPath), { recursive: true });
@@ -485,7 +517,7 @@ test('research branch snapshots dirty tracked and untracked workspace state', as
   try {
     await manager.ensureResearchBranch('kb-test');
     const snapshot = await manager.createCandidateWorktree(path.join(repoRoot, '.tmp-worktrees'), 'kb-test', 1);
-    assert.match(readFileSync(path.join(snapshot.worktreePath, 'src/lib/kb/service.ts'), 'utf8'), /dirty/);
+    assert.match(readFileSync(path.join(snapshot.worktreePath, KB_SERVICE_PATH), 'utf8'), /dirty/);
     assert.match(readFileSync(path.join(snapshot.worktreePath, 'src/lib/chat/snapshot-helper.ts'), 'utf8'), /helper = true/);
     await manager.removeWorktree(snapshot.worktreePath);
   } finally {
@@ -668,6 +700,53 @@ test('loop records distinct prompt hashes when iteration context changes', async
   }
 });
 
+test('loop still runs bounded fresh iterations when maxIteration is behind the shared ledger', async () => {
+  const repoRoot = createFixtureRepo();
+  const config = buildRunConfig(repoRoot, {
+    iterations: 2,
+    maxIteration: 2,
+    timeBudgetMin: 5,
+    benchmarkSubset: 'all',
+    dryRun: false,
+    maxChangedFiles: 3,
+    maxUnifiedDiffLines: 200
+  });
+  const runner = new ShellCommandRunner();
+  const recorder = new ExperimentRecorder(config);
+  recorder.append({
+    runId: 'older-run',
+    iteration: 7,
+    parentCommit: 'seed-parent',
+    branchName: 'kb-autoresearch/older-run',
+    changedFiles: [KB_SERVICE_PATH],
+    unifiedDiffLines: 12,
+    decision: 'rejected',
+    rejectReason: 'seed prior iteration',
+    promptSha256: 'seed-prompt',
+    startedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString()
+  });
+  const loop = new LoopRunner(
+    repoRoot,
+    new CandidateWorkspaceManager(runner, repoRoot),
+    new FakeEvaluator(),
+    new ThrowingAgent(),
+    recorder
+  );
+
+  try {
+    await loop.run(config);
+    const ledger = recorder.readLedger().filter((entry) => entry.runId === config.runId);
+    assert.equal(ledger.length, 2);
+    assert.deepEqual(
+      ledger.map((entry) => entry.iteration),
+      [8, 9]
+    );
+  } finally {
+    rmSync(repoRoot, { force: true, recursive: true });
+  }
+});
+
 test('stall diagnosis suggests diversified KB files after repeated screening rejects cluster in one file', async () => {
   const repoRoot = createFixtureRepo();
   const config = buildRunConfig(repoRoot, {
@@ -684,7 +763,7 @@ test('stall diagnosis suggests diversified KB files after repeated screening rej
     repoRoot,
     new CandidateWorkspaceManager(runner, repoRoot),
     new ScreeningRejectEvaluator(),
-    new AppendTokenAgent('// SCREENING_REJECT', 'src/lib/kb/service.ts'),
+    new AppendTokenAgent('// SCREENING_REJECT', KB_SERVICE_PATH),
     recorder
   );
 
@@ -692,8 +771,8 @@ test('stall diagnosis suggests diversified KB files after repeated screening rej
     await loop.run(config);
     const briefing = readFileSync(config.paths.currentBriefingPath, 'utf8');
     assert.match(briefing, /Diversify next attempts toward:/);
-    assert.match(briefing, /src\/lib\/kb\/service\.ts/);
-    assert.match(briefing, /src\/lib\/kb\/relations\.ts/);
+    assert.match(briefing, /packages\/kb-core\/src\/service\.ts/);
+    assert.match(briefing, /packages\/kb-core\/src\/relations\.ts/);
   } finally {
     rmSync(repoRoot, { force: true, recursive: true });
   }
@@ -787,7 +866,7 @@ test('pi adapter splits diagnosis and edit, then retries the edit with a compact
       promptPath,
       structuredContext: {
         iteration: 1,
-        allowlist: ['src/lib/kb/service.ts'],
+        allowlist: [KB_SERVICE_PATH],
         kbRuntime: {
           tenantId: 'acme',
           backend: 'cloudflare',
@@ -905,7 +984,7 @@ test('pi adapter falls back to autoresearch preflight auth when home auth is emp
       promptPath,
       structuredContext: {
         iteration: 1,
-        allowlist: ['src/lib/kb/service.ts'],
+        allowlist: [KB_SERVICE_PATH],
         kbRuntime: {
           tenantId: 'acme',
           backend: 'file',
@@ -987,18 +1066,23 @@ test('loop resume continues from next iteration and preserves best branch state'
 
 function createFixtureRepo(): string {
   const root = mkdtempSync(path.join(tmpdir(), 'kb-autoresearch-'));
-  mkdirSync(path.join(root, 'src/lib/kb'), { recursive: true });
-  mkdirSync(path.join(root, 'src/lib/kb-autoresearch'), { recursive: true });
+  mkdirSync(path.join(root, 'packages/kb-core/src'), { recursive: true });
+  mkdirSync(path.join(root, 'packages/kb-autoresearch/src'), { recursive: true });
   mkdirSync(path.join(root, 'eval/runner'), { recursive: true });
   mkdirSync(path.join(root, 'eval/autoresearch'), { recursive: true });
   mkdirSync(path.join(root, 'eval/data'), { recursive: true });
-  writeFileSync(path.join(root, 'src/lib/kb/service.ts'), 'export const kbHeuristic = "base";\n', 'utf8');
-  writeFileSync(path.join(root, 'src/lib/kb-autoresearch/scorer.ts'), 'score\n', 'utf8');
-  writeFileSync(path.join(root, 'src/lib/kb-autoresearch/evaluator.ts'), 'eval\n', 'utf8');
-  writeFileSync(path.join(root, 'src/lib/kb-autoresearch/prompt.ts'), 'prompt\n', 'utf8');
-  writeFileSync(path.join(root, 'src/lib/kb-autoresearch/types.ts'), 'types\n', 'utf8');
-  writeFileSync(path.join(root, 'src/lib/kb-autoresearch/loop.ts'), 'loop\n', 'utf8');
+  mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  writeFileSync(path.join(root, KB_SERVICE_PATH), 'export const kbHeuristic = "base";\n', 'utf8');
+  writeFileSync(path.join(root, KB_RELATIONS_PATH), 'export const relationHeuristic = "base";\n', 'utf8');
+  writeFileSync(path.join(root, KB_RULES_PATH), '{}\n', 'utf8');
+  writeFileSync(path.join(root, KB_AUTORESEARCH_ROOT, 'scorer.ts'), 'score\n', 'utf8');
+  writeFileSync(path.join(root, KB_AUTORESEARCH_ROOT, 'evaluator.ts'), 'eval\n', 'utf8');
+  writeFileSync(path.join(root, KB_AUTORESEARCH_ROOT, 'prompt.ts'), 'prompt\n', 'utf8');
+  writeFileSync(path.join(root, KB_AUTORESEARCH_ROOT, 'types.ts'), 'types\n', 'utf8');
+  writeFileSync(path.join(root, KB_AUTORESEARCH_ROOT, 'loop.ts'), 'loop\n', 'utf8');
+  writeFileSync(path.join(root, KB_AUTORESEARCH_ROOT, 'cache.ts'), 'cache\n', 'utf8');
   writeFileSync(path.join(root, 'eval/runner/kb-eval.ts'), 'runner\n', 'utf8');
+  writeFileSync(path.join(root, 'scripts/kb-autoresearch-inspect.ts'), 'inspect\n', 'utf8');
   writeFileSync(path.join(root, 'package-lock.json'), '{}\n', 'utf8');
   writeFileSync(path.join(root, 'package.json'), '{}\n', 'utf8');
   writeFileSync(path.join(root, 'tsconfig.json'), '{}\n', 'utf8');
@@ -1013,7 +1097,7 @@ function createFixtureRepo(): string {
 }
 
 class AppendTokenAgent implements AgentAdapter {
-  constructor(private readonly token: string, private readonly target = 'src/lib/kb/service.ts') {}
+  constructor(private readonly token: string, private readonly target = KB_SERVICE_PATH) {}
   async runCandidate(options: AgentRunOptions): Promise<CandidateMutationResult> {
     appendFileSync(path.join(options.cwd, this.target), `\n${this.token}\n`, 'utf8');
     return { finalMessage: this.token };
@@ -1047,7 +1131,7 @@ class TypecheckRepairAgent implements AgentAdapter {
   async runCandidate(options: AgentRunOptions): Promise<CandidateMutationResult> {
     const prompt = readFileSync(options.promptPath, 'utf8');
     this.prompts.push(prompt);
-    const targetPath = path.join(options.cwd, 'src/lib/kb/service.ts');
+    const targetPath = path.join(options.cwd, KB_SERVICE_PATH);
     if (this.prompts.length === 1) {
       appendFileSync(targetPath, '\nTYPEFAIL\n', 'utf8');
       return { finalMessage: 'introduced a candidate heuristic change' };
@@ -1064,7 +1148,7 @@ class BaselineTypecheckRepairAgent implements AgentAdapter {
   async runCandidate(options: AgentRunOptions): Promise<CandidateMutationResult> {
     const prompt = readFileSync(options.promptPath, 'utf8');
     this.prompts.push(prompt);
-    const targetPath = path.join(options.cwd, 'src/lib/kb/service.ts');
+    const targetPath = path.join(options.cwd, KB_SERVICE_PATH);
     if (prompt.includes('Typecheck repair request')) {
       const repaired = readFileSync(targetPath, 'utf8').replace('\nBROKEN_BASELINE\n', '\nFIXED_BASELINE\n');
       writeFileSync(targetPath, repaired, 'utf8');
@@ -1076,8 +1160,8 @@ class BaselineTypecheckRepairAgent implements AgentAdapter {
 }
 
 class FakeEvaluator {
-  async evaluateBaseline(worktreePath: string): Promise<{ ok: boolean; typecheckOk: boolean; testsOk: boolean; stageReached: 'full'; score: ReturnType<typeof buildCandidateScore>; screening: ReturnType<typeof buildScreeningSummary>; adminWorldDev: EvalRunResult; commandOutputs: [] }> {
-    const source = readFileSync(path.join(worktreePath, 'src/lib/kb/service.ts'), 'utf8');
+  async evaluateBaseline(worktreePath: string): Promise<{ ok: boolean; typecheckOk: boolean; testsOk: boolean; stageReached: 'full'; score: ReturnType<typeof buildCandidateScore>; screening: ReturnType<typeof buildScreeningSummary>; adminWorldDev: EvalRunResult; gbrainWorld: EvalRunResult; gbrainHeldout: EvalRunResult; gbrainUpstream: ReturnType<typeof makeUpstreamGbrainResult>; commandOutputs: [] }> {
+    const source = readFileSync(path.join(worktreePath, KB_SERVICE_PATH), 'utf8');
     const falseCertaintyRate = source.includes('REGRESS_FALSE_CERTAINTY') ? 0.5 : 0;
     const improved = source.includes('IMPROVE');
     const snapshot = makeSnapshot({ weightedHint: improved ? 2 : 1, falseCertaintyRate });
@@ -1089,12 +1173,15 @@ class FakeEvaluator {
       score: buildCandidateScore(snapshot),
       screening: buildScreeningSummary(snapshot.adminWorldDev),
       adminWorldDev: snapshot.adminWorldDev,
+      gbrainWorld: snapshot.gbrainWorld,
+      gbrainHeldout: snapshot.gbrainHeldout,
+      gbrainUpstream: snapshot.gbrainUpstream,
       commandOutputs: []
     };
   }
 
-  async evaluateScreening(worktreePath: string): Promise<{ ok: boolean; typecheckOk: boolean; testsOk: boolean; stageReached: 'screen'; screening: ReturnType<typeof buildScreeningSummary>; adminWorldDev: EvalRunResult; commandOutputs: [] }> {
-    const source = readFileSync(path.join(worktreePath, 'src/lib/kb/service.ts'), 'utf8');
+  async evaluateScreening(worktreePath: string): Promise<{ ok: boolean; typecheckOk: boolean; testsOk: boolean; stageReached: 'screen'; screening: ReturnType<typeof buildScreeningSummary>; adminWorldDev: EvalRunResult; gbrainWorld: EvalRunResult; gbrainHeldout: EvalRunResult; gbrainUpstream: ReturnType<typeof makeUpstreamGbrainResult>; commandOutputs: [] }> {
+    const source = readFileSync(path.join(worktreePath, KB_SERVICE_PATH), 'utf8');
     const falseCertaintyRate = source.includes('REGRESS_FALSE_CERTAINTY') ? 0.5 : 0;
     const improved = source.includes('IMPROVE');
     const snapshot = makeSnapshot({ weightedHint: improved ? 2 : 1, falseCertaintyRate });
@@ -1105,12 +1192,15 @@ class FakeEvaluator {
       stageReached: 'screen',
       screening: buildScreeningSummary(snapshot.adminWorldDev),
       adminWorldDev: snapshot.adminWorldDev,
+      gbrainWorld: snapshot.gbrainWorld,
+      gbrainHeldout: snapshot.gbrainHeldout,
+      gbrainUpstream: snapshot.gbrainUpstream,
       commandOutputs: []
     };
   }
 
-  async evaluatePromoted(worktreePath: string): Promise<{ ok: boolean; typecheckOk: boolean; testsOk: boolean; stageReached: 'full'; score: ReturnType<typeof buildCandidateScore>; screening: ReturnType<typeof buildScreeningSummary>; adminWorldDev: EvalRunResult; commandOutputs: [] }> {
-    const source = readFileSync(path.join(worktreePath, 'src/lib/kb/service.ts'), 'utf8');
+  async evaluatePromoted(worktreePath: string): Promise<{ ok: boolean; typecheckOk: boolean; testsOk: boolean; stageReached: 'full'; score: ReturnType<typeof buildCandidateScore>; screening: ReturnType<typeof buildScreeningSummary>; adminWorldDev: EvalRunResult; gbrainWorld: EvalRunResult; gbrainHeldout: EvalRunResult; gbrainUpstream: ReturnType<typeof makeUpstreamGbrainResult>; commandOutputs: [] }> {
+    const source = readFileSync(path.join(worktreePath, KB_SERVICE_PATH), 'utf8');
     const falseCertaintyRate = source.includes('REGRESS_FALSE_CERTAINTY') ? 0.5 : 0;
     const improved = source.includes('IMPROVE');
     const snapshot = makeSnapshot({ weightedHint: improved ? 2 : 1, falseCertaintyRate });
@@ -1122,6 +1212,9 @@ class FakeEvaluator {
       score: buildCandidateScore(snapshot),
       screening: buildScreeningSummary(snapshot.adminWorldDev),
       adminWorldDev: snapshot.adminWorldDev,
+      gbrainWorld: snapshot.gbrainWorld,
+      gbrainHeldout: snapshot.gbrainHeldout,
+      gbrainUpstream: snapshot.gbrainUpstream,
       commandOutputs: []
     };
   }
@@ -1134,7 +1227,7 @@ class BaselineTypecheckRepairEvaluator extends FakeEvaluator {
 
   override async evaluateBaseline(worktreePath: string) {
     this.baselineAttempts += 1;
-    const source = readFileSync(path.join(worktreePath, 'src/lib/kb/service.ts'), 'utf8');
+    const source = readFileSync(path.join(worktreePath, KB_SERVICE_PATH), 'utf8');
     if (source.includes('BROKEN_BASELINE')) {
       return {
         ok: false,
@@ -1147,7 +1240,7 @@ class BaselineTypecheckRepairEvaluator extends FakeEvaluator {
             command: 'npm run typecheck',
             exitCode: 2,
             stdout: '',
-            stderr: "src/lib/kb/service.ts:3:7 - error TS2304: Cannot find name 'BROKEN_BASELINE'."
+            stderr: `packages/kb-core/src/service.ts:3:7 - error TS2304: Cannot find name 'BROKEN_BASELINE'.`
           }
         ]
       };
@@ -1169,7 +1262,7 @@ class OutsideAllowlistBaselineTypecheckEvaluator extends FakeEvaluator {
           command: 'npm run typecheck',
           exitCode: 2,
           stdout: '',
-          stderr: "src/lib/workspace.ts:31:5 - error TS2322: Property 'flushKnowledgeBase' is missing."
+            stderr: "src/lib/workspace.ts:31:5 - error TS2322: Property 'flushKnowledgeBase' is missing."
         }
       ]
     };
@@ -1178,7 +1271,7 @@ class OutsideAllowlistBaselineTypecheckEvaluator extends FakeEvaluator {
 
 class TypecheckRepairEvaluator extends FakeEvaluator {
   override async evaluateScreening(worktreePath: string) {
-    const source = readFileSync(path.join(worktreePath, 'src/lib/kb/service.ts'), 'utf8');
+    const source = readFileSync(path.join(worktreePath, KB_SERVICE_PATH), 'utf8');
     if (source.includes('TYPEFAIL')) {
       return {
         ok: false,
@@ -1191,7 +1284,7 @@ class TypecheckRepairEvaluator extends FakeEvaluator {
             command: 'npm run typecheck',
             exitCode: 2,
             stdout: '',
-            stderr: 'src/lib/kb/service.ts:3:1 - error TS1109: Expression expected.'
+            stderr: 'packages/kb-core/src/service.ts:3:1 - error TS1109: Expression expected.'
           }
         ]
       };
@@ -1202,7 +1295,7 @@ class TypecheckRepairEvaluator extends FakeEvaluator {
 
 class ScreeningRejectEvaluator extends FakeEvaluator {
   override async evaluateScreening(worktreePath: string) {
-    const source = readFileSync(path.join(worktreePath, 'src/lib/kb/service.ts'), 'utf8');
+    const source = readFileSync(path.join(worktreePath, KB_SERVICE_PATH), 'utf8');
     const mutated = source.includes('SCREENING_REJECT');
     return {
       ok: true,
@@ -1225,6 +1318,8 @@ class ScreeningRejectEvaluator extends FakeEvaluator {
           historicalOverCurrentRate: mutated ? 0.24 : 0.2
         }
       }),
+      gbrainHeldout: makeHeldoutGbrainResult(mutated ? 0 : 1),
+      gbrainUpstream: makeUpstreamGbrainResult(1),
       commandOutputs: []
     };
   }
@@ -1268,8 +1363,40 @@ function makeSnapshot(input: { weightedHint: number; falseCertaintyRate: number 
     holdoutScorecard: makeScorecard('holdout', categories),
     adminWorldDev: makeRunResult(input.weightedHint, 'product-core'),
     adminWorldHoldout: makeRunResult(input.weightedHint, 'product-core'),
-    gbrainWorld: makeRunResult(input.weightedHint, 'external-reference')
+    gbrainWorld: makeRunResult(input.weightedHint, 'external-reference'),
+    gbrainHeldout: makeHeldoutGbrainResult(input.weightedHint),
+    gbrainUpstream: makeUpstreamGbrainResult(input.weightedHint)
   };
+}
+
+function makeUpstreamGbrainResult(weightedHint: number) {
+  return {
+    adapter: 'kb-upstream',
+    benchmark: 'gbrain-evals-upstream' as const,
+    queries: 145,
+    corpus: 240,
+    runs: 5,
+    precisionAt5: weightedHint > 1 ? 0.31 : 0.3,
+    recallAt5: weightedHint > 1 ? 0.96 : 0.95,
+    correctInTopK: weightedHint > 1 ? 29 : 28,
+    totalExpected: 261,
+    stddevPrecisionAt5: 0,
+    stddevRecallAt5: 0,
+    publishedReference: { precisionAt5: 0.491, recallAt5: 0.979 },
+    deltaVsPublished: {
+      precisionAt5: (weightedHint > 1 ? 0.31 : 0.3) - 0.491,
+      recallAt5: (weightedHint > 1 ? 0.96 : 0.95) - 0.979
+    }
+  };
+}
+
+function makeHeldoutGbrainResult(weightedHint: number) {
+  return makeRunResult(weightedHint > 0 ? 2 : 1, 'external-reference', {
+    precisionAtK: weightedHint > 1 ? 0.24 : weightedHint > 0 ? 0.22 : 0.18,
+    recallAtK: weightedHint > 1 ? 0.56 : weightedHint > 0 ? 0.52 : 0.44,
+    mrrAtK: weightedHint > 1 ? 0.5 : weightedHint > 0 ? 0.46 : 0.38,
+    ndcgAtK: weightedHint > 1 ? 0.48 : weightedHint > 0 ? 0.45 : 0.34
+  });
 }
 
 function makeScorecard(corpus: string, categories: EvalCategoryResult[]): EvalScorecard {

@@ -20,13 +20,13 @@ export function buildRunConfig(repoRoot: string, options: KbAutoresearchCliOptio
     runId,
     createdAt: new Date().toISOString(),
     baseBranch: branchName,
-    allowlist: ['src/lib/kb/service.ts', 'src/lib/kb/relations.ts', 'src/lib/kb/relation-rules.json'],
+    allowlist: ['packages/kb-core/src/service.ts', 'packages/kb-core/src/relations.ts', 'packages/kb-core/src/relation-rules.json'],
     kbRuntime: resolveKbRuntimeFromEnv(process.env),
     protectedMetrics: ['falseCertaintyRate', 'overclaimRate', 'falseMergeRate'],
     benchmarkPolicy: {
-      screening: ['admin-world-v3 dev'],
-      acceptance: ['admin-world-v3 holdout'],
-      guardrails: ['core-six dev', 'core-six holdout', 'gbrain-world:github-benchmark'],
+      screening: ['admin-world-v3 dev', 'gbrain-evals upstream gold', 'gbrain-evals adapter canonical diagnostic', 'gbrain-evals synthetic heldout diagnostic'],
+      acceptance: ['admin-world-v3 holdout', 'gbrain-evals upstream gold', 'gbrain-evals synthetic heldout no-regression'],
+      guardrails: ['core-six dev', 'core-six holdout'],
       skippedFromLoop: ['repo-docs dev', 'repo-docs holdout']
     },
     paths: {

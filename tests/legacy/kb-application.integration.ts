@@ -814,6 +814,47 @@ test('kb page-role priors infer relation links from person pages when local phra
   }
 });
 
+test('kb page-role priors use configured meeting cues for structured titles', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'kb-page-prior-meeting-'));
+  const env = {
+    KB_ROOT_DIR: root,
+    WORKSPACE_TENANT_ID: 'workspace-template'
+  };
+  const service = createKnowledgeBaseService(env, 'workspace-template', resolveProductConfig(env).knowledgeBase);
+
+  try {
+    await service.createEntity({
+      id: 'person-rosa-jackson',
+      kind: 'person',
+      title: 'Rosa Jackson'
+    });
+    await service.createEntity({
+      id: 'person-david-wang',
+      kind: 'person',
+      title: 'David Wang'
+    });
+    await service.createEntity({
+      id: 'meeting-one-on-one',
+      kind: 'meeting',
+      title: '1:1 Rosa Jackson + David Wang',
+      currentTruth: 'Rosa Jackson walked through the rollout plan and David Wang raised concerns about sequencing.'
+    });
+
+    const result = await service.queryRelations({
+      query: 'Who attended 1:1 Rosa Jackson + David Wang?',
+      limit: 5,
+      mode: 'graph-first-hybrid'
+    });
+
+    assert.deepEqual(
+      result.results.slice(0, 2).map((entry) => entry.id).sort(),
+      ['person-david-wang', 'person-rosa-jackson']
+    );
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
 test('bm25 lexical prefers an exact title match over repeated long-body mentions', () => {
   const index = buildBm25Index({
     entities: [

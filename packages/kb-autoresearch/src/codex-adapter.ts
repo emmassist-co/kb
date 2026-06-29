@@ -1,7 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AgentAdapter, AgentRunOptions, CandidateMutationResult, CommandRunner } from './types.js';
-import { buildAutoresearchPrompt, promptSha256 } from './prompt.js';
+import { buildAutoresearchPrompt } from './prompt.js';
+
+const CODEX_MUTATION_TIMEOUT_MS = 5 * 60_000;
 
 export class CodexExecAgentAdapter implements AgentAdapter {
   constructor(
@@ -38,7 +40,8 @@ export class CodexExecAgentAdapter implements AgentAdapter {
     const startedAt = Date.now();
     const result = await this.runner.run('codex', args, {
       cwd: options.cwd,
-      stdinText: prompt
+      stdinText: prompt,
+      timeoutMs: CODEX_MUTATION_TIMEOUT_MS
     });
     this.options.onLog?.(`[agent] finished codex exit=${result.exitCode} duration_ms=${Date.now() - startedAt}`);
     writeFileSync(eventsPath, result.stdout, 'utf8');
@@ -46,7 +49,13 @@ export class CodexExecAgentAdapter implements AgentAdapter {
       throw new Error(result.stderr.trim() || 'codex exec failed.');
     }
 
-    const finalMessage = readFileSync(outputPath, 'utf8');
+    let finalMessage = '';
+    try {
+      finalMessage = readFileSync(outputPath, 'utf8');
+    } catch {}
+    if (!finalMessage.trim()) {
+      throw new Error('codex exec completed without a final message.');
+    }
     const sessionId = parseSessionId(result.stdout);
     return {
       finalMessage,

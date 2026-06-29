@@ -25,6 +25,15 @@ export function buildAutoresearchPrompt(
     '### Current target',
     `Failed categories to focus on: ${context.focus.targetCategories.join(', ') || 'unknown'}`,
     `Representative failing cases: ${context.focus.targetCases.join(', ') || 'unknown'}`,
+    ...compactList(context.focus.failureBuckets, compact ? 2 : 4).map((line, index) =>
+      `${index === 0 ? 'Failure buckets:' : '                 '} ${line}`
+    ),
+    ...compactList(context.focus.querySamples, compact ? 2 : 4).map((line, index) =>
+      `${index === 0 ? 'Query samples:' : '             '} ${line}`
+    ),
+    ...compactList(context.focus.externalTargets, compact ? 2 : 4).map((line, index) =>
+      `${index === 0 ? 'External targets:' : '                '} ${line}`
+    ),
     '',
     '### Current best summary',
     `Dev passes=${context.focus.currentBest.categoryPasses}, Holdout passes=${context.focus.currentBest.holdoutCategoryPasses}, Dev score=${context.focus.currentBest.weightedScore.toFixed(3)}, Holdout score=${context.focus.currentBest.holdoutWeightedScore.toFixed(3)}`,
@@ -54,6 +63,8 @@ export function buildAutoresearchPrompt(
       ? 'Do not read eval loaders, full reports, full ledgers, or broad repo files unless a KB file directly points you there.'
       : 'Do not read the full experiment ledger, full reports, or other historical benchmark artifacts unless the compact briefing is insufficient.',
     'Avoid opening giant files directly such as best-score snapshots, baseline cache blobs, package-lock.json, or full admin-world fixture JSON unless a tiny targeted command proves you need one field.',
+    'Prefer ranking and tie-break changes in service.ts over adding more extraction synonyms unless the briefing clearly shows missing relation recall.',
+    'Do not spend iterations on weekday, sync, or meeting-anchor fallback tweaks unless the sampled failures are true empty-result anchor misses.',
     ...(context.focus.stall
       ? [
           `The loop is currently stalled after ${context.focus.stall.consecutiveFailures} consecutive non-accepted attempts.`,
@@ -109,6 +120,18 @@ export function buildAutoresearchBriefing(context: AgentRunOptions['structuredCo
     `- categories: ${context.focus.targetCategories.join(', ') || 'unknown'}`,
     `- cases: ${context.focus.targetCases.join(', ') || 'unknown'}`,
     '',
+    '## Failure Buckets',
+    '',
+    ...compactList(context.focus.failureBuckets, 8).map((line) => `- ${line}`),
+    '',
+    '## Query Samples',
+    '',
+    ...compactList(context.focus.querySamples, 8).map((line) => `- ${line}`),
+    '',
+    '## External Targets',
+    '',
+    ...compactList(context.focus.externalTargets, 8).map((line) => `- ${line}`),
+    '',
     '## Current Best',
     '',
     `- dev category passes: ${context.focus.currentBest.categoryPasses}`,
@@ -132,7 +155,7 @@ export function buildAutoresearchBriefing(context: AgentRunOptions['structuredCo
   ].join('\n');
 }
 
-function compactList(values: string[], limit: number): string[] {
-  const trimmed = values.map((value) => value.trim()).filter(Boolean);
+function compactList(values: string[] | undefined, limit: number): string[] {
+  const trimmed = (values ?? []).map((value) => value.trim()).filter(Boolean);
   return trimmed.length > 0 ? trimmed.slice(0, limit) : ['none'];
 }
