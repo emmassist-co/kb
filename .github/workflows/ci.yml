@@ -8,8 +8,14 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      GBRAIN_EVALS_REPO: ${{ github.workspace }}/gbrain-evals
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: garrytan/gbrain-evals
+          path: gbrain-evals
       - uses: actions/setup-node@v4
         with:
           node-version: 22
