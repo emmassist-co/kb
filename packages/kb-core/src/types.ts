@@ -38,6 +38,15 @@ export type KnowledgeLinkEvidenceKind = 'direct' | 'timeline' | 'summary' | 'men
 export type KnowledgeLinkDirection = 'forward' | 'reverse' | 'bidirectional';
 export type KnowledgeLinkEvidenceStrength = 'explicit-ref' | 'keyword' | 'page-prior' | 'co-mention';
 export type KnowledgeLinkStatus = 'active' | 'historical';
+export type KnowledgePageFamily = 'process' | 'meeting' | 'project' | 'decision' | 'policy' | 'system' | 'team' | 'entity';
+export type KnowledgeQueryIntentMode =
+  | 'single-profile'
+  | 'entity-set'
+  | 'aggregation'
+  | 'attribute-intersection'
+  | 'background'
+  | 'relationship-depth';
+export type KnowledgeQueryTemporalFocus = 'current' | 'historical' | 'mixed';
 export type KnowledgeLinkSourceSurface =
   | 'current-truth'
   | 'timeline'
@@ -45,6 +54,61 @@ export type KnowledgeLinkSourceSurface =
   | 'source-content'
   | 'event-summary'
   | 'structured';
+
+export interface KnowledgeQueryIntent {
+  rawQuery: string;
+  relationType: string | null;
+  candidateRelationTypes: string[];
+  anchorQuery: string | null;
+  expectedKinds: KnowledgeEntityKind[];
+  attributeTerms: string[];
+  roleTerms: string[];
+  modes: KnowledgeQueryIntentMode[];
+  expectsMultiple: boolean;
+  temporalFocus: KnowledgeQueryTemporalFocus;
+}
+
+export type KnowledgeCandidatePlannerActivation =
+  | 'none'
+  | 'degraded-non-relation-set';
+
+export interface KnowledgeCandidateRetrievalPlan {
+  intent: KnowledgeQueryIntent;
+  activation: KnowledgeCandidatePlannerActivation;
+  activationReason: string[];
+  matchTokens: string[];
+  expectedKinds: KnowledgeEntityKind[];
+  anchorQuery: string | null;
+  anchorTokens: string[];
+  roleTerms: string[];
+  attributeTerms: string[];
+  sourceSuppression: number;
+  prefersConnectedAnchor: boolean;
+  requireExpectedKind: boolean;
+  requireRoleEvidence: boolean;
+  minimumAttributeMatches: number;
+  requireRelationshipDepthEvidence: boolean;
+}
+
+export interface KnowledgeEvidenceSpan {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface KnowledgePagePriorRule {
+  primaryKinds: KnowledgeEntityKind[];
+  pageFamilies?: KnowledgePageFamily[];
+  activationSurfaces?: KnowledgeLinkSourceSurface[];
+  keywords?: string[];
+  cuePatterns?: string[];
+  titlePatterns?: string[];
+  matchMode?: 'any' | 'all';
+  direction?: KnowledgeLinkDirection;
+  sourceKinds?: KnowledgeEntityKind[];
+  targetKinds?: KnowledgeEntityKind[];
+  confidence?: number;
+}
 
 export interface KnowledgeDoctorIssueDetail {
   code: string;
@@ -70,6 +134,7 @@ export interface KnowledgeLinkRule {
   confidence: number;
   explicitReferenceBoost?: number;
   priority?: number;
+  pagePriors?: KnowledgePagePriorRule[];
 }
 
 export interface KnowledgeLink {
@@ -92,6 +157,28 @@ export interface KnowledgeLink {
   originKind?: 'entity' | 'source' | 'event' | 'seed';
   originId?: string;
   ruleId?: string;
+  extractorId?: string;
+  evidenceText?: string;
+  evidenceSpan?: KnowledgeEvidenceSpan;
+}
+
+export interface KnowledgeRelationProposal {
+  type: string;
+  fromId: string;
+  toId: string;
+  sourceIds: string[];
+  confidence: number;
+  evidenceKind: KnowledgeLinkEvidenceKind;
+  evidenceStrength: KnowledgeLinkEvidenceStrength;
+  sourceSurface: KnowledgeLinkSourceSurface;
+  explicitReference: boolean;
+  originKind: 'entity' | 'source' | 'event' | 'seed';
+  originId: string;
+  ruleId: string;
+  extractorId: string;
+  createdAt?: string;
+  evidenceText: string;
+  evidenceSpan?: KnowledgeEvidenceSpan;
 }
 
 export interface KnowledgeEntityRegistryEntry {
@@ -102,7 +189,7 @@ export interface KnowledgeEntityRegistryEntry {
   handles: string[];
   externalIds: string[];
   canonicalTokens: string[];
-  pageFamily: 'process' | 'meeting' | 'project' | 'decision' | 'policy' | 'system' | 'team' | 'entity';
+  pageFamily: KnowledgePageFamily;
   updatedAt: string;
 }
 
@@ -247,6 +334,7 @@ export interface KnowledgeRelationQueryResult {
     confidence: number;
     degraded: boolean;
     candidateRelationTypes?: string[];
+    intent?: KnowledgeQueryIntent;
   };
   results: KnowledgeSearchResult[];
   traversedLinks: KnowledgeLink[];
@@ -277,6 +365,7 @@ export interface KnowledgeSearchExplanation {
     confidence: number;
     degraded: boolean;
     candidateRelationTypes?: string[];
+    intent?: KnowledgeQueryIntent;
   };
   lexical: KnowledgeSearchResult[];
   graph: KnowledgeSearchResult[];

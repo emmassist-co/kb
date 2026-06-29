@@ -1,11 +1,18 @@
 import builtInRules from './relation-rules.json' with { type: 'json' };
+import { inferPageFamily } from './page-families.js';
 import type {
   EntityDocument,
   KnowledgeEntityKind,
+  KnowledgeEvidenceSpan,
   KnowledgeLink,
   KnowledgeLinkDirection,
   KnowledgeLinkEvidenceStrength,
+  KnowledgePageFamily,
   KnowledgeLinkRule,
+  KnowledgeLinkSourceSurface,
+  KnowledgePagePriorRule,
+  KnowledgeQueryIntent,
+  KnowledgeRelationProposal,
   KnowledgeRelationQueryInput,
   KnowledgeSearchMode,
   SourceDocument
@@ -37,12 +44,23 @@ export interface RelationExtractionInput {
   primaryEntityId?: string;
 }
 
+export interface RelationExtractor {
+  id: string;
+  extract(context: RelationContext, rules: KnowledgeLinkRule[], input: RelationExtractionInput): KnowledgeRelationProposal[];
+}
+
 interface PageRolePrior {
   relationType: string;
+  pageFamilies?: KnowledgePageFamily[];
+  activationSurfaces?: KnowledgeLinkSourceSurface[];
   keywords: string[];
+  cuePatterns: RegExp[];
+  titlePatterns: RegExp[];
+  matchMode: 'any' | 'all';
   sourceKinds?: KnowledgeEntityKind[];
   targetKinds?: KnowledgeEntityKind[];
   direction?: KnowledgeLinkDirection;
+  confidence: number;
 }
 
 export interface RelationQueryClassification {
@@ -50,6 +68,7 @@ export interface RelationQueryClassification {
   anchorQuery: string | null;
   confidence: number;
   candidateRelationTypes?: string[];
+  intent?: KnowledgeQueryIntent;
 }
 
 const RELATION_QUERY_RULES: Array<{ type: string; patterns: RegExp[] }> = [
@@ -65,7 +84,7 @@ const RELATION_QUERY_RULES: Array<{ type: string; patterns: RegExp[] }> = [
   { type: 'attends', patterns: [/who\s+attended\s+(.+)\??$/i, /who\s+usually\s+sits\s+in\s+on\s+(.+)\??$/i, /who\s+should\s+be\s+in\s+the\s+(.+)\s+sync\??$/i, /who\s+attends\s+the\s+(.+)\??$/i] },
   { type: 'member_of', patterns: [/who\s+works\s+at\s+(.+)\??$/i, /who\s+is\s+on\s+(.+)\??$/i] },
   { type: 'invested_in', patterns: [/who\s+invested\s+in\s+(.+)\??$/i] },
-  { type: 'advises', patterns: [/who\s+advises\s+(.+)\??$/i] }
+  { type: 'advises', patterns: [/who\s+advises\s+(.+)\??$/i, /who\s+else\s+advises\s+(.+)\??$/i] }
 ];
 
 export function defaultRelationRules(): KnowledgeLinkRule[] {
@@ -73,27 +92,85 @@ export function defaultRelationRules(): KnowledgeLinkRule[] {
 }
 
 export function classifyRelationQuery(query: string): RelationQueryClassification {
+  const intent = inferQueryIntent(query);
+  return {
+    relationType: intent.relationType,
+    anchorQuery: intent.anchorQuery,
+    confidence: inferClassificationConfidence(intent),
+    candidateRelationTypes: intent.candidateRelationTypes,
+    intent
+  };
+}
+
+export function inferQueryIntent(query: string): KnowledgeQueryIntent {
   const normalized = query.trim();
   const candidateRelationTypes = detectCandidateRelationTypes(normalized);
+  let relationType: string | null = null;
+  let anchorQuery: string | null = null;
   for (const rule of RELATION_QUERY_RULES) {
     for (const pattern of rule.patterns) {
       const match = pattern.exec(normalized);
       if (match?.[1]) {
-        return {
-          relationType: rule.type,
-          anchorQuery: normalizeAnchorQuery(match[1].trim(), rule.type),
-          confidence: 0.92,
-          candidateRelationTypes
-        };
+        relationType = rule.type;
+        anchorQuery = normalizeAnchorQuery(match[1].trim(), rule.type);
+        break;
       }
     }
+    if (relationType) break;
   }
+  if (!relationType) {
+    const profileFallback = inferProfileRelationQuery(normalized, candidateRelationTypes);
+    if (profileFallback) {
+      relationType = profileFallback.relationType;
+      anchorQuery = profileFallback.anchorQuery;
+    }
+  }
+  if (!anchorQuery) {
+    anchorQuery = inferGenericAnchorQuery(normalized, relationType, candidateRelationTypes);
+  }
+  const expectedKinds = inferIntentExpectedKinds(normalized, relationType, candidateRelationTypes, anchorQuery);
+  const roleTerms = inferRoleTerms(normalized);
+  const anchorTokens = new Set(anchorQuery ? tokenize(normalizeAnchorQuery(anchorQuery, relationType ?? 'generic')) : []);
+  const attributeTerms = tokenize(normalized).filter(
+    (token) =>
+      !INTENT_STOPWORDS.has(token) &&
+      !roleTerms.includes(token) &&
+      !anchorTokens.has(token) &&
+      !INTENT_KIND_TERMS.has(token)
+  );
+  const expectsMultiple =
+    Boolean(relationType && ['member_of', 'attends', 'advises', 'invested_in'].includes(relationType)) ||
+    /\b(all|list|people|companies|advisors|engineers|employees|founders)\b/i.test(normalized) ||
+    Boolean(anchorQuery && expectedKinds.includes('person') && !/\b(background|history|prior|details)\b/i.test(normalized));
+  const aggregation = /\b(list all|all\b|everyone|entire corpus|our corpus)\b/i.test(normalized);
+  const background = /\b(background|details|experience|history|prior|previous|before joining)\b/i.test(normalized);
+  const relationshipDepth = /\b(multi-year|ongoing|long[- ]term|relationship|years)\b/i.test(normalized);
+  const intersection = /\bboth\b/i.test(normalized) || /\bassociated with both\b/i.test(normalized);
+  const modes: KnowledgeQueryIntent['modes'] = [];
+  modes.push(expectsMultiple ? 'entity-set' : 'single-profile');
+  if (aggregation) modes.push('aggregation');
+  if (background) modes.push('background');
+  if (relationshipDepth) modes.push('relationship-depth');
+  if (intersection) modes.push('attribute-intersection');
+  const temporalFocus: KnowledgeQueryIntent['temporalFocus'] = background ? 'historical' : relationshipDepth ? 'mixed' : 'current';
   return {
-    relationType: null,
-    anchorQuery: null,
-    confidence: 0,
-    candidateRelationTypes
+    rawQuery: query,
+    relationType,
+    candidateRelationTypes,
+    anchorQuery,
+    expectedKinds,
+    attributeTerms,
+    roleTerms,
+    modes: uniqueModes(modes),
+    expectsMultiple,
+    temporalFocus
   };
+}
+
+function inferClassificationConfidence(intent: KnowledgeQueryIntent): number {
+  if (intent.relationType && intent.anchorQuery) return 0.92;
+  if (intent.relationType || intent.anchorQuery || intent.modes.length > 1) return 0.6;
+  return 0;
 }
 
 export function extractLinksFromText(
@@ -101,11 +178,28 @@ export function extractLinksFromText(
   rules: KnowledgeLinkRule[],
   input: RelationExtractionInput
 ): KnowledgeLink[] {
+  return materializeRelationLinks(context.tenantId, extractRelationProposalsFromText(context, rules, input));
+}
+
+export function extractRelationProposalsFromText(
+  context: RelationContext,
+  rules: KnowledgeLinkRule[],
+  input: RelationExtractionInput
+): KnowledgeRelationProposal[] {
   const sanitized = sanitizeExtractionText(input.text);
+  const paragraphs = splitParagraphs(sanitized);
   const sentences = splitSentences(sanitized);
   const knownEntities = buildKnownEntities(context.entities);
   const primaryEntity = input.primaryEntityId ? context.entities.find((entity) => entity.meta.id === input.primaryEntityId) ?? null : null;
-  const links: KnowledgeLink[] = [];
+  const proposals: KnowledgeRelationProposal[] = [];
+
+  if (primaryEntity) {
+    for (const paragraph of paragraphs) {
+      const mentions = resolveMentions(paragraph, knownEntities, primaryEntity.meta.id);
+      if (mentions.length < 2) continue;
+      proposals.push(...buildProposalsFromPageRolePriors(rules, paragraph, primaryEntity, mentions, input, sanitized));
+    }
+  }
 
   for (const sentence of sentences) {
     const clauses = splitClauses(sentence);
@@ -117,22 +211,22 @@ export function extractLinksFromText(
 
       for (const rule of rules) {
         if (!ruleMatchesSentence(rule, clause)) continue;
-        const typedLinks = buildLinksForRule(context.tenantId, rule, clause, mentions, input);
-        links.push(...typedLinks);
-        typedLinkCount += typedLinks.length;
+        const typedProposals = buildProposalsForRule(rule, clause, mentions, input, sanitized);
+        proposals.push(...typedProposals);
+        typedLinkCount += typedProposals.length;
       }
 
       if (typedLinkCount === 0 && primaryEntity) {
-        const priorLinks = buildLinksFromPageRolePriors(context.tenantId, clause, primaryEntity, mentions, input);
-        links.push(...priorLinks);
-        typedLinkCount += priorLinks.length;
+        const priorProposals = buildProposalsFromPageRolePriors(rules, clause, primaryEntity, mentions, input, sanitized);
+        proposals.push(...priorProposals);
+        typedLinkCount += priorProposals.length;
       }
 
       if (mentions.length >= 2) {
         for (let index = 0; index < mentions.length; index += 1) {
           for (let nextIndex = index + 1; nextIndex < mentions.length; nextIndex += 1) {
-            links.push(
-              createLink(context.tenantId, {
+            proposals.push(
+              createProposal({
                 type: 'mentioned_in',
                 fromId: mentions[index].id,
                 toId: mentions[nextIndex].id,
@@ -145,7 +239,9 @@ export function extractLinksFromText(
                 originKind: input.originKind,
                 originId: input.originId,
                 ruleId: 'mentioned_in',
-                createdAt: input.createdAt
+                createdAt: input.createdAt,
+                evidenceText: clause,
+                evidenceSpan: findEvidenceSpan(sanitized, clause)
               })
             );
           }
@@ -154,7 +250,11 @@ export function extractLinksFromText(
     }
   }
 
-  return dedupeLinks(links);
+  return dedupeProposals(proposals);
+}
+
+export function materializeRelationLinks(tenantId: string, proposals: KnowledgeRelationProposal[]): KnowledgeLink[] {
+  return dedupeLinks(proposals.map((proposal) => proposalToLink(tenantId, proposal)));
 }
 
 export function findEntityByQuery(
@@ -221,16 +321,16 @@ export function relationResultMode(mode: KnowledgeSearchMode | undefined): Extra
   return mode === 'graph-only' ? 'graph-only' : 'graph-first-hybrid';
 }
 
-function buildLinksForRule(
-  tenantId: string,
+function buildProposalsForRule(
   rule: KnowledgeLinkRule,
   sentence: string,
   mentions: KnownEntity[],
-  input: RelationExtractionInput
-): KnowledgeLink[] {
+  input: RelationExtractionInput,
+  fullText: string
+): KnowledgeRelationProposal[] {
   const candidates = mentions.filter((entity) => entity.kind !== 'meeting' || rule.type === 'attends');
-  const pairs = pairMentions(candidates, rule.direction ?? 'forward', input.primaryEntityId);
-  const links: KnowledgeLink[] = [];
+  const pairs = pairMentions(candidates, rule.direction ?? 'forward', input.primaryEntityId, rule.sourceKinds, rule.targetKinds);
+  const proposals: KnowledgeRelationProposal[] = [];
 
   for (const [source, target] of pairs) {
     if (!isAllowedKind(rule.sourceKinds, source.kind)) continue;
@@ -240,8 +340,8 @@ function buildLinksForRule(
       ? rule.explicitReferenceBoost ?? 0
       : 0;
     const evidenceStrength: KnowledgeLinkEvidenceStrength = explicitReference ? 'explicit-ref' : 'keyword';
-    links.push(
-      createLink(tenantId, {
+    proposals.push(
+      createProposal({
         type: rule.type,
         fromId: source.id,
         toId: target.id,
@@ -254,44 +354,56 @@ function buildLinksForRule(
         originKind: input.originKind,
         originId: input.originId,
         ruleId: rule.id,
-        createdAt: input.createdAt
+        createdAt: input.createdAt,
+        evidenceText: sentence,
+        evidenceSpan: findEvidenceSpan(fullText, sentence)
       })
     );
   }
 
-  return links;
+  return proposals;
 }
 
-function buildLinksFromPageRolePriors(
-  tenantId: string,
+function buildProposalsFromPageRolePriors(
+  rules: KnowledgeLinkRule[],
   sentence: string,
   primaryEntity: EntityDocument,
   mentions: KnownEntity[],
-  input: RelationExtractionInput
-): KnowledgeLink[] {
-  if (primaryEntity.meta.kind !== 'person' && primaryEntity.meta.kind !== 'team') return [];
+  input: RelationExtractionInput,
+  fullText: string
+): KnowledgeRelationProposal[] {
+  if (
+    primaryEntity.meta.kind !== 'person' &&
+    primaryEntity.meta.kind !== 'team' &&
+    primaryEntity.meta.kind !== 'meeting' &&
+    primaryEntity.meta.kind !== 'company'
+  ) {
+    return [];
+  }
   const primaryMention = mentions.find((mention) => mention.id === primaryEntity.meta.id);
   const otherMentions = mentions.filter((mention) => mention.id !== primaryEntity.meta.id);
   if (otherMentions.length === 0) return [];
-  const priors = inferPageRolePriors(primaryEntity);
-  const links: KnowledgeLink[] = [];
+  const priors = inferPageRolePriors(primaryEntity, rules);
+  const proposals: KnowledgeRelationProposal[] = [];
+  const normalizedSentence = normalizeText(sentence);
 
   for (const prior of priors) {
-    if (!prior.keywords.some((keyword) => normalizeText(sentence).includes(normalizeText(keyword)))) continue;
+    if (!pagePriorAllowsSurface(prior, input.sourceSurface ?? inferSourceSurface(input.originKind, input.evidenceKind))) continue;
+    if (!pageRolePriorMatches(prior, normalizedSentence, primaryEntity)) continue;
     const candidates = primaryMention ? [primaryMention, ...otherMentions] : otherMentions;
-    const pairs = pairMentions(candidates, prior.direction ?? 'forward', primaryEntity.meta.id);
+    const pairs = pairMentions(candidates, prior.direction ?? 'forward', primaryEntity.meta.id, prior.sourceKinds, prior.targetKinds);
     for (const [source, target] of pairs) {
       if (!isAllowedKind(prior.sourceKinds, source.kind)) continue;
       if (!isAllowedKind(prior.targetKinds, target.kind)) continue;
       if (source.id === target.id) continue;
       const explicitReference = hasExplicitReference(sentence, source) || hasExplicitReference(sentence, target);
-      links.push(
-        createLink(tenantId, {
+      proposals.push(
+        createProposal({
           type: prior.relationType,
           fromId: source.id,
           toId: target.id,
           sourceIds: input.sourceIds,
-          confidence: explicitReference ? 0.72 : 0.58,
+          confidence: explicitReference ? Math.min(0.92, prior.confidence + 0.08) : prior.confidence,
           evidenceKind: input.evidenceKind,
           evidenceStrength: 'page-prior',
           sourceSurface: input.sourceSurface ?? inferSourceSurface(input.originKind, input.evidenceKind),
@@ -299,22 +411,40 @@ function buildLinksFromPageRolePriors(
           originKind: input.originKind,
           originId: input.originId,
           ruleId: `page-prior:${prior.relationType}`,
-          createdAt: input.createdAt
+          createdAt: input.createdAt,
+          evidenceText: sentence,
+          evidenceSpan: findEvidenceSpan(fullText, sentence)
         })
       );
     }
   }
 
-  return links;
+  return proposals;
 }
 
-function pairMentions(mentions: KnownEntity[], direction: KnowledgeLinkDirection, primaryEntityId?: string): Array<[KnownEntity, KnownEntity]> {
+function pairMentions(
+  mentions: KnownEntity[],
+  direction: KnowledgeLinkDirection,
+  primaryEntityId?: string,
+  sourceKinds?: KnowledgeEntityKind[],
+  targetKinds?: KnowledgeEntityKind[]
+): Array<[KnownEntity, KnownEntity]> {
   if (primaryEntityId) {
     const primary = mentions.find((entity) => entity.id === primaryEntityId);
     if (primary) {
       const others = mentions.filter((entity) => entity.id !== primaryEntityId);
       if (others.length > 0) {
+        const primaryCanBeSource = isAllowedKind(sourceKinds, primary.kind);
+        const primaryCanBeTarget = isAllowedKind(targetKinds, primary.kind);
         return others.flatMap((entity) => {
+          if (!primaryCanBeSource && primaryCanBeTarget) {
+            if (direction === 'bidirectional') return [[primary, entity] as [KnownEntity, KnownEntity], [entity, primary] as [KnownEntity, KnownEntity]];
+            return [[entity, primary] as [KnownEntity, KnownEntity]];
+          }
+          if (primaryCanBeSource && !primaryCanBeTarget) {
+            if (direction === 'bidirectional') return [[primary, entity] as [KnownEntity, KnownEntity], [entity, primary] as [KnownEntity, KnownEntity]];
+            return [[primary, entity] as [KnownEntity, KnownEntity]];
+          }
           if (direction === 'reverse') return [[entity, primary] as [KnownEntity, KnownEntity]];
           if (direction === 'bidirectional') return [[primary, entity] as [KnownEntity, KnownEntity], [entity, primary] as [KnownEntity, KnownEntity]];
           return [[primary, entity] as [KnownEntity, KnownEntity]];
@@ -384,8 +514,7 @@ function hasExplicitReference(sentence: string, entity: KnownEntity): boolean {
   return [entity.id, slugify(entity.title), entity.title, ...entity.aliases, ...entity.handles].some((value) => sentence.includes(value));
 }
 
-function createLink(
-  tenantId: string,
+function createProposal(
   input: {
     type: string;
     fromId: string;
@@ -394,19 +523,17 @@ function createLink(
     confidence: number;
     evidenceKind: KnowledgeLink['evidenceKind'];
     evidenceStrength: KnowledgeLinkEvidenceStrength;
-    sourceSurface: KnowledgeLink['sourceSurface'];
+    sourceSurface: KnowledgeLinkSourceSurface;
     explicitReference: boolean;
-    originKind: KnowledgeLink['originKind'];
-    originId: KnowledgeLink['originId'];
+    originKind: 'entity' | 'source' | 'event' | 'seed';
+    originId: string;
     ruleId: string;
     createdAt?: string;
+    evidenceText: string;
+    evidenceSpan?: KnowledgeEvidenceSpan;
   }
-): KnowledgeLink {
-  const sourceKey = [...input.sourceIds].sort().join(',');
-  const id = `${input.type}:${input.fromId}:${input.toId}:${input.sourceSurface}:${input.evidenceKind}:${sourceKey || `${input.originKind}:${input.originId}`}`;
+): KnowledgeRelationProposal {
   return {
-    id,
-    tenantId,
     type: input.type,
     fromId: input.fromId,
     toId: input.toId,
@@ -419,12 +546,49 @@ function createLink(
     createdAt: input.createdAt ?? new Date().toISOString(),
     originKind: input.originKind,
     originId: input.originId,
-    ruleId: input.ruleId
+    ruleId: input.ruleId,
+    extractorId: 'heuristic-rules',
+    evidenceText: input.evidenceText,
+    evidenceSpan: input.evidenceSpan
   };
 }
 
 function dedupeLinks(links: KnowledgeLink[]): KnowledgeLink[] {
   return [...new Map(links.map((link) => [link.id, link])).values()];
+}
+
+function dedupeProposals(proposals: KnowledgeRelationProposal[]): KnowledgeRelationProposal[] {
+  return [...new Map(proposals.map((proposal) => [proposalIdentity(proposal), proposal])).values()];
+}
+
+function proposalToLink(tenantId: string, proposal: KnowledgeRelationProposal): KnowledgeLink {
+  const sourceKey = [...proposal.sourceIds].sort().join(',');
+  const id = `${proposal.type}:${proposal.fromId}:${proposal.toId}:${proposal.sourceSurface}:${proposal.evidenceKind}:${sourceKey || `${proposal.originKind}:${proposal.originId}`}`;
+  return {
+    id,
+    tenantId,
+    type: proposal.type,
+    fromId: proposal.fromId,
+    toId: proposal.toId,
+    sourceIds: [...new Set(proposal.sourceIds)],
+    confidence: Number(proposal.confidence.toFixed(3)),
+    evidenceKind: proposal.evidenceKind,
+    evidenceStrength: proposal.evidenceStrength,
+    sourceSurface: proposal.sourceSurface,
+    explicitReference: proposal.explicitReference,
+    createdAt: proposal.createdAt ?? new Date().toISOString(),
+    originKind: proposal.originKind,
+    originId: proposal.originId,
+    ruleId: proposal.ruleId,
+    extractorId: proposal.extractorId,
+    evidenceText: proposal.evidenceText,
+    evidenceSpan: proposal.evidenceSpan
+  };
+}
+
+function proposalIdentity(proposal: KnowledgeRelationProposal): string {
+  const sourceKey = [...proposal.sourceIds].sort().join(',');
+  return `${proposal.type}:${proposal.fromId}:${proposal.toId}:${proposal.sourceSurface}:${proposal.evidenceKind}:${sourceKey || `${proposal.originKind}:${proposal.originId}`}`;
 }
 
 function normalizeText(value: string): string {
@@ -440,6 +604,7 @@ function splitClauses(text: string): string[] {
 
 function normalizeAnchorQuery(value: string, relationType: string): string {
   const cleaned = normalizeText(value)
+    .replace(/[?!.,:;]+/g, ' ')
     .replace(/\b(currently|current|right now|actually|situation|it)\b/g, ' ')
     .replace(/\b(exception|exceptions|workflow|workflows)\b/g, relationType === 'attends' ? ' ' : ' ')
     .replace(/\b(review room|room)\b/g, ' ')
@@ -472,12 +637,201 @@ function detectCandidateRelationTypes(query: string): string[] {
   if (/\b(vendor|provider|backs|supports)\b/.test(normalized)) candidates.add('vendor_for');
   if (/\b(blocked on|depend|depends)\b/.test(normalized)) candidates.add('depends_on');
   if (/\b(attend|attended|sits in|should be in|sync)\b/.test(normalized)) candidates.add('attends');
+  if (/\b(founder|engineer|employee|staff|works?\s+at)\b/.test(normalized)) candidates.add('member_of');
+  if (/\b(advisor|advises)\b/.test(normalized)) candidates.add('advises');
+  if (/\b(investor|invested)\b/.test(normalized)) candidates.add('invested_in');
   return [...candidates];
+}
+
+function inferGenericAnchorQuery(query: string, relationType: string | null, candidateRelationTypes: string[]): string | null {
+  const patterns = [
+    /\b(?:at|of|for|in)\s+(.+?)(?:\s+\b(before joining|before|who|that|which)\b|$)/i,
+    /\bwith\s+(.+?)\s+\bexperience\b/i
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(query);
+    const anchor = match?.[1]?.trim();
+    if (!anchor) continue;
+    return normalizeAnchorQuery(anchor, relationType ?? candidateRelationTypes[0] ?? 'generic');
+  }
+  return null;
+}
+
+function inferIntentExpectedKinds(
+  query: string,
+  relationType: string | null,
+  candidateRelationTypes: string[],
+  anchorQuery: string | null
+): KnowledgeEntityKind[] {
+  const queryTokens = tokenize(query);
+  const effectiveRelationType = relationType ?? (candidateRelationTypes.length === 1 ? candidateRelationTypes[0] ?? null : null);
+  if (queryTokens.includes('company') || queryTokens.includes('companies')) return ['company'];
+  if (queryTokens.some((token) => EXPLICIT_PERSON_QUERY_TERMS.has(token))) return ['person'];
+  if (effectiveRelationType === 'attends') return ['person', 'team'];
+  if (effectiveRelationType === 'member_of' || effectiveRelationType === 'advises' || effectiveRelationType === 'invested_in') return ['person'];
+  const hasRoleTerms = queryTokens.some((token) => ROLE_QUERY_TERMS.has(token));
+  if (anchorQuery && hasRoleTerms) return ['person'];
+  if (/\b(all|list)\b/i.test(query) && hasRoleTerms) return ['person'];
+  return [];
+}
+
+function inferRoleTerms(query: string): string[] {
+  return tokenize(query).filter((token) => ROLE_QUERY_TERMS.has(token));
+}
+
+function uniqueModes(values: KnowledgeQueryIntent['modes']): KnowledgeQueryIntent['modes'] {
+  return [...new Set(values)];
+}
+
+function inferProfileRelationQuery(query: string, candidateRelationTypes: string[]): RelationQueryClassification | null {
+  const trimmed = query.trim().replace(/\?+$/, '');
+  const patterns: Array<{ type: string; pattern: RegExp; anchorIndex: number }> = [
+    {
+      type: 'member_of',
+      pattern: /(?:background|details|experience|history|prior experience|previous experience)\s+of\s+(.+?)\s+(?:(?:senior|staff|lead|principal)\s+)?(founder|engineer|engineers|employee|employees|staff)\b/i,
+      anchorIndex: 1
+    },
+    {
+      type: 'member_of',
+      pattern: /\b(founder|engineer|engineers|employee|employees|staff)\b[^?]*\b(?:at|of)\s+(.+)$/i,
+      anchorIndex: 2
+    },
+    {
+      type: 'advises',
+      pattern: /\b(advisor|advisors)\b[^?]*\b(?:for|at|of)\s+(.+)$/i,
+      anchorIndex: 2
+    },
+    {
+      type: 'invested_in',
+      pattern: /\b(investor|investors)\b[^?]*\b(?:for|at|of|in)\s+(.+)$/i,
+      anchorIndex: 2
+    },
+    {
+      type: 'member_of',
+      pattern: /\balso\s+at\s+(.+)$/i,
+      anchorIndex: 1
+    }
+  ];
+  for (const entry of patterns) {
+    const match = entry.pattern.exec(trimmed);
+    const anchor = match?.[entry.anchorIndex]?.trim();
+    if (!anchor) continue;
+    return {
+      relationType: entry.type,
+      anchorQuery: normalizeAnchorQuery(anchor, entry.type),
+      confidence: 0.6,
+      candidateRelationTypes
+    };
+  }
+  return null;
 }
 
 function tokenize(value: string): string[] {
   return normalizeText(value).split(/[^a-z0-9@._-]+/i).filter(Boolean);
 }
+
+const EXPLICIT_PERSON_QUERY_TERMS = new Set([
+  'who',
+  'person',
+  'people',
+  'anyone',
+  'someone'
+]);
+
+const ROLE_QUERY_TERMS = new Set([
+  'advisor',
+  'advisors',
+  'founder',
+  'founders',
+  'engineer',
+  'engineers',
+  'employee',
+  'employees',
+  'staff',
+  'security'
+]);
+
+const INTENT_KIND_TERMS = new Set([
+  'company',
+  'companies',
+  'person',
+  'people',
+  'anyone',
+  'someone',
+  'advisor',
+  'advisors',
+  'founder',
+  'founders',
+  'engineer',
+  'engineers',
+  'employee',
+  'employees',
+  'staff'
+]);
+
+const INTENT_STOPWORDS = new Set([
+  'a',
+  'an',
+  'all',
+  'and',
+  'anyone',
+  'are',
+  'at',
+  'be',
+  'both',
+  'but',
+  'by',
+  'can',
+  'corpus',
+  'details',
+  'do',
+  'does',
+  'else',
+  'experience',
+  'for',
+  'from',
+  'given',
+  'have',
+  'has',
+  'history',
+  'i',
+  'in',
+  'is',
+  'it',
+  'its',
+  'know',
+  'list',
+  'need',
+  'of',
+  'on',
+  'our',
+  'please',
+  'prior',
+  'pull',
+  'show',
+  'someone',
+  'there',
+  'we',
+  'where',
+  'who',
+  'whom',
+  'whose',
+  'working',
+  'works',
+  'work',
+  'associated',
+  'show',
+  'that',
+  'the',
+  'their',
+  'these',
+  'this',
+  'what',
+  'which',
+  'with',
+  'would',
+  'you'
+]);
 
 function slugify(value: string): string {
   return normalizeText(value)
@@ -505,6 +859,13 @@ function splitSentences(text: string): string[] {
     .filter(Boolean);
 }
 
+function splitParagraphs(text: string): string[] {
+  return text
+    .split(/\n\s*\n+/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+}
+
 function isAllowedKind(allowed: KnowledgeEntityKind[] | undefined, kind: KnowledgeEntityKind): boolean {
   return !allowed?.length || allowed.includes(kind);
 }
@@ -514,11 +875,26 @@ function sanitizeExtractionText(text: string): string {
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`]+`/g, ' ')
     .replace(/(^|\n)\s*[-*]\s*(todo|note|status|metadata)\s*:/gi, '\n')
-    .replace(/\s+/g, ' ')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
-function inferSourceSurface(originKind: RelationExtractionInput['originKind'], evidenceKind: KnowledgeLink['evidenceKind']): KnowledgeLink['sourceSurface'] {
+function findEvidenceSpan(text: string, fragment: string): KnowledgeEvidenceSpan | undefined {
+  const haystack = text.toLowerCase();
+  const needle = fragment.trim().toLowerCase();
+  if (!needle) return undefined;
+  const start = haystack.indexOf(needle);
+  if (start === -1) return undefined;
+  return {
+    start,
+    end: start + needle.length,
+    text: text.slice(start, start + needle.length)
+  };
+}
+
+function inferSourceSurface(originKind: RelationExtractionInput['originKind'], evidenceKind: KnowledgeLink['evidenceKind']): KnowledgeLinkSourceSurface {
   if (originKind === 'event') return 'event-summary';
   if (originKind === 'source') return evidenceKind === 'summary' ? 'source-summary' : 'source-content';
   if (originKind === 'entity') return evidenceKind === 'timeline' ? 'timeline' : 'current-truth';
@@ -553,30 +929,52 @@ function countConnectedLinks(entityId: string, relationType: string | null | und
   return links.filter((link) => link.type === relationType && (link.fromId === entityId || link.toId === entityId)).length;
 }
 
-function inferPageRolePriors(entity: EntityDocument): PageRolePrior[] {
+function pageRolePriorMatches(prior: PageRolePrior, sentence: string, entity: EntityDocument): boolean {
+  const pageFamily = inferPageFamily(entity.meta.kind);
+  if (prior.pageFamilies?.length && !prior.pageFamilies.includes(pageFamily)) return false;
+  const checks = [
+    prior.keywords.length ? prior.keywords.some((keyword) => sentence.includes(normalizeText(keyword))) : null,
+    prior.cuePatterns.length ? prior.cuePatterns.some((pattern) => pattern.test(sentence)) : null,
+    prior.titlePatterns.length ? prior.titlePatterns.some((pattern) => pattern.test(normalizeText(entity.meta.title))) : null
+  ].filter((value): value is boolean => value !== null);
+  if (checks.length === 0) return false;
+  return prior.matchMode === 'all' ? checks.every(Boolean) : checks.some(Boolean);
+}
+
+function inferPageRolePriors(entity: EntityDocument, rules: KnowledgeLinkRule[]): PageRolePrior[] {
   const priors: PageRolePrior[] = [];
   const haystack = normalizeText([entity.meta.title, entity.currentTruth, entity.timeline.join(' '), entity.meta.tags.join(' ')].join(' '));
-  const push = (
-    relationType: string,
-    keywords: string[],
-    sourceKinds: KnowledgeEntityKind[] | undefined,
-    targetKinds: KnowledgeEntityKind[] | undefined,
-    direction: KnowledgeLinkDirection
-  ) => {
-    if (keywords.some((keyword) => haystack.includes(normalizeText(keyword)))) {
-      priors.push({ relationType, keywords, sourceKinds, targetKinds, direction });
-    }
-  };
+  for (const rule of rules) {
+    const baseDirection = rule.direction ?? 'forward';
+    const matchesSource = isAllowedKind(rule.sourceKinds, entity.meta.kind);
+    const matchesTarget = isAllowedKind(rule.targetKinds, entity.meta.kind);
+    const pagePriors = rule.pagePriors?.filter((prior) => prior.primaryKinds.includes(entity.meta.kind)) ?? [];
 
-  push('owns', ['owner', 'owns', 'relationship owner', 'responsible for'], ['process', 'project', 'policy', 'system', 'vendor', 'decision'], ['person', 'team'], 'reverse');
-  push('approves', ['approver', 'approval owner', 'approves', 'signs off'], ['process', 'project', 'policy', 'decision'], ['person', 'team'], 'reverse');
-  push('reviews', ['reviewer', 'reviews'], ['process', 'project', 'policy', 'decision'], ['person', 'team'], 'reverse');
-  push('escalates_to', ['escalation', 'escalate to', 'exception path'], ['process', 'project', 'policy', 'team'], ['person', 'team'], 'reverse');
-  push('attends', ['attends', 'attendee', 'sits in on'], ['meeting'], ['person', 'team'], 'reverse');
-  push('member_of', ['member of', 'works at', 'part of'], ['person'], ['company', 'team'], 'forward');
-  push('advises', ['advisor', 'advises'], ['person'], ['company', 'team', 'project'], 'forward');
-  push('invested_in', ['investor', 'invested in'], ['person'], ['company', 'project'], 'forward');
-  return priors;
+    if (pagePriors.length > 0) {
+      for (const prior of pagePriors) {
+        if (!pagePriorActivates(prior, haystack, entity.meta.title)) continue;
+        priors.push(materializePagePrior(rule, prior));
+      }
+      continue;
+    }
+
+    if (!matchesSource && !matchesTarget) continue;
+    if (!rule.keywords.some((keyword) => haystack.includes(normalizeText(keyword)))) continue;
+      priors.push({
+        relationType: rule.type,
+        pageFamilies: [inferPageFamily(entity.meta.kind)],
+        activationSurfaces: defaultPagePriorActivationSurfaces(),
+        keywords: rule.keywords,
+        cuePatterns: [],
+        titlePatterns: [],
+      matchMode: 'any',
+      sourceKinds: rule.sourceKinds,
+      targetKinds: rule.targetKinds,
+      direction: matchesSource && !matchesTarget ? baseDirection : invertDirection(baseDirection),
+      confidence: 0.58
+    });
+  }
+  return dedupePageRolePriors(priors);
 }
 
 function normalizeWorkflowBase(value: string): string {
@@ -606,4 +1004,59 @@ function siblingWorkflowPenalty(
   const laneMismatch = titleTokens.includes('lane') && !queryTokens.includes('lane');
   const deskMismatch = titleTokens.includes('desk') && !queryTokens.includes('desk');
   return laneMismatch || deskMismatch ? -2.5 : 0;
+}
+
+function dedupePageRolePriors(priors: PageRolePrior[]): PageRolePrior[] {
+  const seen = new Set<string>();
+  const deduped: PageRolePrior[] = [];
+  for (const prior of priors) {
+    const key = `${prior.relationType}:${prior.direction ?? 'forward'}:${(prior.sourceKinds ?? []).join(',')}:${(prior.targetKinds ?? []).join(',')}:${prior.keywords.join(',')}:${prior.cuePatterns.map((pattern) => pattern.source).join(',')}:${prior.titlePatterns.map((pattern) => pattern.source).join(',')}:${prior.matchMode}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(prior);
+  }
+  return deduped;
+}
+
+function pagePriorActivates(prior: KnowledgePagePriorRule, haystack: string, title: string): boolean {
+  const titleText = normalizeText(title);
+  const checks = [
+    prior.keywords?.length ? prior.keywords.some((keyword) => haystack.includes(normalizeText(keyword))) : null,
+    prior.cuePatterns?.length ? prior.cuePatterns.some((pattern) => new RegExp(pattern, 'i').test(haystack)) : null,
+    prior.titlePatterns?.length ? prior.titlePatterns.some((pattern) => new RegExp(pattern, 'i').test(titleText)) : null
+  ].filter((value): value is boolean => value !== null);
+  if (checks.length === 0) return false;
+  return (prior.matchMode ?? 'any') === 'all' ? checks.every(Boolean) : checks.some(Boolean);
+}
+
+function materializePagePrior(rule: KnowledgeLinkRule, prior: KnowledgePagePriorRule): PageRolePrior {
+  return {
+    relationType: rule.type,
+    pageFamilies: prior.pageFamilies,
+    activationSurfaces: prior.activationSurfaces ?? defaultPagePriorActivationSurfaces(),
+    keywords: prior.keywords ?? [],
+    cuePatterns: (prior.cuePatterns ?? []).map((pattern) => new RegExp(pattern, 'i')),
+    titlePatterns: (prior.titlePatterns ?? []).map((pattern) => new RegExp(pattern, 'i')),
+    matchMode: prior.matchMode ?? 'any',
+    sourceKinds: prior.sourceKinds ?? rule.sourceKinds,
+    targetKinds: prior.targetKinds ?? rule.targetKinds,
+    direction: prior.direction ?? rule.direction ?? 'forward',
+    confidence: prior.confidence ?? 0.58
+  };
+}
+
+function pagePriorAllowsSurface(prior: PageRolePrior, sourceSurface: KnowledgeLinkSourceSurface | undefined): boolean {
+  if (!prior.activationSurfaces?.length) return true;
+  if (!sourceSurface) return false;
+  return prior.activationSurfaces.includes(sourceSurface);
+}
+
+function defaultPagePriorActivationSurfaces(): KnowledgeLinkSourceSurface[] {
+  return ['current-truth', 'source-summary', 'source-content', 'event-summary', 'structured'];
+}
+
+function invertDirection(direction: KnowledgeLinkDirection): KnowledgeLinkDirection {
+  if (direction === 'forward') return 'reverse';
+  if (direction === 'reverse') return 'forward';
+  return 'bidirectional';
 }

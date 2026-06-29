@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-monorepo",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "license": "Apache-2.0",
   "repository": {
@@ -28,7 +28,7 @@
     "smoke:kb-mcp": "node --import tsx/esm scripts/kb-mcp-smoke.ts",
     "smoke:codex-mcp": "node --import tsx/esm scripts/kb-codex-mcp-smoke.ts",
     "serve:kb-mcp-stdio": "node --import tsx/esm scripts/kb-mcp-stdio.ts",
-    "verify:kb:evals": "node --import tsx/esm --test tests/kb-cli-docs.test.ts && npm run eval:kb:all -- --no-write-scorecard && npm run eval:kb:admin-world -- --split dev && npm run eval:kb:admin-world -- --split holdout && npm run eval:kb:gbrain-world",
+    "verify:kb:evals": "node --import tsx/esm --test tests/kb-cli-docs.test.ts && npm run eval:kb:all -- --no-write-scorecard && npm run eval:kb:admin-world -- --split dev && npm run eval:kb:admin-world -- --split holdout && npm run eval:kb:gbrain-evals-upstream && npm run eval:kb:gbrain-world",
     "compile": "npm run build:public",
     "typecheck": "tsc --noEmit",
     "test": "npm run build:public && node scripts/run-node-tests.mjs",
@@ -40,6 +40,8 @@
     "eval:kb:cat": "node --import tsx/esm eval/runner/kb-eval.ts",
     "eval:kb:repo-docs": "node --import tsx/esm eval/runner/kb-benchmark.ts --repo-docs eval/data/repo-docs-v1",
     "eval:kb:gbrain-world": "node --import tsx/esm eval/runner/kb-benchmark.ts --gbrain-world eval/data/gbrain-world-v1 --gbrain-world-contract github-benchmark --side-by-side",
+    "eval:kb:gbrain-evals-upstream": "node --import tsx/esm scripts/run-gbrain-evals-upstream.ts",
+    "eval:kb:gbrain-evals-upstream:kb": "node --import tsx/esm scripts/run-gbrain-evals-upstream.ts --adapter=kb-upstream",
     "eval:kb:gbrain-world-corpus-links": "node --import tsx/esm eval/runner/kb-benchmark.ts --gbrain-world eval/data/gbrain-world-v1 --gbrain-world-contract corpus-linkable --side-by-side",
     "build:kb-flue-adapter": "tsc -p packages/kb-flue-adapter/tsconfig.json"
   },

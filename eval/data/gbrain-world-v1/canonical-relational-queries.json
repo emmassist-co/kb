@@ -1,0 +1,1580 @@
+{
+  "benchmarkName": "gbrain-world-v1-canonical-relational",
+  "source": "committed-canonical-contract",
+  "generatedAt": "2026-06-22T12:16:49.801Z",
+  "queryCount": 145,
+  "families": [
+    "advises",
+    "attended",
+    "invested_in",
+    "works_at"
+  ],
+  "queries": [
+    {
+      "id": "employees:companies__acme-0",
+      "text": "Who works at Acme?",
+      "relevant": [
+        "people__chris-smith-110",
+        "people__mia-brown-0"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__acme-0",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__acme-0",
+      "text": "Who invested in Acme?",
+      "relevant": [
+        "people__chris-jackson-91"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__acme-0",
+      "family": "invested_in"
+    },
+    {
+      "id": "investors:companies__acme-labs-50",
+      "text": "Who invested in Acme Labs?",
+      "relevant": [
+        "people__helen-martinez-87"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__acme-labs-50",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__acme-labs-50",
+      "text": "Who advises Acme Labs?",
+      "relevant": [
+        "people__wendy-wilson-170"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__acme-labs-50",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__anchor-28",
+      "text": "Who works at Anchor - Data Infrastructure Startup?",
+      "relevant": [
+        "people__carol-wilson-28"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__anchor-28",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__anchor-28",
+      "text": "Who invested in Anchor - Data Infrastructure Startup?",
+      "relevant": [
+        "people__sarah-williams-92"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__anchor-28",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__apex-18",
+      "text": "Who works at Apex?",
+      "relevant": [
+        "people__nina-rodriguez-18"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__apex-18",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__apex-18",
+      "text": "Who invested in Apex?",
+      "relevant": [
+        "people__priya-taylor-85"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__apex-18",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__apex-18",
+      "text": "Who advises Apex?",
+      "relevant": [
+        "people__tina-wang-179"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__apex-18",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__beacon-10",
+      "text": "Who works at Beacon?",
+      "relevant": [
+        "people__david-wang-10"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__beacon-10",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__beacon-10",
+      "text": "Who invested in Beacon?",
+      "relevant": [
+        "people__rachel-brown-95"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__beacon-10",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__beta-1",
+      "text": "Who works at Beta - Cybersecurity Startup?",
+      "relevant": [
+        "people__tara-kapoor-111",
+        "people__victor-taylor-1"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__beta-1",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__beta-labs-51",
+      "text": "Who invested in Beta Labs?",
+      "relevant": [
+        "people__jack-davis-89",
+        "people__chris-singh-96"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__beta-labs-51",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__brink-29",
+      "text": "Who works at Brink?",
+      "relevant": [
+        "people__uma-gonzalez-29"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__brink-29",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__cascade-30",
+      "text": "Who works at Cascade?",
+      "relevant": [
+        "people__yara-smith-30"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__cascade-30",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__cipher-13",
+      "text": "Who works at Cipher?",
+      "relevant": [
+        "people__mia-lee-13"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__cipher-13",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__compass-11",
+      "text": "Who works at Compass?",
+      "relevant": [
+        "people__mark-thomas-11"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__compass-11",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__delta-3",
+      "text": "Who works at Delta?",
+      "relevant": [
+        "people__adam-lopez-113",
+        "people__victor-wilson-3"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__delta-3",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__delta-3",
+      "text": "Who invested in Delta?",
+      "relevant": [
+        "people__david-zhang-83",
+        "people__rachel-brown-95"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__delta-3",
+      "family": "invested_in"
+    },
+    {
+      "id": "investors:companies__delta-labs-53",
+      "text": "Who invested in Delta Labs?",
+      "relevant": [
+        "people__wendy-hernandez-80",
+        "people__tina-hernandez-97"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__delta-labs-53",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__delta-labs-53",
+      "text": "Who advises Delta Labs?",
+      "relevant": [
+        "people__wendy-wilson-170"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__delta-labs-53",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__drift-31",
+      "text": "Who works at Drift?",
+      "relevant": [
+        "people__frank-hernandez-31"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__drift-31",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__drift-31",
+      "text": "Who invested in Drift?",
+      "relevant": [
+        "people__wendy-hernandez-80",
+        "people__fiona-moore-88",
+        "people__jack-davis-89",
+        "people__tina-hernandez-97"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__drift-31",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__echo-32",
+      "text": "Who works at Echo - Robotics Startup?",
+      "relevant": [
+        "people__helen-johnson-32"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__echo-32",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__echo-32",
+      "text": "Who invested in Echo - Robotics Startup?",
+      "relevant": [
+        "people__julia-davis-86",
+        "people__helen-martinez-87"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__echo-32",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__epsilon-4",
+      "text": "Who works at Epsilon?",
+      "relevant": [
+        "people__julia-johnson-114",
+        "people__paul-rodriguez-4"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__epsilon-4",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__epsilon-4",
+      "text": "Who invested in Epsilon?",
+      "relevant": [
+        "people__sarah-lopez-84",
+        "people__sarah-williams-92",
+        "people__kate-lopez-99"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__epsilon-4",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__epsilon-4",
+      "text": "Who advises Epsilon?",
+      "relevant": [
+        "people__olivia-miller-176"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__epsilon-4",
+      "family": "advises"
+    },
+    {
+      "id": "investors:companies__epsilon-labs-54",
+      "text": "Who invested in Epsilon Labs?",
+      "relevant": [
+        "people__iris-lee-82"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__epsilon-labs-54",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__forge-19",
+      "text": "Who works at Forge?",
+      "relevant": [
+        "people__adam-lee-19"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__forge-19",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__forge-19",
+      "text": "Who invested in Forge?",
+      "relevant": [
+        "people__sarah-lopez-84"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__forge-19",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__forge-19",
+      "text": "Who advises Forge?",
+      "relevant": [
+        "people__tara-jackson-173"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__forge-19",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__foundry-33",
+      "text": "Who works at Foundry?",
+      "relevant": [
+        "people__ian-davis-33"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__foundry-33",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__foundry-33",
+      "text": "Who invested in Foundry?",
+      "relevant": [
+        "people__tina-hernandez-97"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__foundry-33",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__foundry-33",
+      "text": "Who advises Foundry?",
+      "relevant": [
+        "people__rachel-gonzalez-175"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__foundry-33",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__gamma-2",
+      "text": "Who works at Gamma - Fintech Startup?",
+      "relevant": [
+        "people__tina-jones-112",
+        "people__mark-jones-2"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__gamma-2",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__gamma-labs-52",
+      "text": "Who invested in Gamma Labs?",
+      "relevant": [
+        "people__david-zhang-83",
+        "people__rosa-miller-98"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__gamma-labs-52",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__gravity-17",
+      "text": "Who works at Gravity?",
+      "relevant": [
+        "people__quinten-wang-17"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__gravity-17",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__gravity-17",
+      "text": "Who invested in Gravity?",
+      "relevant": [
+        "people__chris-jackson-91",
+        "people__rosa-nakamura-94",
+        "people__rachel-brown-95"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__gravity-17",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__gravity-17",
+      "text": "Who advises Gravity?",
+      "relevant": [
+        "people__tina-wang-179"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__gravity-17",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__gust-34",
+      "text": "Who works at Gust?",
+      "relevant": [
+        "people__steve-liu-34"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__gust-34",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__gust-34",
+      "text": "Who invested in Gust?",
+      "relevant": [
+        "people__sarah-lopez-84"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__gust-34",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__hatch-35",
+      "text": "Who works at Hatch?",
+      "relevant": [
+        "people__eric-miller-35"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__hatch-35",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__helix-9",
+      "text": "Who works at Helix?",
+      "relevant": [
+        "people__quinn-park-119",
+        "people__rachel-garcia-9"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__helix-9",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__helix-labs-59",
+      "text": "Who invested in Helix Labs?",
+      "relevant": [
+        "people__priya-taylor-85",
+        "people__julia-davis-86"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__helix-labs-59",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__iris-36",
+      "text": "Who works at Iris?",
+      "relevant": [
+        "people__mia-park-36"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__iris-36",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__iris-36",
+      "text": "Who invested in Iris?",
+      "relevant": [
+        "people__jack-davis-89"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__iris-36",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__jolt-37",
+      "text": "Who works at Jolt - AI Applications Startup?",
+      "relevant": [
+        "people__chris-williams-37"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__jolt-37",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__jolt-37",
+      "text": "Who invested in Jolt - AI Applications Startup?",
+      "relevant": [
+        "people__tina-hernandez-97"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__jolt-37",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__keel-38",
+      "text": "Who works at Keel?",
+      "relevant": [
+        "people__steve-williams-38"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__keel-38",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__keel-38",
+      "text": "Who invested in Keel?",
+      "relevant": [
+        "people__carol-jackson-81"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__keel-38",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__keel-38",
+      "text": "Who advises Keel?",
+      "relevant": [
+        "people__linda-taylor-178"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__keel-38",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__kindle-20",
+      "text": "Who works at Kindle - Climate Tech Startup?",
+      "relevant": [
+        "people__vera-singh-20"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__kindle-20",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__lattice-39",
+      "text": "Who works at Lattice - Enterprise SaaS Startup?",
+      "relevant": [
+        "people__quinn-miller-39"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__lattice-39",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__lucid-21",
+      "text": "Who works at Lucid?",
+      "relevant": [
+        "people__eric-lee-21"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__lucid-21",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__lucid-21",
+      "text": "Who invested in Lucid?",
+      "relevant": [
+        "people__fiona-moore-88"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__lucid-21",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__lucid-21",
+      "text": "Who advises Lucid?",
+      "relevant": [
+        "people__vera-rodriguez-171"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__lucid-21",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__lumen-12",
+      "text": "Who works at Lumen - Biotech Startup?",
+      "relevant": [
+        "people__henry-johnson-12"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__lumen-12",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__lumen-12",
+      "text": "Who invested in Lumen - Biotech Startup?",
+      "relevant": [
+        "people__kate-lopez-99"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__lumen-12",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__mantle-16",
+      "text": "Who works at Mantle?",
+      "relevant": [
+        "people__ulrich-wang-16"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__mantle-16",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__meridian-40",
+      "text": "Who invested in Meridian?",
+      "relevant": [
+        "people__priya-taylor-85",
+        "people__chris-jackson-91"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__meridian-40",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__mosaic-14",
+      "text": "Who works at Mosaic - Consumer Social Startup?",
+      "relevant": [
+        "people__vera-chen-14"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__mosaic-14",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__mosaic-14",
+      "text": "Who invested in Mosaic - Consumer Social Startup?",
+      "relevant": [
+        "people__helen-martinez-87"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__mosaic-14",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__nimbus-5",
+      "text": "Who works at Nimbus?",
+      "relevant": [
+        "people__quinten-nakamura-115",
+        "people__mia-anderson-5"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__nimbus-5",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__orbit-42",
+      "text": "Who invested in Orbit - Biotech Startup?",
+      "relevant": [
+        "people__julia-davis-86"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__orbit-42",
+      "family": "invested_in"
+    },
+    {
+      "id": "investors:companies__prism-43",
+      "text": "Who invested in Prism?",
+      "relevant": [
+        "people__carol-jackson-81",
+        "people__rosa-jackson-90",
+        "people__tina-hernandez-97"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__prism-43",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__prism-43",
+      "text": "Who advises Prism?",
+      "relevant": [
+        "people__alice-davis-172",
+        "people__olivia-miller-176"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__prism-43",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__pulse-8",
+      "text": "Who works at Pulse - EdTech Startup?",
+      "relevant": [
+        "people__xavier-nakamura-118",
+        "people__yara-johnson-8"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__pulse-8",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__pulse-8",
+      "text": "Who invested in Pulse - EdTech Startup?",
+      "relevant": [
+        "people__eric-martinez-93"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__pulse-8",
+      "family": "invested_in"
+    },
+    {
+      "id": "investors:companies__pulse-labs-58",
+      "text": "Who invested in Pulse Labs?",
+      "relevant": [
+        "people__carol-jackson-81",
+        "people__priya-taylor-85",
+        "people__rosa-jackson-90"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__pulse-labs-58",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__quantum-7",
+      "text": "Who works at Quantum?",
+      "relevant": [
+        "people__tina-lopez-117",
+        "people__ulrich-johnson-7"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__quantum-7",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__quantum-labs-57",
+      "text": "Who invested in Quantum Labs?",
+      "relevant": [
+        "people__rachel-brown-95",
+        "people__rosa-miller-98"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__quantum-labs-57",
+      "family": "invested_in"
+    },
+    {
+      "id": "investors:companies__quasar-44",
+      "text": "Who invested in Quasar?",
+      "relevant": [
+        "people__jack-davis-89"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__quasar-44",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__ranger-22",
+      "text": "Who works at Ranger?",
+      "relevant": [
+        "people__quinten-rodriguez-22"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__ranger-22",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__ranger-22",
+      "text": "Who invested in Ranger?",
+      "relevant": [
+        "people__helen-martinez-87"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__ranger-22",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__ranger-22",
+      "text": "Who advises Ranger?",
+      "relevant": [
+        "people__beth-williams-177"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__ranger-22",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__sentinel-23",
+      "text": "Who works at Sentinel?",
+      "relevant": [
+        "people__paul-anderson-23"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__sentinel-23",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__spire-46",
+      "text": "Who invested in Spire?",
+      "relevant": [
+        "people__wendy-hernandez-80",
+        "people__eric-martinez-93",
+        "people__rosa-nakamura-94"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__spire-46",
+      "family": "invested_in"
+    },
+    {
+      "id": "investors:companies__talon-47",
+      "text": "Who invested in Talon?",
+      "relevant": [
+        "people__sarah-williams-92"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__talon-47",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__tempo-24",
+      "text": "Who works at Tempo?",
+      "relevant": [
+        "people__quinten-lee-24"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__tempo-24",
+      "family": "works_at"
+    },
+    {
+      "id": "advisors:companies__tempo-24",
+      "text": "Who advises Tempo?",
+      "relevant": [
+        "people__yara-moore-174"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__tempo-24",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__tessera-15",
+      "text": "Who works at Tessera?",
+      "relevant": [
+        "people__noah-kapoor-15"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__tessera-15",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__tessera-15",
+      "text": "Who invested in Tessera?",
+      "relevant": [
+        "people__kate-lopez-99"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__tessera-15",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__umbra-48",
+      "text": "Who advises Umbra?",
+      "relevant": [
+        "people__vera-rodriguez-171"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__umbra-48",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__vector-6",
+      "text": "Who works at Vector?",
+      "relevant": [
+        "people__victor-jackson-116",
+        "people__uma-brown-6"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__vector-6",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__vector-6",
+      "text": "Who invested in Vector?",
+      "relevant": [
+        "people__david-zhang-83"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__vector-6",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__vector-6",
+      "text": "Who advises Vector?",
+      "relevant": [
+        "people__wendy-wilson-170"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__vector-6",
+      "family": "advises"
+    },
+    {
+      "id": "investors:companies__vector-labs-56",
+      "text": "Who invested in Vector Labs?",
+      "relevant": [
+        "people__iris-lee-82"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__vector-labs-56",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__vector-labs-56",
+      "text": "Who advises Vector Labs?",
+      "relevant": [
+        "people__yara-moore-174"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__vector-labs-56",
+      "family": "advises"
+    },
+    {
+      "id": "investors:companies__vellum-49",
+      "text": "Who invested in Vellum?",
+      "relevant": [
+        "people__rosa-miller-98"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__vellum-49",
+      "family": "invested_in"
+    },
+    {
+      "id": "advisors:companies__vellum-49",
+      "text": "Who advises Vellum?",
+      "relevant": [
+        "people__rachel-gonzalez-175"
+      ],
+      "relationType": "advises",
+      "anchorId": "companies__vellum-49",
+      "family": "advises"
+    },
+    {
+      "id": "employees:companies__vox-25",
+      "text": "Who works at Vox - AI Applications Startup?",
+      "relevant": [
+        "people__vera-wilson-25"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__vox-25",
+      "family": "works_at"
+    },
+    {
+      "id": "investors:companies__vox-25",
+      "text": "Who invested in Vox - AI Applications Startup?",
+      "relevant": [
+        "people__fiona-moore-88"
+      ],
+      "relationType": "invested_in",
+      "anchorId": "companies__vox-25",
+      "family": "invested_in"
+    },
+    {
+      "id": "employees:companies__wisp-26",
+      "text": "Who works at Wisp?",
+      "relevant": [
+        "people__linda-kim-26"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__wisp-26",
+      "family": "works_at"
+    },
+    {
+      "id": "employees:companies__zenith-27",
+      "text": "Who works at Zenith?",
+      "relevant": [
+        "people__priya-zhang-27"
+      ],
+      "relationType": "member_of",
+      "anchorId": "companies__zenith-27",
+      "family": "works_at"
+    },
+    {
+      "id": "attendees:meetings__board-acme-2025-q1-0",
+      "text": "Who attended Acme Board Meeting Q1 2025?",
+      "relevant": [
+        "people__mia-brown-0",
+        "people__chris-jackson-91"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-acme-2025-q1-0",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-beta-2025-q2-1",
+      "text": "Who attended Beta Board Meeting Q2 2025?",
+      "relevant": [
+        "people__victor-taylor-1"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-beta-2025-q2-1",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-delta-2025-q4-3",
+      "text": "Who attended Delta Board Meeting Q4 2025?",
+      "relevant": [
+        "people__victor-wilson-3",
+        "people__david-zhang-83",
+        "people__rachel-brown-95"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-delta-2025-q4-3",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-epsilon-2025-q1-4",
+      "text": "Who attended Epsilon Board Meeting Q1 2025?",
+      "relevant": [
+        "people__paul-rodriguez-4",
+        "people__sarah-lopez-84",
+        "people__sarah-williams-92",
+        "people__olivia-miller-176"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-epsilon-2025-q1-4",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-gamma-2025-q3-2",
+      "text": "Who attended Gamma Board Meeting Q3 2025?",
+      "relevant": [
+        "people__mark-jones-2"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-gamma-2025-q3-2",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-helix-2025-q2-9",
+      "text": "Who attended Helix Board Meeting Q2 2025?",
+      "relevant": [
+        "people__rachel-garcia-9"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-helix-2025-q2-9",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-nimbus-2025-q2-5",
+      "text": "Who attended Nimbus Board Meeting Q2 2025?",
+      "relevant": [
+        "people__mia-anderson-5"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-nimbus-2025-q2-5",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-pulse-2025-q1-8",
+      "text": "Who attended Pulse Board Meeting Q1 2025?",
+      "relevant": [
+        "people__yara-johnson-8",
+        "people__eric-martinez-93"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-pulse-2025-q1-8",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-quantum-2025-q4-7",
+      "text": "Who attended Quantum Board Meeting Q4 2025?",
+      "relevant": [
+        "people__ulrich-johnson-7"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-quantum-2025-q4-7",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__board-vector-2025-q3-6",
+      "text": "Who attended Vector Board Meeting Q3 2025?",
+      "relevant": [
+        "people__uma-brown-6",
+        "people__david-zhang-83",
+        "people__wendy-wilson-170"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__board-vector-2025-q3-6",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-01-15-batch-0",
+      "text": "Who attended Demo Day W24 — Acme?",
+      "relevant": [
+        "people__wendy-hernandez-80",
+        "people__mia-brown-0",
+        "people__mia-anderson-5",
+        "people__mark-thomas-11",
+        "people__chris-smith-110"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-01-15-batch-0",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-02-16-batch-1",
+      "text": "Who attended Demo Day W25 - Beta Cybersecurity Pitch?",
+      "relevant": [
+        "people__carol-jackson-81",
+        "people__victor-taylor-1",
+        "people__uma-brown-6",
+        "people__henry-johnson-12",
+        "people__tara-kapoor-111"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-02-16-batch-1",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-03-17-batch-2",
+      "text": "Who attended Demo Day W26 – Gamma Presentation?",
+      "relevant": [
+        "people__iris-lee-82",
+        "people__mark-jones-2",
+        "people__ulrich-johnson-7",
+        "people__mia-lee-13",
+        "people__tina-jones-112"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-03-17-batch-2",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-04-18-batch-3",
+      "text": "Who attended Demo Day W27 - Delta Biotech Presentation?",
+      "relevant": [
+        "people__david-zhang-83",
+        "people__victor-wilson-3",
+        "people__yara-johnson-8",
+        "people__vera-chen-14",
+        "people__adam-lopez-113"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-04-18-batch-3",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-05-19-batch-4",
+      "text": "Who attended Demo Day W28 – Epsilon Pitch?",
+      "relevant": [
+        "people__sarah-lopez-84",
+        "people__paul-rodriguez-4",
+        "people__rachel-garcia-9",
+        "people__noah-kapoor-15",
+        "people__julia-johnson-114"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-05-19-batch-4",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-06-20-batch-5",
+      "text": "Who attended Demo Day W29 – Nimbus Pitch?",
+      "relevant": [
+        "people__priya-taylor-85",
+        "people__mia-anderson-5",
+        "people__david-wang-10",
+        "people__ulrich-wang-16",
+        "people__quinten-nakamura-115"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-06-20-batch-5",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-07-21-batch-6",
+      "text": "Who attended Demo Day W30?",
+      "relevant": [
+        "people__julia-davis-86",
+        "people__uma-brown-6",
+        "people__mark-thomas-11",
+        "people__quinten-wang-17",
+        "people__victor-jackson-116"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-07-21-batch-6",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-08-22-batch-7",
+      "text": "Who attended Demo Day W31 – Quantum?",
+      "relevant": [
+        "people__helen-martinez-87",
+        "people__ulrich-johnson-7",
+        "people__henry-johnson-12",
+        "people__nina-rodriguez-18",
+        "people__tina-lopez-117"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-08-22-batch-7",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-09-23-batch-8",
+      "text": "Who attended Demo Day W32 – Pulse?",
+      "relevant": [
+        "people__fiona-moore-88",
+        "people__yara-johnson-8",
+        "people__mia-lee-13",
+        "people__adam-lee-19",
+        "people__xavier-nakamura-118"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-09-23-batch-8",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-10-24-batch-9",
+      "text": "Who attended Demo Day W33 – Helix Pitch?",
+      "relevant": [
+        "people__jack-davis-89",
+        "people__rachel-garcia-9",
+        "people__vera-chen-14",
+        "people__vera-singh-20",
+        "people__quinn-park-119"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-10-24-batch-9",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-11-15-batch-10",
+      "text": "Who attended Demo Day W34 – Beacon Pitch?",
+      "relevant": [
+        "people__rosa-jackson-90",
+        "people__david-wang-10",
+        "people__noah-kapoor-15",
+        "people__eric-lee-21"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-11-15-batch-10",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2024-12-16-batch-11",
+      "text": "Who attended Demo Day W35 – Compass?",
+      "relevant": [
+        "people__chris-jackson-91",
+        "people__mark-thomas-11",
+        "people__ulrich-wang-16",
+        "people__quinten-rodriguez-22"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2024-12-16-batch-11",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2025-01-17-batch-12",
+      "text": "Who attended Demo Day W36 — Lumen (Batch 12)?",
+      "relevant": [
+        "people__sarah-williams-92",
+        "people__henry-johnson-12",
+        "people__quinten-wang-17",
+        "people__paul-anderson-23"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2025-01-17-batch-12",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2025-02-18-batch-13",
+      "text": "Who attended Demo Day W37 – Cipher Batch 13 Presentation?",
+      "relevant": [
+        "people__eric-martinez-93",
+        "people__mia-lee-13",
+        "people__nina-rodriguez-18",
+        "people__quinten-lee-24"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2025-02-18-batch-13",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__demo-day-2025-03-19-batch-14",
+      "text": "Who attended Demo Day W38 – Mosaic Pitch?",
+      "relevant": [
+        "people__rosa-nakamura-94",
+        "people__vera-chen-14",
+        "people__adam-lee-19",
+        "people__vera-wilson-25"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__demo-day-2025-03-19-batch-14",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-0-2025-01-01",
+      "text": "Who attended 1:1 Wendy Hernandez + Mia Brown?",
+      "relevant": [
+        "people__wendy-hernandez-80",
+        "people__mia-brown-0"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-0-2025-01-01",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-1-2025-02-02",
+      "text": "Who attended 1:1 Carol Jackson + Victor Taylor?",
+      "relevant": [
+        "people__carol-jackson-81",
+        "people__victor-taylor-1"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-1-2025-02-02",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-10-2025-11-11",
+      "text": "Who attended 1:1 Rosa Jackson + David Wang?",
+      "relevant": [
+        "people__rosa-jackson-90",
+        "people__david-wang-10"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-10-2025-11-11",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-11-2025-12-12",
+      "text": "Who attended 1:1 Chris Jackson + Mark Thomas?",
+      "relevant": [
+        "people__chris-jackson-91",
+        "people__mark-thomas-11"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-11-2025-12-12",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-12-2025-01-13",
+      "text": "Who attended 1:1 Sarah Williams + Henry Johnson?",
+      "relevant": [
+        "people__sarah-williams-92",
+        "people__henry-johnson-12"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-12-2025-01-13",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-13-2025-02-14",
+      "text": "Who attended 1:1 Eric Martinez + Mia Lee – February 2025?",
+      "relevant": [
+        "people__eric-martinez-93",
+        "people__mia-lee-13"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-13-2025-02-14",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-14-2025-03-15",
+      "text": "Who attended 1:1 Rosa Nakamura + Vera Chen?",
+      "relevant": [
+        "people__rosa-nakamura-94",
+        "people__vera-chen-14"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-14-2025-03-15",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-15-2025-04-16",
+      "text": "Who attended 1:1 Rachel Brown + Noah Kapoor?",
+      "relevant": [
+        "people__rachel-brown-95",
+        "people__noah-kapoor-15"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-15-2025-04-16",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-16-2025-05-17",
+      "text": "Who attended 1:1 Chris Singh + Ulrich Wang?",
+      "relevant": [
+        "people__chris-singh-96",
+        "people__ulrich-wang-16"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-16-2025-05-17",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-17-2025-06-18",
+      "text": "Who attended 1:1 Tina Hernandez + Quinten Wang?",
+      "relevant": [
+        "people__tina-hernandez-97",
+        "people__quinten-wang-17"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-17-2025-06-18",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-18-2025-07-19",
+      "text": "Who attended 1:1 Rosa Miller + Nina Rodriguez?",
+      "relevant": [
+        "people__rosa-miller-98",
+        "people__nina-rodriguez-18"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-18-2025-07-19",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-19-2025-08-20",
+      "text": "Who attended 1:1 Kate Lopez + Adam Lee?",
+      "relevant": [
+        "people__kate-lopez-99",
+        "people__adam-lee-19"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-19-2025-08-20",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-2-2025-03-03",
+      "text": "Who attended 1:1 Iris Lee + Mark Jones?",
+      "relevant": [
+        "people__iris-lee-82",
+        "people__mark-jones-2"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-2-2025-03-03",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-20-2025-09-21",
+      "text": "Who attended 1:1 Zoe Gonzalez + Vera Singh?",
+      "relevant": [
+        "people__vera-singh-20"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-20-2025-09-21",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-21-2025-10-22",
+      "text": "Who attended 1:1 Chris Miller + Eric Lee?",
+      "relevant": [
+        "people__eric-lee-21"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-21-2025-10-22",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-22-2025-11-23",
+      "text": "Who attended 1:1 Kevin Taylor + Quinten Rodriguez?",
+      "relevant": [
+        "people__quinten-rodriguez-22"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-22-2025-11-23",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-23-2025-12-24",
+      "text": "Who attended 1:1 Vera Gonzalez + Paul Anderson?",
+      "relevant": [
+        "people__paul-anderson-23"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-23-2025-12-24",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-24-2025-01-25",
+      "text": "Who attended 1:1 Sarah Wang + Quinten Lee?",
+      "relevant": [
+        "people__quinten-lee-24"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-24-2025-01-25",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-3-2025-04-04",
+      "text": "Who attended 1:1 David Zhang + Victor Wilson?",
+      "relevant": [
+        "people__david-zhang-83",
+        "people__victor-wilson-3"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-3-2025-04-04",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-4-2025-05-05",
+      "text": "Who attended 1:1 Sarah Lopez + Paul Rodriguez?",
+      "relevant": [
+        "people__sarah-lopez-84",
+        "people__paul-rodriguez-4"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-4-2025-05-05",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-5-2025-06-06",
+      "text": "Who attended 1:1 Priya Taylor + Mia Anderson?",
+      "relevant": [
+        "people__priya-taylor-85",
+        "people__mia-anderson-5"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-5-2025-06-06",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-6-2025-07-07",
+      "text": "Who attended 1:1 Julia Davis + Uma Brown?",
+      "relevant": [
+        "people__julia-davis-86",
+        "people__uma-brown-6"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-6-2025-07-07",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-7-2025-08-08",
+      "text": "Who attended 1:1 Helen Martinez + Ulrich Johnson?",
+      "relevant": [
+        "people__helen-martinez-87",
+        "people__ulrich-johnson-7"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-7-2025-08-08",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-8-2025-09-09",
+      "text": "Who attended 1:1 Fiona Moore + Yara Johnson?",
+      "relevant": [
+        "people__fiona-moore-88",
+        "people__yara-johnson-8"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-8-2025-09-09",
+      "family": "attended"
+    },
+    {
+      "id": "attendees:meetings__oneonone-9-2025-10-10",
+      "text": "Who attended 1:1 Jack Davis + Rachel Garcia?",
+      "relevant": [
+        "people__jack-davis-89",
+        "people__rachel-garcia-9"
+      ],
+      "relationType": "attends",
+      "anchorId": "meetings__oneonone-9-2025-10-10",
+      "family": "attended"
+    }
+  ]
+}

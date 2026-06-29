@@ -57,7 +57,15 @@ export function loadGbrainWorldCorpus(
   rootDir: string,
   contract: 'github-benchmark' | 'corpus-linkable' = 'github-benchmark'
 ): EvalCorpus {
-  const files = readdirSync(rootDir).filter((entry) => entry.endsWith('.json') && !entry.startsWith('_'));
+  const files = readdirSync(rootDir).filter(
+    (entry) =>
+      entry.endsWith('.json') &&
+      !entry.startsWith('_') &&
+      entry !== 'calibration.json' &&
+      entry !== 'canonical-relational-queries.json' &&
+      entry !== 'tier5-fuzzy-queries.json' &&
+      entry !== 'tier5_5-synthetic-queries.json'
+  );
   const rawPages = files.map((fileName) => JSON.parse(readFileSync(path.join(rootDir, fileName), 'utf8')) as RichWorldPage);
   const existing = new Set(rawPages.map((page) => page.slug));
   const pages = rawPages.map((page) => ({

@@ -314,8 +314,13 @@ export interface EvalCorpus {
   queries: EvalQuery[];
   metadata?: {
     benchmarkTier?: 'product-core' | 'external-reference' | 'regression-guardrail';
+    benchmarkContractId?: string;
+    benchmarkContractLabel?: string;
     split?: 'all' | 'dev' | 'holdout';
+    corpusSize?: number;
+    queryCount?: number;
     familyCounts?: Record<string, number>;
+    benchmarkFamilies?: string[];
     ambiguityRate?: number;
     temporalCaseRate?: number;
     distractorCaseRate?: number;
@@ -348,7 +353,7 @@ export function precisionAtK(docs: RankedDoc[], relevant: Set<string>, k: number
   for (const doc of top) {
     if (relevant.has(doc.pageId)) hits += 1;
   }
-  return hits / k;
+  return hits / top.length;
 }
 
 export function recallAtK(docs: RankedDoc[], relevant: Set<string>, k: number): number {

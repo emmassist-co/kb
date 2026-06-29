@@ -16,7 +16,7 @@ async function main() {
   const recorder = new ExperimentRecorder(config);
   const runner = new ShellCommandRunner();
   const workspaceManager = new CandidateWorkspaceManager(runner, repoRoot);
-  const evaluator = new KbAutoresearchEvaluator(runner, { onLog: (message) => recorder.appendLog(message) });
+  const evaluator = new KbAutoresearchEvaluator(runner, { onLog: (message) => recorder.appendLog(message), repoRoot });
   const agent =
     config.agentBackend === 'pi'
       ? new PiAgentAdapter(runner, { command: config.agentCommand, provider: config.agentProvider, onLog: (message) => recorder.appendLog(message) })
@@ -30,6 +30,7 @@ async function main() {
 function parseArgs(argv: string[]) {
   const parsed: KbAutoresearchCliOptions = {
     iterations: 5,
+    maxIteration: undefined,
     timeBudgetMin: 30,
     agentBackend: 'pi',
     benchmarkSubset: 'all',
@@ -42,6 +43,9 @@ function parseArgs(argv: string[]) {
     const arg = argv[index];
     if (arg === '--iterations') {
       parsed.iterations = Number.parseInt(argv[index + 1] ?? '', 10);
+      index += 1;
+    } else if (arg === '--max-iteration') {
+      parsed.maxIteration = Number.parseInt(argv[index + 1] ?? '', 10);
       index += 1;
     } else if (arg === '--time-budget-min') {
       parsed.timeBudgetMin = Number.parseInt(argv[index + 1] ?? '', 10);
@@ -85,6 +89,10 @@ function parseArgs(argv: string[]) {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  if (error instanceof Error) {
+    console.error(error.stack ?? error.message);
+  } else {
+    console.error(String(error));
+  }
   process.exitCode = 1;
 });

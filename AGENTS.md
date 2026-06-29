@@ -141,6 +141,45 @@ Do not claim KB MCP end-to-end verification unless you state which of those laye
 
 Benchmarks are a critical public surface in this repo.
 
+The real upstream `gbrain-evals` harness is the external gold standard. The local `gbrain-world` rail is diagnostic only and must not be treated as sufficient proof for external-quality claims.
+
+For any claim that KB matches, beats, or trails real GBrain, require:
+
+- the literal upstream `gbrain-evals` runner
+- the same corpus
+- the same query set
+- the same metric definitions
+- the same top-k cutoff
+
+If any of those differ, do not present the result as a direct GBrain comparison.
+
+When working on KB quality, follow the same broad philosophy as GBrain's strong path:
+
+- recover structure from raw prose instead of depending on benchmark-only gold hints
+- build and traverse a reusable graph instead of relying on query-specific shortcuts
+- improve ranking and aggregation with general signals instead of corpus-shaped pattern matching
+- treat benchmark results as evidence of general behavior, not as a puzzle to overfit
+
+Do not optimize benchmark scores primarily by piling on benchmark-shaped regexes, keyword lists, or corpus-specific hardcoded aliases in adapters, query shims, or benchmark-only post-processing. Small heuristic patches are acceptable for diagnosis or to unblock a concrete bug, but they are temporary scaffolding, not the intended architecture.
+
+The durable target is general KB-core improvement:
+
+- better relation extraction from raw prose
+- better graph construction and traversal
+- better ranking and aggregation signals
+- better source/temporal disambiguation
+
+If a candidate improvement mostly works by matching benchmark wording rather than improving the reusable extraction or ranking path, treat it as suspect.
+
+Before merging a benchmark win, ask:
+
+- would this still help on unseen corpora with similar prose structure?
+- is the improvement happening in `packages/kb-core` or only in adapter glue?
+- are we improving extraction, graph quality, ranking, or disambiguation in a reusable way?
+- are we reducing benchmark failure modes, or just teaching the system benchmark-specific phrases?
+
+Prefer fixes that move the core retrieval architecture toward stronger prose understanding and graph-backed ranking. Use adapter-side heuristics only when needed to expose a real KB-core weakness or to maintain contract compatibility with the benchmark runner.
+
 For any major KB change, do not stop at tests and typecheck. Rerun the benchmark rails and refresh the published benchmark snapshot before calling the work done.
 
 Major changes include:
@@ -156,6 +195,8 @@ Required benchmark commands for those changes:
 - `npm run eval:kb:all -- --json`
 - `npm run eval:kb:admin-world -- --split dev --json`
 - `npm run eval:kb:admin-world -- --split holdout --json`
+- `npm run eval:kb:gbrain-evals-upstream`
+- `npm run eval:kb:gbrain-evals-upstream:kb`
 - `npm run eval:kb:gbrain-world -- --json`
 
 If the measured benchmark posture changes materially, update:
