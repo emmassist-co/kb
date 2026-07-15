@@ -55,20 +55,20 @@ Use this file as the merged-work ledger for `kb/`.
 ## 2026-07-15 - Add External-Agent KB Improvement Recipes
 
 - Area: package, docs, skills
-- Merged to `main`: no
-- Commit / PR: pending
+- Merged to `main`: yes
+- Commit / PR: PR #11, merge commit `1474438`
 - Feature summary: added an agent-improvement support doctrine, packaged `kb-agent-improvement` skill, external-agent recipe pack with an index and worked examples, proposal-format guidance, a manual smoke-test checklist, and static CLI help for agents that improve KB state while keeping all thinking, scheduling, ingestion, contradiction review, and run state outside KB.
 - Customer-visible impact: agents and operators can install recipe guidance for KB maintenance, correction sweeps, document-review-to-KB capture, relation curation, and stale knowledge review, choose the right recipe from one index, and follow concrete examples without expecting KB to run autonomous workflows.
-- Deployment status: pending
-- Deployment date:
-- Deployment environment:
-- Deployment evidence:
+- Deployment status: released
+- Deployment date: 2026-07-15
+- Deployment environment: GitHub Packages
+- Deployment evidence: published `@emmassist-co/kb-cli@1.7.0`; clean temp-folder install smoke passed with `@emmassist-co/kb-cli@1.7.0`, packaged recipe index and `kb-agent-improvement` skill present, `npx kb validate remember --json @payload.json`, `npx kb remember --json @payload.json`, `npx kb search --json '{"query":"Smoke test correction payload"}'`, and `npx kb doctor` passed.
 - Human testing status: pending
 - Human tester:
 - Human test date:
 - Human test environment:
 - Human test flow: install `@emmassist-co/kb-cli`, add `./node_modules/@emmassist-co/kb-cli/skills/kb-agent-improvement`, read one recipe from `./node_modules/@emmassist-co/kb-cli/recipes/`, and manually validate a proposed `remember` / `record` / `relate` / `annotate` payload flow.
-- Automated coverage: `node --import tsx/esm --test tests/kb-skills.test.ts tests/kb-cli-docs.test.ts tests/kb-cli.test.ts`; `npm run typecheck`; `npm test`; `npm pack --workspace packages/kb-cli --dry-run --json` recipe/skill inclusion check
+- Automated coverage: `node --import tsx/esm --test tests/kb-skills.test.ts tests/kb-cli-docs.test.ts tests/kb-cli.test.ts`; `npm run typecheck`; `npm test`; `npm pack --workspace packages/kb-cli --dry-run --json` recipe/skill inclusion check; post-merge CI passed on `main`.
 - Needs iteration: no
 - Follow-up: none
 
