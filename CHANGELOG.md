@@ -35,14 +35,14 @@ Use this file as the merged-work ledger for `kb/`.
 ## 2026-07-15 - Add Agent Adoption And Storage Adapter Docs
 
 - Area: docs
-- Merged to `main`: no
-- Commit / PR: PR #9
-- Feature summary: added README decision guidance for agents evaluating KB as shared memory, documented the human-plus-multi-agent operating loop, trust/recovery boundaries, local-to-remote lifecycle, and a storage adapter architecture guide covering the `KnowledgeStore` seam plus S3-style adapter requirements.
+- Merged to `main`: yes
+- Commit / PR: PR #9, merge `43aa354`
+- Feature summary: added README decision guidance for agents evaluating KB as shared memory, documented the human-plus-multi-agent operating loop, trust/recovery boundaries, local-to-remote lifecycle, and a storage adapter guide covering the `KnowledgeStore` seam plus S3-style adapter requirements.
 - Customer-visible impact: agents and operators can decide when to use KB, understand how to use it safely with humans and other agents, and see what is required to add another storage backend.
-- Deployment status: pending
-- Deployment date:
-- Deployment environment:
-- Deployment evidence:
+- Deployment status: not required
+- Deployment date: 2026-07-15
+- Deployment environment: repository docs
+- Deployment evidence: merged PR #9 to `main`
 - Human testing status: pending
 - Human tester:
 - Human test date:
