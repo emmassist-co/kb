@@ -61,7 +61,7 @@ npm install -D typescript wrangler
 3. Prefer the CLI bootstrap command from the guide:
 
 ```bash
-npx kb-local cloudflare deploy --workspace-id <workspace-id> --workspace <deploy-workspace>
+npx kb cloudflare deploy --workspace-id <workspace-id> --workspace <deploy-workspace>
 ```
 
 If the operator does not want the CLI to write files, fall back to the manual Worker wrapper and `wrangler.jsonc` path from the guide.
@@ -82,7 +82,7 @@ export KB_API_TOKEN=replace-me-with-a-secret
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/capabilities" | jq
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/inspect" | jq
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/doctor" | jq
-npx kb-local cloudflare verify --workspace-id <workspace-id>
+npx kb cloudflare verify --workspace-id <workspace-id>
 ```
 
 6. Connect the agent over HTTP:
@@ -90,13 +90,13 @@ npx kb-local cloudflare verify --workspace-id <workspace-id>
 ```bash
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
-npx kb-local inspect
+npx kb inspect
 ```
 
 7. Install KB write tooling for the agent if needed:
 
 ```bash
-npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write
 ```
 
 ## Connect An Agent
@@ -106,7 +106,7 @@ For remote agent use, prefer the existing HTTP mode rather than inventing a seco
 ```bash
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
-npx kb-local search --json '{"query":"billing"}'
+npx kb search --json '{"query":"billing"}'
 ```
 
 That gives the agent one stable contract regardless of whether the backing store is local or canonical Cloudflare.
@@ -115,9 +115,17 @@ For external MCP clients, configure the same host on `/mcp` with the same bearer
 
 ## Optional Mirror Support
 
-If the user also wants a local support mirror of canonical R2 state, guide them to `kb-local sync` after the canonical Worker is healthy. Do not present the mirror path as a peer production deployment.
+If the user also wants a local support mirror of canonical R2 state, guide them to `kb sync` after the canonical Worker is healthy. Do not present the mirror path as a peer production deployment.
 
 ## Install This Skill
+
+After installing `@emmassist-co/kb-cli`, prefer the package-local skill path:
+
+```bash
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-cloudflare-setup
+```
+
+If the package is not installed yet, the GitHub source path is available as a fallback:
 
 ```bash
 npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-cloudflare-setup

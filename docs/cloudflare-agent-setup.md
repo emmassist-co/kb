@@ -56,7 +56,7 @@ npm install -D typescript wrangler
 The fastest supported path is the CLI bootstrap:
 
 ```bash
-npx kb-local cloudflare deploy \
+npx kb cloudflare deploy \
   --workspace . \
   --workspace-id acme-workspace \
   --worker-name acme-kb \
@@ -80,7 +80,7 @@ To recheck the host later without redeploying:
 ```bash
 KB_BASE_URL=https://acme-kb.workers.dev \
 KB_API_TOKEN=replace-me-with-a-secret \
-npx kb-local cloudflare verify --workspace-id acme-workspace
+npx kb cloudflare verify --workspace-id acme-workspace
 ```
 
 ## 3. Add The Worker Code Manually
@@ -327,7 +327,7 @@ The supported CLI recheck path is:
 ```bash
 KB_BASE_URL=https://YOUR-KB-HOST \
 KB_API_TOKEN=replace-me-with-a-secret \
-npx kb-local cloudflare verify --workspace-id acme-workspace
+npx kb cloudflare verify --workspace-id acme-workspace
 ```
 
 That command validates the same protected host across:
@@ -355,7 +355,7 @@ For any MCP client that supports Streamable HTTP and static headers, configure t
 }
 ```
 
-Use the same API key you use for `kb-local` remote HTTP mode. In v1, `/v1` and `/mcp` share the same bearer token.
+Use the same API key you use for `kb` remote HTTP mode. In v1, `/v1` and `/mcp` share the same bearer token.
 
 If you are working inside the `kb` repo, you can also run:
 
@@ -365,22 +365,22 @@ npm run verify:deployment -- --kb-http-smoke --base-url https://YOUR-KB-HOST
 
 ## 8. Connect An Agent
 
-Once the Worker is live, the simplest agent connection path is the remote HTTP mode already supported by `kb-local`:
+Once the Worker is live, the simplest agent connection path is the remote HTTP mode already supported by `kb`:
 
 ```bash
 npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
-npx kb-local inspect
-npx kb-local search --json '{"query":"billing"}'
+npx kb inspect
+npx kb search --json '{"query":"billing"}'
 ```
 
-For agents that should write into the KB:
+For agents that should write into the KB, install the packaged skills from `node_modules`:
 
 ```bash
-npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write
-npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-cloudflare-setup
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-cloudflare-setup
 ```
 
 Use `kb-write` for normal write operations and `kb-cloudflare-setup` when the agent needs to help an operator stand up or reconnect the canonical Cloudflare KB surface, including shared-secret auth and MCP verification.
@@ -393,8 +393,8 @@ If an operator needs a support workspace that mirrors canonical R2 state locally
 export KB_BACKEND=r2-mirror
 export KB_R2_MIRROR_ROOT="$PWD/.kb-sync"
 
-npx kb-local sync pull
-npx kb-local sync status
+npx kb sync pull
+npx kb sync status
 ```
 
 This is a support path, not a second production architecture.

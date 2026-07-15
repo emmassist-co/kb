@@ -39,3 +39,5 @@ jobs:
         run: npm run verify:kb:evals
       - name: Run kb smoke verification
         run: ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all
+      - name: Run KB agent readiness smoke
+        run: npm run smoke:kb-agent-readiness -- --local-pack --skip-build

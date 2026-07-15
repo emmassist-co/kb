@@ -13,10 +13,15 @@ npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github
 
 export KB_ROOT_DIR="$PWD/.kb"
 
-npx kb-local inspect
-npx kb-local schema record
-npx kb-local help
+npx kb inspect
+npx kb schema record
+npx kb help
+
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-local-setup
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write
 ```
+
+`kb-local` remains a backward-compatible alias for existing agents and scripts, but new docs prefer `kb`.
 
 If that agent needs the canonical shared deployment instead of a local file-backed KB:
 
@@ -24,7 +29,7 @@ If that agent needs the canonical shared deployment instead of a local file-back
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
 
-npx kb-local search --json '{"query":"billing"}'
+npx kb search --json '{"query":"billing"}'
 ```
 
 For the full install and deployment path, see:
@@ -136,7 +141,7 @@ KB earns trust by keeping memory explicit:
 A normal shared-memory loop looks like this:
 
 1. A human tells Codex, "We decided Stripe owns invoice payments."
-2. Codex records a structured entity update and source/evidence note through `kb-local record` or `kb-local remember`.
+2. Codex records a structured entity update and source/evidence note through `kb record` or `kb remember`.
 3. Claude Code later searches `invoice payments` through `/mcp` and finds the same KB state.
 4. Pi adds an external source with `capture-source` or a `remember` payload that cites the URL.
 5. The human spots stale wording in a workspace mirror, edits `entities/*.md`, and runs semantic validation/sync.
@@ -164,14 +169,14 @@ KB is agent-first because the normal user is an agent or an operator supervising
 - **One contract, many transports:** local CLI, local daemon HTTP, deployed `/v1` HTTP, and deployed `/mcp` all route to the same `kb-core` service semantics instead of creating separate memories.
 - **Cloudflare is production, local is support:** local file-backed workspaces are for development and portability; canonical production runs on a workspace-scoped Cloudflare Worker with Durable Object state and R2 export.
 - **Agents write structured evidence:** normal agent writes go through `remember`, `record`, `relate`, `annotate`, and source-capture contracts so corrections, provenance, and edges compound over time.
-- **Plain agents stay plain:** Codex, Claude Code, Pi, Cursor, shell scripts, and other agents do not need a custom SDK. If they can run commands, they can use `kb-local`; if they support MCP, they can point at `/mcp`; if they are deployed, they can call `/v1` over HTTP.
+- **Plain agents stay plain:** Codex, Claude Code, Pi, Cursor, shell scripts, and other agents do not need a custom SDK. If they can run commands, they can use `kb`; if they support MCP, they can point at `/mcp`; if they are deployed, they can call `/v1` over HTTP.
 
 ```mermaid
 flowchart LR
   Agent["Plain command-running agent\nCodex / Claude / Pi / Cursor / scripts"]
   McpClient["MCP-aware client\nClaude / Cursor / other MCP hosts"]
   Human["Human operator\nCLI / editor / review"]
-  CLI["kb-local CLI\nin-process, daemon, or remote HTTP mode"]
+  CLI["kb CLI\nin-process, daemon, or remote HTTP mode"]
   Skills["installable skills\nkb-local-setup / kb-write / kb-cloudflare-setup"]
   HTTP["kb-http /v1\nNode daemon or Cloudflare Worker"]
   MCP["kb-mcp /mcp\nStreamable HTTP MCP tools"]
@@ -203,12 +208,13 @@ How the same architecture shows up in practice:
 
 | Actor / environment | Recommended path | What happens |
 | --- | --- | --- |
-| Plain local Codex / Claude / Pi / Cursor session | `npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com`, set `KB_ROOT_DIR`, run `npx kb-local ...` | The agent uses the CLI directly against a local file-backed KB. |
-| Multiple local tools on one machine | `npx kb-local serve --port 3001`, then `KB_BASE_URL=http://127.0.0.1:3001 npx kb-local ...` | A Node daemon exposes the same `/v1` contract locally. |
-| Deployed/serverless agent or remote operator | `KB_BASE_URL=https://YOUR-KB-HOST` + `KB_API_TOKEN`, then `npx kb-local ...` or direct HTTP | The caller talks to the canonical Worker-hosted KB over `/v1`. |
+| Plain local Codex / Claude / Pi / Cursor session | `npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com`, set `KB_ROOT_DIR`, run `npx kb ...` | The agent uses the CLI directly against a local file-backed KB. |
+| Multiple local tools on one machine | `npx kb serve --port 3001`, then `KB_BASE_URL=http://127.0.0.1:3001 npx kb ...` | A Node daemon exposes the same `/v1` contract locally. |
+| Deployed/serverless agent or remote operator | `KB_BASE_URL=https://YOUR-KB-HOST` + `KB_API_TOKEN`, then `npx kb ...` or direct HTTP | The caller talks to the canonical Worker-hosted KB over `/v1`. |
 | MCP-aware clients | configure `POST https://YOUR-KB-HOST/mcp` with the same bearer token | The MCP surface exposes the scoped KB tool catalog over the same workspace runtime. |
+| Command-running agents that support skills | `npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write` after package install | The agent gets normal CLI write discipline without cloning the full KB repo. |
 | Human editing canonical knowledge | pull a mirror, edit `entities/*.md` / `sources/*.md`, run semantic sync | The daemon compiles safe markdown edits back into canonical KB mutations. |
-| Cloudflare deployment bootstrap | `npx kb-local cloudflare deploy` then `npx kb-local cloudflare verify` | The CLI creates/verifies the Worker, Durable Object binding, R2 bucket, `/v1`, `/mcp`, and shared bearer auth. |
+| Cloudflare deployment bootstrap | `npx kb cloudflare deploy` then `npx kb cloudflare verify` | The CLI creates/verifies the Worker, Durable Object binding, R2 bucket, `/v1`, `/mcp`, and shared bearer auth. |
 
 Important boundary: KB does **not** claim to own every chat bridge or agent runtime. It owns the durable memory contract and the package/CLI/MCP surfaces that agents can use from those runtimes. Product-specific chat bridges, OAuth callback products, and customer webhook flows should stay outside this repo unless they are explicitly rehomed here.
 
@@ -216,12 +222,12 @@ Important boundary: KB does **not** claim to own every chat bridge or agent runt
 
 | Stage | Command shape | Use when |
 | --- | --- | --- |
-| Local folder memory | `KB_ROOT_DIR=$PWD/.kb npx kb-local inspect` | One local agent needs durable memory in the current repo or workspace. |
-| Local shared daemon | `npx kb-local serve --port 3001` then `KB_BASE_URL=http://127.0.0.1:3001` | Multiple local tools should share one local `/v1` contract. |
+| Local folder memory | `KB_ROOT_DIR=$PWD/.kb npx kb inspect` | One local agent needs durable memory in the current repo or workspace. |
+| Local shared daemon | `npx kb serve --port 3001` then `KB_BASE_URL=http://127.0.0.1:3001` | Multiple local tools should share one local `/v1` contract. |
 | Protected remote HTTP | `KB_BASE_URL=https://YOUR-KB-HOST` + `KB_API_TOKEN` | Remote agents or serverless code need the canonical workspace memory. |
 | MCP client | `POST https://YOUR-KB-HOST/mcp` with the same bearer token | Claude, Cursor, or another MCP-aware host should use KB tools directly. |
-| Cloudflare bootstrap | `npx kb-local cloudflare deploy --workspace-id my-workspace` | An operator wants the canonical Worker, Durable Object, R2, `/v1`, and `/mcp` surface. |
-| Human mirror support | `KB_BACKEND=r2-mirror npx kb-local sync pull` | A human needs file-based review, validation, or conflict repair. |
+| Cloudflare bootstrap | `npx kb cloudflare deploy --workspace-id my-workspace` | An operator wants the canonical Worker, Durable Object, R2, `/v1`, and `/mcp` surface. |
+| Human mirror support | `KB_BACKEND=r2-mirror npx kb sync pull` | A human needs file-based review, validation, or conflict repair. |
 
 Local-to-remote migration is intentionally boring: start with `KB_ROOT_DIR` for a folder-backed workspace, then point the same CLI and agents at `KB_BASE_URL` when a canonical Cloudflare host exists. The normal write verbs stay the same. Mirror mode is for support and human review; it is not a second production architecture.
 
@@ -270,7 +276,7 @@ Protected Cloudflare host recheck:
 ```bash
 KB_BASE_URL=https://YOUR-KB-HOST \
 KB_API_TOKEN=replace-me-with-a-secret \
-npx kb-local cloudflare verify
+npx kb cloudflare verify
 ```
 
 Open-source readiness:

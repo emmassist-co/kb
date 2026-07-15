@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Make KB Frictionless For Agent Adoption
+
+- Area: cli, docs, package
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added the preferred `kb` binary alias while preserving `kb-local`, switched default skill install docs to package-local `node_modules` paths, added a deterministic fresh-folder agent readiness smoke, clarified CLI skills versus MCP client adoption, tightened packaged skill standards, and prepared patch docs release metadata for `@emmassist-co/kb-mcp`.
+- Customer-visible impact: command-running agents can install the package in a clean folder, add KB skills without cloning the repository, inspect/write/search memory with `kb`, and still use existing `kb-local` scripts.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: install `@emmassist-co/kb-cli@1.7.0` in a clean folder, run `npx kb inspect`, install packaged skills from `./node_modules/@emmassist-co/kb-cli/skills`, write with `kb remember --json -`, and search the written memory.
+- Automated coverage: `npm run smoke:kb-agent-readiness -- --local-pack`; `node --import tsx/esm --test tests/kb-cli-docs.test.ts tests/kb-skills.test.ts`; `npm run check:kb:anti-cheat`; `npm run typecheck`; `npm test`
+- Needs iteration: no
+- Follow-up: none
+
 ## 2026-07-15 - Fix GitHub Packages Install Examples
 
 - Area: docs, package

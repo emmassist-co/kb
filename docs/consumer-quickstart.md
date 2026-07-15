@@ -31,7 +31,7 @@ Recommended defaults:
 npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 ```
 
-This gives you `kb-local`.
+This gives you `kb`.
 
 ## 1.1. Flue Runtime Consumers
 
@@ -49,9 +49,9 @@ The adapter no longer depends on legacy Flue subpath exports, so the same packag
 export KB_ROOT_DIR="$PWD/.kb"
 # Optional: export KB_WORKSPACE_ID=my-workspace
 
-npx kb-local inspect
-npx kb-local help
-npx kb-local schema record
+npx kb inspect
+npx kb help
+npx kb schema record
 ```
 
 ## 3. Local Daemon Mode
@@ -62,7 +62,7 @@ Start the server:
 export KB_ROOT_DIR="$PWD/.kb"
 # Optional: export KB_WORKSPACE_ID=my-workspace
 
-npx kb-local serve --port 3001
+npx kb serve --port 3001
 ```
 
 Then use the same CLI as an HTTP client:
@@ -70,7 +70,7 @@ Then use the same CLI as an HTTP client:
 ```bash
 export KB_BASE_URL=http://127.0.0.1:3001
 
-npx kb-local search --json '{"query":"billing"}'
+npx kb search --json '{"query":"billing"}'
 ```
 
 ## 4. Local R2 Mirror Mode
@@ -82,39 +82,45 @@ export KB_BACKEND=r2-mirror
 export KB_R2_MIRROR_ROOT="$PWD/.kb-sync"
 # Optional: export KB_WORKSPACE_ID=my-workspace
 
-npx kb-local sync status
-npx kb-local sync pull
-npx kb-local validate-mirror
-npx kb-local health
+npx kb sync status
+npx kb sync pull
+npx kb validate-mirror
+npx kb health
 ```
 
 This is a support and debugging path, not a second production architecture. Canonical production writes still belong on the Cloudflare-hosted KB surface.
 
-If humans want to edit the workspace mirror directly in Obsidian while canonical writes still go through KB semantics, use the semantic authoring workflow in `docs/operations/kb-obsidian-semantic-sync.md`. In that mode, `entities/*.md` and `sources/*.md` are the only supported authoring targets and the daemon translates those edits onto the canonical Cloudflare KB surface. Run `npx kb-local validate-mirror` before applying edits and `npx kb-local health --stats` when an agent or operator needs one readiness envelope across sync, daemon, validation, and conflict state.
+If humans want to edit the workspace mirror directly in Obsidian while canonical writes still go through KB semantics, use the semantic authoring workflow in `docs/operations/kb-obsidian-semantic-sync.md`. In that mode, `entities/*.md` and `sources/*.md` are the only supported authoring targets and the daemon translates those edits onto the canonical Cloudflare KB surface. Run `npx kb validate-mirror` before applying edits and `npx kb health --stats` when an agent or operator needs one readiness envelope across sync, daemon, validation, and conflict state.
 
 ## 5. Install Skills For Agents
 
-KB write skill:
+After installing `@emmassist-co/kb-cli`, install the packaged skills from `node_modules` so agents do not need to clone this repository:
+
+```bash
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-local-setup
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-cloudflare-setup
+```
+
+Use `kb-write` when the agent should search, validate payloads, and write durable facts, records, relations, or annotations.
+Use `kb-local-setup` when the agent should ask the user for local setup variables and get the environment ready.
+Use `kb-cloudflare-setup` when the agent should guide an operator through deploying the canonical Cloudflare KB surface, verifying `canonical-production`, and handing the agent a working `KB_BASE_URL`.
+
+Choose the agent connection path by host capability:
+
+| Agent or client | Use | Verification |
+| --- | --- | --- |
+| Command-running local agent | `kb` CLI plus package-local skills | `npm run smoke:kb-agent-readiness -- --local-pack` in this repo, or `npx kb inspect` in a consumer folder |
+| Remote/serverless agent | `KB_BASE_URL` + `KB_API_TOKEN` over `/v1` | `npx kb cloudflare verify --workspace-id my-workspace` |
+| MCP-aware client | `https://YOUR-KB-HOST/mcp` with bearer auth | `npm run smoke:kb-mcp -- --workspace-id my-workspace` |
+
+Skills do not auto-configure every IDE or MCP host. They give command-running agents the KB operating protocol; MCP-aware clients still need their host-specific MCP server configuration.
+
+If the package is not installed yet, the GitHub source install remains available as a fallback:
 
 ```bash
 npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write
 ```
-
-KB local setup skill:
-
-```bash
-npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-local-setup
-```
-
-Use `kb-local-setup` when the agent should ask the user for the local setup variables and get the environment ready.
-
-KB Cloudflare setup skill:
-
-```bash
-npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-cloudflare-setup
-```
-
-Use `kb-cloudflare-setup` when the agent should guide an operator through deploying the canonical Cloudflare KB surface, verifying `canonical-production`, and handing the agent a working `KB_BASE_URL`.
 
 ## Agent Operating Protocol
 
@@ -132,13 +138,13 @@ export KB_API_TOKEN=replace-me-with-a-secret
 If you want the CLI to scaffold and deploy the Cloudflare workspace directly:
 
 ```bash
-npx kb-local cloudflare deploy --workspace-id my-workspace --workspace ./kb-cloudflare
+npx kb cloudflare deploy --workspace-id my-workspace --workspace ./kb-cloudflare
 ```
 
 If the host already exists and you just want to recheck it:
 
 ```bash
-npx kb-local cloudflare verify --workspace-id my-workspace
+npx kb cloudflare verify --workspace-id my-workspace
 ```
 
 If you want an external MCP client to connect to that deployed KB, use the same base host and API key on `/mcp`:
@@ -164,9 +170,9 @@ If you want an external MCP client to connect to that deployed KB, use the same 
 Minimal smoke:
 
 ```bash
-npx kb-local inspect
-npx kb-local schema relate
-printf '%s\n' '{"query":"test"}' | npx kb-local search --json -
+npx kb inspect
+npx kb schema relate
+printf '%s\n' '{"query":"test"}' | npx kb search --json -
 ```
 
 If you cloned the KB repo itself, you can also run:
