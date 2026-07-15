@@ -2,6 +2,8 @@
 
 Cloudflare-specific KB persistence and runtime adapters.
 
+Storage adapter architecture and authoring guidance: [../../docs/architecture/kb-storage-adapters.md](../../docs/architecture/kb-storage-adapters.md).
+
 ## Owns
 
 - canonical R2 store helpers

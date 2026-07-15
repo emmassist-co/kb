@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Add Agent Adoption And Storage Adapter Docs
+
+- Area: docs
+- Merged to `main`: no
+- Commit / PR: PR #9
+- Feature summary: added README decision guidance for agents evaluating KB as shared memory, documented the human-plus-multi-agent operating loop, trust/recovery boundaries, local-to-remote lifecycle, and a storage adapter architecture guide covering the `KnowledgeStore` seam plus S3-style adapter requirements.
+- Customer-visible impact: agents and operators can decide when to use KB, understand how to use it safely with humans and other agents, and see what is required to add another storage backend.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: read the README as a first-time agent/operator, follow one local setup path, and review `docs/architecture/kb-storage-adapters.md` for enough detail to scope an S3-style adapter.
+- Automated coverage: `node --import tsx/esm --test tests/kb-cli-docs.test.ts`; `npm run check:kb:anti-cheat`; `npm run typecheck`; `npm test`
+- Needs iteration: no
+- Follow-up: none
+
 ## 2026-07-15 - Use Workspace Language For KB Architecture Docs
 
 - Area: docs, package

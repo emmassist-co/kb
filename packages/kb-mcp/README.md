@@ -72,7 +72,7 @@ Verify that host before handing it to an external client:
 ```bash
 KB_BASE_URL=https://kb.acme.example \
 KB_API_TOKEN=replace-me-with-a-secret \
-npx kb-local cloudflare verify --tenant-id acme
+npx kb-local cloudflare verify --workspace-id acme
 ```
 
 ## Verification
@@ -80,24 +80,24 @@ npx kb-local cloudflare verify --tenant-id acme
 Default HTTP transport smoke against the Worker-shaped `/mcp` surface:
 
 ```bash
-npm run smoke:kb-mcp -- --tenant-id kb-mcp-smoke
+npm run smoke:kb-mcp -- --workspace-id kb-mcp-smoke
 ```
 
 Local stdio smoke for direct server registration:
 
 ```bash
-npm run smoke:kb-mcp -- --transport stdio --tenant-id kb-mcp-smoke
+npm run smoke:kb-mcp -- --transport stdio --workspace-id kb-mcp-smoke
 ```
 
 Codex-session registration smoke for debugging only:
 
 ```bash
-npm run smoke:codex-mcp -- --tenant-id kb-mcp-smoke
+npm run smoke:codex-mcp -- --workspace-id kb-mcp-smoke
 ```
 
 ## Notes
 
 - `kb-http` remains the canonical deployed JSON contract.
-- `kb-mcp` is an additional client surface over the same tenant-scoped runtime.
+- `kb-mcp` is an additional client surface over the same workspace-scoped runtime.
 - The first release is designed for shared-secret bearer auth and keeps fuller OAuth flows deferred.
 - The preferred automated verification path is the direct MCP client smoke over HTTP, not an interactive agent session.

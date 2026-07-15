@@ -98,6 +98,64 @@ Current package boundaries already reflect the intended shape:
 - `packages/kb-flue-adapter`: published Flue runtime adapter with a structural command contract that survives Flue SDK export changes
 - `packages/kb-autoresearch`: private package and repo-owned research tooling surface, not a staged public install target
 
+For the storage-adapter seam and backend-extension guide, see [docs/architecture/kb-storage-adapters.md](./docs/architecture/kb-storage-adapters.md).
+
+## Should An Agent Use KB?
+
+Use KB when you need durable, inspectable workspace memory shared by a human and multiple agents. It is strongest for facts, decisions, sources, relation edges, corrections, and operational notes that should survive beyond one chat session.
+
+KB is a good fit when:
+
+- one agent records a decision and another agent needs to find it later
+- a human wants to correct or review memory instead of trusting hidden embeddings
+- local agents need a simple folder-backed start and a remote shared surface later
+- MCP-aware clients and command-running agents need the same memory contract
+- source evidence, relation edges, and freshness metadata matter
+
+KB is not trying to be:
+
+- a chat app or IDE extension
+- a generic vector database
+- a replacement for an application database
+- a full personal-brain product with every ingest channel built in
+- proof of broad semantic memory beyond the measured retrieval and relation surfaces
+
+### Trust Model
+
+KB earns trust by keeping memory explicit:
+
+- **Durable state:** entities, sources, events, drafts, and links persist outside the agent transcript.
+- **Evidence-first writes:** agents can capture sources and cite source IDs instead of writing unsupported claims.
+- **Human correction path:** humans can edit supported mirror files or ask agents to record corrections; stale facts can be superseded instead of silently overwritten.
+- **Graph edges are explicit:** agents can use `relate` for deliberate edges, while extraction-derived links remain evidence-bearing and replaceable by origin.
+- **Inspectable health:** `inspect`, `doctor`, `health`, validation, and conflict commands expose state before agents rely on it.
+- **Recovery boundaries:** local folders are portable, remote hosts can be reverified, and mirror-support workflows can repair divergence, but KB does not pretend bad writes are impossible.
+
+### Human + Multi-Agent Workflow
+
+A normal shared-memory loop looks like this:
+
+1. A human tells Codex, "We decided Stripe owns invoice payments."
+2. Codex records a structured entity update and source/evidence note through `kb-local record` or `kb-local remember`.
+3. Claude Code later searches `invoice payments` through `/mcp` and finds the same KB state.
+4. Pi adds an external source with `capture-source` or a `remember` payload that cites the URL.
+5. The human spots stale wording in a workspace mirror, edits `entities/*.md`, and runs semantic validation/sync.
+6. Future agents search first, cite the current KB state, and add corrections instead of rebuilding context from chat history.
+
+### Agent Operating Protocol
+
+Agents using KB should follow these rules:
+
+- Search KB before answering factual questions about the workspace.
+- Use `remember` for facts, corrections, sources, and narrative evidence capture.
+- Use `record` for structured entity profiles and durable current truth.
+- Use `relate` for explicit edges between existing entities.
+- Use `annotate` for timeline/provenance notes, not relation edges.
+- Capture external sources when a claim depends on outside evidence.
+- Avoid dumping raw chat logs; summarize the durable fact, decision, or correction.
+- Ask the human before rewriting canonical truth when the change is ambiguous or destructive.
+- Run `inspect` or `doctor` when the active backend or workspace role is unclear.
+
 ## Agent-First Architecture Map
 
 KB is agent-first because the normal user is an agent or an operator supervising agents, not a human clicking through a CRUD app. The core design principles are:
@@ -153,6 +211,31 @@ How the same architecture shows up in practice:
 | Cloudflare deployment bootstrap | `npx kb-local cloudflare deploy` then `npx kb-local cloudflare verify` | The CLI creates/verifies the Worker, Durable Object binding, R2 bucket, `/v1`, `/mcp`, and shared bearer auth. |
 
 Important boundary: KB does **not** claim to own every chat bridge or agent runtime. It owns the durable memory contract and the package/CLI/MCP surfaces that agents can use from those runtimes. Product-specific chat bridges, OAuth callback products, and customer webhook flows should stay outside this repo unless they are explicitly rehomed here.
+
+## Setup And Lifecycle Paths
+
+| Stage | Command shape | Use when |
+| --- | --- | --- |
+| Local folder memory | `KB_ROOT_DIR=$PWD/.kb npx kb-local inspect` | One local agent needs durable memory in the current repo or workspace. |
+| Local shared daemon | `npx kb-local serve --port 3001` then `KB_BASE_URL=http://127.0.0.1:3001` | Multiple local tools should share one local `/v1` contract. |
+| Protected remote HTTP | `KB_BASE_URL=https://YOUR-KB-HOST` + `KB_API_TOKEN` | Remote agents or serverless code need the canonical workspace memory. |
+| MCP client | `POST https://YOUR-KB-HOST/mcp` with the same bearer token | Claude, Cursor, or another MCP-aware host should use KB tools directly. |
+| Cloudflare bootstrap | `npx kb-local cloudflare deploy --workspace-id my-workspace` | An operator wants the canonical Worker, Durable Object, R2, `/v1`, and `/mcp` surface. |
+| Human mirror support | `KB_BACKEND=r2-mirror npx kb-local sync pull` | A human needs file-based review, validation, or conflict repair. |
+
+Local-to-remote migration is intentionally boring: start with `KB_ROOT_DIR` for a folder-backed workspace, then point the same CLI and agents at `KB_BASE_URL` when a canonical Cloudflare host exists. The normal write verbs stay the same. Mirror mode is for support and human review; it is not a second production architecture.
+
+## Multi-Writer And Recovery Boundaries
+
+KB supports multiple agents using the same contract, but it does not hide operational reality:
+
+- Normal entity writes use short-lived entity locks where the active store supports them.
+- Extracted relation links are replaced by origin, which keeps repeated extraction idempotent instead of piling up duplicate edges.
+- Explicit `relate` edges are deliberate writes between existing entities.
+- Mirror workflows can surface conflicts and support human resolution before applying canonical mutations.
+- `doctor`, `health`, `validate-mirror`, and conflict commands are the repair path when state looks wrong.
+- If an agent writes bad memory, prefer a correction, source-backed update, freshness review, or supersession over silent deletion.
+- If the remote host is unavailable, local file mode can continue as a local-development surface, but agents should not treat it as automatically synchronized canonical state.
 
 ## Cloudflare-First Deployment Shape
 

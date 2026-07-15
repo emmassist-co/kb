@@ -15,6 +15,18 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Not yet in the staged public package set/);
   assert.match(repoReadme, /@emmassist-co\/kb-flue-adapter/);
   assert.match(repoReadme, /@emmassist-co\/kb-autoresearch/);
+  assert.match(repoReadme, /## Should An Agent Use KB\?/);
+  assert.match(repoReadme, /durable, inspectable workspace memory shared by a human and multiple agents/);
+  assert.match(repoReadme, /### Trust Model/);
+  assert.match(repoReadme, /Evidence-first writes/);
+  assert.match(repoReadme, /Human correction path/);
+  assert.match(repoReadme, /### Human \+ Multi-Agent Workflow/);
+  assert.match(repoReadme, /Codex records a structured entity update/);
+  assert.match(repoReadme, /Claude Code later searches/);
+  assert.match(repoReadme, /### Agent Operating Protocol/);
+  assert.match(repoReadme, /Search KB before answering factual questions/);
+  assert.match(repoReadme, /Use `relate` for explicit edges/);
+  assert.match(repoReadme, /docs\/architecture\/kb-storage-adapters\.md/);
   assert.match(repoReadme, /## Agent-First Architecture Map/);
   assert.match(repoReadme, /One durable truth surface/);
   assert.match(repoReadme, /One contract, many transports/);
@@ -27,6 +39,10 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Cloudflare Durable Object/);
   assert.match(repoReadme, /Cloudflare R2/);
   assert.match(repoReadme, /does \*\*not\*\* claim to own every chat bridge or agent runtime/);
+  assert.match(repoReadme, /## Setup And Lifecycle Paths/);
+  assert.match(repoReadme, /Local-to-remote migration is intentionally boring/);
+  assert.match(repoReadme, /## Multi-Writer And Recovery Boundaries/);
+  assert.match(repoReadme, /replaceLinksForOrigin|replaced by origin/);
   assert.doesNotMatch(repoReadme, /\btenant\b/i);
   assert.match(repoReadme, /## Benchmark Standard/);
   assert.match(repoReadme, /admin-world-v3/);
@@ -117,6 +133,23 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(mcpReadme, /shared-secret bearer auth/);
   assert.match(mcpReadme, /streamable-http/);
   assert.match(mcpReadme, /Authorization/);
+  assert.match(mcpReadme, /workspace-scoped runtime/);
+
+  const storageGuidePath = path.resolve(process.cwd(), 'docs/architecture/kb-storage-adapters.md');
+  assert.ok(existsSync(storageGuidePath));
+  const storageGuide = readFileSync(storageGuidePath, 'utf8');
+  assert.match(storageGuide, /KnowledgeStore/);
+  assert.match(storageGuide, /FileKnowledgeStore/);
+  assert.match(storageGuide, /SnapshotKnowledgeStore/);
+  assert.match(storageGuide, /R2CanonicalKbStore/);
+  assert.match(storageGuide, /Building An S3-Style Adapter/);
+  assert.match(storageGuide, /replaceLinksForOrigin/);
+  assert.match(storageGuide, /Do not duplicate or fork/);
+
+  const fileStoreReadme = readFileSync(path.resolve(process.cwd(), 'packages/kb-storage-file/README.md'), 'utf8');
+  assert.match(fileStoreReadme, /kb-storage-adapters\.md/);
+  const cloudflareStoreReadme = readFileSync(path.resolve(process.cwd(), 'packages/kb-storage-cloudflare/README.md'), 'utf8');
+  assert.match(cloudflareStoreReadme, /kb-storage-adapters\.md/);
 
   const quickstart = readFileSync(path.resolve(process.cwd(), 'docs/consumer-quickstart.md'), 'utf8');
   assert.match(quickstart, /public npm registry/);
@@ -135,6 +168,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(quickstart, /kb-local cloudflare deploy/);
   assert.match(quickstart, /kb-local cloudflare verify/);
   assert.match(quickstart, /streamable-http/);
+  assert.match(quickstart, /## Agent Operating Protocol/);
+  assert.match(quickstart, /search before answering workspace-specific factual questions/);
   assert.match(quickstart, /kb-obsidian-semantic-sync\.md/);
   assert.match(quickstart, /entities\/\*\.md/);
   assert.match(quickstart, /sources\/\*\.md/);
@@ -172,6 +207,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareGuide, /kb-cloudflare-setup/);
   assert.match(cloudflareGuide, /wrangler\.jsonc/);
   assert.match(cloudflareGuide, /streamable-http/);
+  assert.match(cloudflareGuide, /## Recovery And Repair Notes/);
+  assert.match(cloudflareGuide, /If an agent writes stale or incorrect memory/);
 
   const migrationStatus = readFileSync(path.resolve(process.cwd(), 'docs/migration-status.md'), 'utf8');
   assert.match(migrationStatus, /## Staged Public Package Set/);
