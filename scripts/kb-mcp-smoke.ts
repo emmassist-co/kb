@@ -143,8 +143,8 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
-    if (value === '--tenant-id') {
-      tenantId = requireValue(argv[++index], '--tenant-id');
+    if (value === '--workspace-id' || value === '--tenant-id') {
+      tenantId = requireValue(argv[++index], value);
       continue;
     }
     if (value === '--root-dir') {
@@ -189,7 +189,7 @@ function createStdioTransport(parsed: ParsedArgs, repoRoot: string): StdioClient
       '--import',
       'tsx/esm',
       path.resolve(repoRoot, 'scripts/kb-mcp-stdio.ts'),
-      '--tenant-id',
+      '--workspace-id',
       parsed.tenantId,
       '--root-dir',
       parsed.rootDir,
@@ -284,7 +284,7 @@ function printHelpAndExit(code: number): never {
     'Run a real MCP client smoke test against the local KB MCP stdio server.',
     '',
     'Flags:',
-    '  --tenant-id TENANT_ID',
+    '  --workspace-id WORKSPACE_ID',
     '  --root-dir PATH',
     '  --transport http|stdio',
     '  --scopes kb.read,kb.write,kb.operator',

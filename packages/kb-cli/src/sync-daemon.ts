@@ -144,7 +144,7 @@ export async function executeKnowledgeBaseSyncDaemonCommand(
   }
 
   const cwd = options.cwd ?? process.cwd();
-  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  const tenantId = env.KB_WORKSPACE_ID ?? env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
   const stateDir = path.resolve(cwd, env.KB_SYNC_STATE_DIR ?? '.state/kb-sync');
   const pidFile = path.join(stateDir, 'daemon.pid');
   const logFile = path.join(stateDir, 'daemon.log');
@@ -349,7 +349,7 @@ async function runSemanticSyncPass(
     recordSource: async (input) => await cliExecutor.recordSource(input) as KnowledgeMutationResult,
     annotate: async (input) => await cliExecutor.annotate(input as unknown as Record<string, unknown>) as KnowledgeMutationResult
   };
-  const mirrorRoot = resolveMirrorRoot(options.cwd ?? process.cwd(), options.env ?? process.env, options.env?.KB_TENANT_ID ?? options.env?.WORKSPACE_TENANT_ID ?? 'default');
+  const mirrorRoot = resolveMirrorRoot(options.cwd ?? process.cwd(), options.env ?? process.env, options.env?.KB_WORKSPACE_ID ?? options.env?.KB_TENANT_ID ?? options.env?.WORKSPACE_TENANT_ID ?? 'default');
   const outcome = await applyKnowledgeBaseSemanticSyncEdits({
     mirrorRoot,
     statusEntries: entries,

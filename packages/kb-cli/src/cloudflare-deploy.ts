@@ -81,7 +81,7 @@ export async function executeKnowledgeBaseCloudflareDeployCommand(
   const env = options.env ?? process.env;
   const cwd = options.cwd ?? process.cwd();
   const workspacePath = path.resolve(cwd, readStringFlag(parsed, 'workspace') ?? '.');
-  const tenantId = requireFlag(parsed, 'tenant-id');
+  const tenantId = requireWorkspaceIdFlag(parsed);
   const workerName = readStringFlag(parsed, 'worker-name') ?? `${tenantId}-kb`;
   const bucketName = readStringFlag(parsed, 'bucket') ?? `${workerName}-canonical`;
   const rootDir = readStringFlag(parsed, 'root-dir') ?? '.kb';
@@ -187,7 +187,7 @@ export async function executeKnowledgeBaseCloudflareVerifyCommand(
   return verifyKnowledgeBaseCloudflareHost({
     hostUrl,
     token,
-    expectedTenantId: readStringFlag(parsed, 'tenant-id'),
+    expectedTenantId: readWorkspaceIdFlag(parsed),
     fetchImpl: options.fetchImpl ?? fetch,
     errorPrefix: 'Cloudflare verification'
   });
@@ -207,13 +207,13 @@ export function renderKnowledgeBaseCloudflareHelp(): string {
 
 export function renderKnowledgeBaseCloudflareDeployHelp(): string {
   return [
-    'kb cloudflare deploy --tenant-id TENANT_ID [flags]',
+    'kb cloudflare deploy --workspace-id WORKSPACE_ID [flags]',
     '',
     'Deploy or refresh a Cloudflare-hosted canonical KB surface with shared-secret auth and MCP enabled.',
     '',
     'Flags:',
     '  --workspace PATH      Deploy workspace to scaffold or refresh. Defaults to the current directory.',
-    '  --worker-name NAME    Worker name. Defaults to <tenant-id>-kb.',
+    '  --worker-name NAME    Worker name. Defaults to <workspace-id>-kb.',
     '  --bucket NAME         Canonical R2 bucket binding. Defaults to <worker-name>-canonical.',
     '  --root-dir PATH       KB root dir inside the canonical store. Defaults to .kb.',
     '  --host-url URL        Deployed hostname to verify after deploy. Defaults to https://<worker-name>.workers.dev.',
@@ -235,7 +235,7 @@ export function renderKnowledgeBaseCloudflareVerifyHelp(): string {
     'Flags:',
     '  --host-url URL        Cloudflare KB host URL. Defaults to KB_BASE_URL.',
     '  --token VALUE         Bearer token. Defaults to KB_API_TOKEN or KB_BEARER_TOKEN.',
-    '  --tenant-id ID        Optional tenant assertion. Verification fails if the host reports a different tenant.',
+    '  --workspace-id ID     Optional workspace assertion. Verification fails if the host reports a different workspace namespace.',
     '',
     'Verification behavior:',
     '  - checks /v1/capabilities and validates backend, canonical, and workspace role',
@@ -258,6 +258,7 @@ type Env = {
   KB_STATE: DurableObjectNamespace<KnowledgeBaseStateObject>;
   KB_CANONICAL_R2: R2Bucket;
   KB_API_TOKEN?: string;
+  KB_WORKSPACE_ID?: string;
   KB_TENANT_ID?: string;
   KB_ROOT_DIR?: string;
 };
@@ -279,10 +280,10 @@ const KB_CONFIG: KnowledgeBaseConfig = {
   }
 };
 
-function resolveTenantId(env: Env): string {
-  const tenantId = env.KB_TENANT_ID?.trim() || '${escapeTemplateLiteral(input.tenantId)}';
-  if (!tenantId) throw new Error('Missing KB_TENANT_ID.');
-  return tenantId;
+function resolveWorkspaceId(env: Env): string {
+  const workspaceId = env.KB_WORKSPACE_ID?.trim() || env.KB_TENANT_ID?.trim() || '${escapeTemplateLiteral(input.tenantId)}';
+  if (!workspaceId) throw new Error('Missing KB_WORKSPACE_ID.');
+  return workspaceId;
 }
 
 function resolveConfig(env: Env): KnowledgeBaseConfig {
@@ -353,7 +354,7 @@ export class KnowledgeBaseStateObject extends DurableObject {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const tenantId = resolveTenantId(env);
+    const tenantId = resolveWorkspaceId(env);
     const config = resolveConfig(env);
     const auth = resolveAuth(env);
     const stub = env.KB_STATE.get(env.KB_STATE.idFromName(tenantId));
@@ -405,7 +406,7 @@ function renderWranglerConfigTemplate(input: {
   "main": "src/kb-worker.ts",
   "compatibility_date": "2026-06-10",
   "vars": {
-    "KB_TENANT_ID": "${escapeJsonString(input.tenantId)}",
+    "KB_WORKSPACE_ID": "${escapeJsonString(input.tenantId)}",
     "KB_ROOT_DIR": "${escapeJsonString(input.rootDir)}"
   },
   "durable_objects": {
@@ -584,9 +585,13 @@ function readStringFlag(flags: Record<string, string | boolean>, key: string): s
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
 }
 
-function requireFlag(flags: Record<string, string | boolean>, key: string): string {
-  const value = readStringFlag(flags, key);
-  if (!value) throw new Error(`Missing required flag: --${key}`);
+function readWorkspaceIdFlag(flags: Record<string, string | boolean>): string | undefined {
+  return readStringFlag(flags, 'workspace-id') ?? readStringFlag(flags, 'tenant-id');
+}
+
+function requireWorkspaceIdFlag(flags: Record<string, string | boolean>): string {
+  const value = readWorkspaceIdFlag(flags);
+  if (!value) throw new Error('Missing required flag: --workspace-id');
   return value;
 }
 

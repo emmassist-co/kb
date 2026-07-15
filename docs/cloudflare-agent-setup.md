@@ -4,9 +4,9 @@ This guide is for operators who want the canonical KB surface on Cloudflare and 
 
 The target shape is:
 
-- one tenant-scoped Worker deployment
+- one workspace-scoped Worker deployment
 - one Durable Object namespace for write-authoritative snapshot state
-- one canonical R2 bucket for exported tenant state
+- one canonical R2 bucket for exported workspace state
 - one `kb-http` surface that reports `canonical-production`
 - one adjacent `/mcp` surface over the same Worker runtime
 - one or more agents configured with `KB_BASE_URL` and `KB_API_TOKEN`
@@ -24,8 +24,8 @@ Choose these before setup:
 
 - `worker name`
   Example: `acme-kb`
-- `tenant id`
-  Stable KB namespace for the deployment
+- workspace id
+  Stable KB namespace for the deployment.
   Example: `acme`
 - `root dir`
   Canonical root prefix inside the KB store
@@ -37,9 +37,9 @@ Choose these before setup:
 
 Recommended defaults:
 
-- `tenant id`: customer, workspace, or agent boundary
+- workspace id: customer, repo, workspace, or agent boundary
 - `root dir`: `.kb`
-- one Worker deployment per tenant boundary
+- one Worker deployment per workspace boundary
 
 ## 1. Create A Worker Workspace
 
@@ -58,7 +58,7 @@ The fastest supported path is the CLI bootstrap:
 ```bash
 npx kb-local cloudflare deploy \
   --workspace . \
-  --tenant-id acme \
+  --workspace-id acme-workspace \
   --worker-name acme-kb \
   --bucket acme-kb-canonical \
   --host-url https://acme-kb.workers.dev
@@ -80,7 +80,7 @@ To recheck the host later without redeploying:
 ```bash
 KB_BASE_URL=https://acme-kb.workers.dev \
 KB_API_TOKEN=replace-me-with-a-secret \
-npx kb-local cloudflare verify --tenant-id acme
+npx kb-local cloudflare verify --workspace-id acme-workspace
 ```
 
 ## 3. Add The Worker Code Manually
@@ -98,7 +98,7 @@ type Env = {
   KB_STATE: DurableObjectNamespace<KnowledgeBaseStateObject>;
   KB_CANONICAL_R2: R2Bucket;
   KB_API_TOKEN?: string;
-  KB_TENANT_ID?: string;
+  KB_WORKSPACE_ID?: string;
   KB_ROOT_DIR?: string;
 };
 
@@ -119,10 +119,10 @@ const KB_CONFIG: KnowledgeBaseConfig = {
   }
 };
 
-function resolveTenantId(env: Env): string {
-  const tenantId = env.KB_TENANT_ID?.trim();
-  if (!tenantId) throw new Error('Missing KB_TENANT_ID.');
-  return tenantId;
+function resolveWorkspaceId(env: Env): string {
+  const workspaceId = env.KB_WORKSPACE_ID?.trim();
+  if (!workspaceId) throw new Error('Missing KB_WORKSPACE_ID.');
+  return workspaceId;
 }
 
 function resolveConfig(env: Env): KnowledgeBaseConfig {
@@ -193,7 +193,7 @@ export class KnowledgeBaseStateObject extends DurableObject {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const tenantId = resolveTenantId(env);
+    const tenantId = resolveWorkspaceId(env);
     const config = resolveConfig(env);
     const auth = resolveAuth(env);
     const stub = env.KB_STATE.get(env.KB_STATE.idFromName(tenantId));
@@ -252,7 +252,7 @@ Create `wrangler.jsonc`:
   "main": "src/kb-worker.ts",
   "compatibility_date": "2026-06-10",
   "vars": {
-    "KB_TENANT_ID": "acme",
+    "KB_WORKSPACE_ID": "acme-workspace",
     "KB_ROOT_DIR": ".kb"
   },
   "durable_objects": {
@@ -278,7 +278,7 @@ Create `wrangler.jsonc`:
 }
 ```
 
-Adjust the values for your tenant and bucket.
+Adjust the values for your workspace and bucket.
 
 ## 5. Install The Shared Secret, Create The R2 Bucket, And Deploy
 
@@ -316,7 +316,7 @@ What you want to see:
 - `transport: "worker"`
 - `canonical: true`
 - `workspaceRole: "canonical-production"`
-- the expected `tenantId`
+- the expected workspace namespace in the capability envelope
 
 The key contract line is `workspaceRole: canonical-production`. If that is not true, do not treat the Worker as the production KB surface yet.
 
@@ -327,7 +327,7 @@ The supported CLI recheck path is:
 ```bash
 KB_BASE_URL=https://YOUR-KB-HOST \
 KB_API_TOKEN=replace-me-with-a-secret \
-npx kb-local cloudflare verify --tenant-id acme
+npx kb-local cloudflare verify --workspace-id acme-workspace
 ```
 
 That command validates the same protected host across:
@@ -391,7 +391,6 @@ If an operator needs a support workspace that mirrors canonical R2 state locally
 
 ```bash
 export KB_BACKEND=r2-mirror
-export KB_TENANT_ID=acme
 export KB_R2_MIRROR_ROOT="$PWD/.kb-sync"
 
 npx kb-local sync pull

@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Use Workspace Language For KB Architecture Docs
+
+- Area: docs, package
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: replaced product-facing tenant language in the README and deployment model with workspace/folder/namespace language, added `KB_WORKSPACE_ID` and `--workspace-id` aliases for KB CLI setup paths, and kept legacy names as backward-compatible implementation aliases only.
+- Customer-visible impact: operators see KB as a workspace-scoped memory rooted in a folder or namespace, not as an Administrativo-style tenancy system; new setup docs can use workspace wording without relying on legacy tenant-named flags.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: read the README architecture map and setup snippets to confirm they describe folders/workspaces/namespaces rather than product tenants.
+- Automated coverage: `node --import tsx/esm --test tests/kb-cli-docs.test.ts`; `npm run check:kb:anti-cheat`; `npm run typecheck`
+- Needs iteration: no
+- Follow-up: publish `@emmassist-co/kb-cli@1.6.0` after release approval; consider a future deeper API rename for internal `tenantId` fields while preserving backward compatibility.
+
 ## 2026-07-15 - Document Agent-First KB Architecture Map
 
 - Area: docs

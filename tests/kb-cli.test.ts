@@ -337,7 +337,7 @@ test('kb cloudflare deploy generates a secret, installs it, and verifies both su
   const result = await executeKnowledgeBaseCloudflareDeployCommand(
     [
       '--workspace', '/tmp/acme-kb',
-      '--tenant-id', 'acme',
+      '--workspace-id', 'acme',
       '--worker-name', 'acme-kb',
       '--bucket', 'acme-kb-canonical',
       '--host-url', 'https://kb.acme.example'
@@ -409,6 +409,7 @@ test('kb cloudflare deploy generates a secret, installs it, and verifies both su
   assert.match(writes.get('/tmp/acme-kb/src/kb-worker.ts') ?? '', /KB_API_TOKEN/);
   assert.doesNotMatch(writes.get('/tmp/acme-kb/src/kb-worker.ts') ?? '', /generated-secret/);
   assert.match(writes.get('/tmp/acme-kb/wrangler.jsonc') ?? '', /acme-kb-canonical/);
+  assert.match(writes.get('/tmp/acme-kb/wrangler.jsonc') ?? '', /KB_WORKSPACE_ID/);
 });
 
 test('kb cloudflare deploy accepts a provided secret without generating a replacement', async () => {
@@ -450,7 +451,7 @@ test('kb cloudflare verify checks both capabilities and mcp on a protected host'
   const result = await executeKnowledgeBaseCloudflareVerifyCommand(
     [
       '--host-url', 'https://kb.acme.example',
-      '--tenant-id', 'acme'
+      '--workspace-id', 'acme'
     ],
     {
       env: {
@@ -570,7 +571,7 @@ test('kb cli help makes the edge-writing split explicit', async () => {
   assert.match(result.stdout, /Use `kb relate` for explicit relation edges between existing entities/);
   assert.match(result.stdout, /Do not use `kb annotate` for relation edges/);
   assert.match(result.stdout, /Only use `record\.relations\[\]` when you are already creating or rewriting the entity/);
-  assert.match(result.stdout, /tenant, backend, canonicality/);
+  assert.match(result.stdout, /workspace namespace, backend, canonicality/);
   assert.match(result.stdout, /kb help operator/);
   assert.doesNotMatch(result.stdout, /kb capture-source --json @payload\.json/);
   assert.doesNotMatch(result.stdout, /kb events/);
@@ -578,8 +579,8 @@ test('kb cli help makes the edge-writing split explicit', async () => {
   assert.doesNotMatch(result.stdout, /kb relations \[--entity-id/);
   assert.match(result.stdout, /kb sync <pull\|status\|push> \[--verbose] \[--changes] \[--conflicts] \[--stats]/);
   assert.match(result.stdout, /kb daemon <start\|stop\|restart\|status\|logs\|once> \[--verbose] \[--logs] \[--stats]/);
-  assert.match(result.stdout, /kb cloudflare deploy --tenant-id TENANT_ID/);
-  assert.match(result.stdout, /kb cloudflare verify \[--host-url URL] \[--token VALUE] \[--tenant-id ID]/);
+  assert.match(result.stdout, /kb cloudflare deploy --workspace-id WORKSPACE_ID/);
+  assert.match(result.stdout, /kb cloudflare verify \[--host-url URL] \[--token VALUE] \[--workspace-id ID]/);
   assert.match(result.stdout, /verify both `\/v1` and `\/mcp`/);
   assert.match(result.stdout, /recheck an existing protected Cloudflare KB host without redeploying it/);
 });
@@ -589,7 +590,7 @@ test('kb cloudflare help exposes both deploy and verify flows', async () => {
 
   assert.equal(result.exitCode, 0);
   assert.match(result.stdout, /kb cloudflare <deploy\|verify> \[flags]/);
-  assert.match(result.stdout, /kb cloudflare deploy --tenant-id TENANT_ID/);
+  assert.match(result.stdout, /kb cloudflare deploy --workspace-id WORKSPACE_ID/);
   assert.match(result.stdout, /kb cloudflare verify \[flags]/);
   assert.match(result.stdout, /checks \/mcp through a real MCP tools\/list request/);
 });

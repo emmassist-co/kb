@@ -38,7 +38,7 @@ export async function executeKnowledgeBaseMirrorValidationCommand(
   const flags = parseFlags(argv);
   const env = options.env ?? process.env;
   assertR2MirrorBackend(env);
-  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  const tenantId = env.KB_WORKSPACE_ID ?? env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
   const cwd = options.cwd ?? process.cwd();
   const mirrorRoot = resolveMirrorRoot(cwd, env, tenantId);
   const syncStatus = await executeKnowledgeBaseSyncCommand(['status'], options);
