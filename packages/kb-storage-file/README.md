@@ -2,6 +2,8 @@
 
 Local filesystem storage adapter for the KB.
 
+Storage adapter architecture and authoring guidance: [../../docs/architecture/kb-storage-adapters.md](../../docs/architecture/kb-storage-adapters.md).
+
 ## Owns
 
 - `FileKnowledgeStore`

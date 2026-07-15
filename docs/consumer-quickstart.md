@@ -116,6 +116,12 @@ npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skil
 
 Use `kb-cloudflare-setup` when the agent should guide an operator through deploying the canonical Cloudflare KB surface, verifying `canonical-production`, and handing the agent a working `KB_BASE_URL`.
 
+## Agent Operating Protocol
+
+Agents should search before answering workspace-specific factual questions, write durable decisions with `record` or `remember`, capture external evidence with source metadata, use `relate` for explicit entity edges, and reserve `annotate` for timeline/provenance notes. Do not dump raw chat logs into KB; summarize the durable fact, decision, correction, or source-backed claim.
+
+If memory looks wrong, prefer a correction or superseding update over silent deletion. Use `inspect`, `doctor`, `validate-mirror`, `health`, and conflict commands to understand state before repairing it.
+
 Protected remote KBs also require:
 
 ```bash

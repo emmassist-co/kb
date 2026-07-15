@@ -101,13 +101,13 @@ function parseArgs(argv: string[]): ParsedArgs {
   let prompt = [
     'Use the configured kb-local-smoke MCP server.',
     'Call the capabilities tool first.',
-    'Then answer with the tenant id, backend, workspace role, and whether the MCP connection worked.'
+    'Then answer with the workspace id, backend, workspace role, and whether the MCP connection worked.'
   ].join(' ');
 
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
-    if (value === '--tenant-id') {
-      tenantId = requireValue(argv[++index], '--tenant-id');
+    if (value === '--tenant-id' || value === '--workspace-id') {
+      tenantId = requireValue(argv[++index], value);
       continue;
     }
     if (value === '--root-dir') {
@@ -212,7 +212,8 @@ function printHelpAndExit(code: number): never {
     'Create a disposable CODEX_HOME, register the local KB MCP server, and run a Codex exec smoke prompt.',
     '',
     'Flags:',
-    '  --tenant-id TENANT_ID',
+    '  --workspace-id WORKSPACE_ID',
+    '  --tenant-id TENANT_ID (deprecated alias)',
     '  --root-dir PATH',
     '  --prompt TEXT',
     '  --scopes kb.read,kb.write,kb.operator',

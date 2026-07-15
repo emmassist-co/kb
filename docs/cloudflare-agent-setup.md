@@ -398,3 +398,10 @@ npx kb-local sync status
 ```
 
 This is a support path, not a second production architecture.
+
+## Recovery And Repair Notes
+
+- If an agent writes stale or incorrect memory, add a correction or superseding record with source evidence rather than silently deleting context.
+- If the Worker is unreachable, local file mode can continue as local-development memory, but it is not automatically synchronized canonical state.
+- If a mirror diverges, run `validate-mirror`, `health --stats`, and conflict commands before applying edits.
+- If the canonical R2 export is stale, use the Cloudflare verification and rebuild/restore operator paths instead of editing object-store files by hand.
