@@ -15,6 +15,18 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Not yet in the staged public package set/);
   assert.match(repoReadme, /@emmassist-co\/kb-flue-adapter/);
   assert.match(repoReadme, /@emmassist-co\/kb-autoresearch/);
+  assert.match(repoReadme, /## Agent-First Architecture Map/);
+  assert.match(repoReadme, /One durable truth surface/);
+  assert.match(repoReadme, /One contract, many transports/);
+  assert.match(repoReadme, /Cloudflare is production, local is support/);
+  assert.match(repoReadme, /Plain agents stay plain/);
+  assert.match(repoReadme, /Codex \/ Claude \/ Pi \/ Cursor \/ scripts/);
+  assert.match(repoReadme, /kb-local CLI/);
+  assert.match(repoReadme, /kb-http \/v1/);
+  assert.match(repoReadme, /kb-mcp \/mcp/);
+  assert.match(repoReadme, /Cloudflare Durable Object/);
+  assert.match(repoReadme, /Cloudflare R2/);
+  assert.match(repoReadme, /does \*\*not\*\* claim to own every chat bridge or agent runtime/);
   assert.match(repoReadme, /## Benchmark Standard/);
   assert.match(repoReadme, /admin-world-v3/);
   assert.match(repoReadme, /gbrain-evals-upstream/);
@@ -138,6 +150,13 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(obsidianGuide, /kb validate-mirror --changes/);
   assert.match(obsidianGuide, /kb health --stats/);
   assert.match(obsidianGuide, /kb conflicts list/);
+
+  const deploymentModel = readFileSync(path.resolve(process.cwd(), 'docs/product/deployment-model.md'), 'utf8');
+  assert.match(deploymentModel, /agent-first/);
+  assert.match(deploymentModel, /Plain local Codex \/ Claude \/ Pi \/ Cursor \/ shell agent/);
+  assert.match(deploymentModel, /Remote\/serverless agent/);
+  assert.match(deploymentModel, /deployed Worker `\/mcp`/);
+  assert.match(deploymentModel, /does not claim to own every chat bridge/);
 
   const cloudflareGuide = readFileSync(path.resolve(process.cwd(), 'docs/cloudflare-agent-setup.md'), 'utf8');
   assert.match(cloudflareGuide, /canonical KB surface on Cloudflare/);

@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Document Agent-First KB Architecture Map
+
+- Area: docs
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added a README architecture map explaining KB's agent-first principles, local and remote agent connection paths, CLI/HTTP/MCP surfaces, Cloudflare serverless production shape, support mirrors, and repo ownership boundaries.
+- Customer-visible impact: operators and agent authors can understand how plain Codex, Claude, Pi, Cursor, shell scripts, MCP clients, local daemons, and serverless agents connect to the same durable KB contract.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: read the README architecture map and docs/product/deployment-model.md, then verify one local CLI command and one remote/MCP setup path against a real KB environment.
+- Automated coverage: `node --import tsx/esm --test tests/kb-cli-docs.test.ts`; `npm run check:kb:anti-cheat`; `npm run typecheck`
+- Needs iteration: no
+- Follow-up: none
+
 ## 2026-07-14 - Add GBrain Metric Parity, Relation Precision, And Anti-Cheat Guardrails
 
 - Area: benchmark, package, subsystem

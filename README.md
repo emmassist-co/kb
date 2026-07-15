@@ -99,6 +99,62 @@ Current package boundaries already reflect the intended shape:
 - `packages/kb-flue-adapter`: published Flue runtime adapter with a structural command contract that survives Flue SDK export changes
 - `packages/kb-autoresearch`: private package and repo-owned research tooling surface, not a staged public install target
 
+## Agent-First Architecture Map
+
+KB is agent-first because the normal user is an agent or an operator supervising agents, not a human clicking through a CRUD app. The core design principles are:
+
+- **One durable truth surface:** memory lives in tenant-scoped KB state, not in one chat transcript, terminal scrollback, or agent-specific scratchpad.
+- **One contract, many transports:** local CLI, local daemon HTTP, deployed `/v1` HTTP, and deployed `/mcp` all route to the same `kb-core` service semantics instead of creating separate memories.
+- **Cloudflare is production, local is support:** local file-backed workspaces are for development and portability; canonical production runs on a tenant-scoped Cloudflare Worker with Durable Object state and R2 export.
+- **Agents write structured evidence:** normal agent writes go through `remember`, `record`, `relate`, `annotate`, and source-capture contracts so corrections, provenance, and edges compound over time.
+- **Plain agents stay plain:** Codex, Claude Code, Pi, Cursor, shell scripts, and other agents do not need a custom SDK. If they can run commands, they can use `kb-local`; if they support MCP, they can point at `/mcp`; if they are deployed, they can call `/v1` over HTTP.
+
+```mermaid
+flowchart LR
+  Agent["Plain command-running agent\nCodex / Claude / Pi / Cursor / scripts"]
+  McpClient["MCP-aware client\nClaude / Cursor / other MCP hosts"]
+  Human["Human operator\nCLI / editor / review"]
+  CLI["kb-local CLI\nin-process, daemon, or remote HTTP mode"]
+  Skills["installable skills\nkb-local-setup / kb-write / kb-cloudflare-setup"]
+  HTTP["kb-http /v1\nNode daemon or Cloudflare Worker"]
+  MCP["kb-mcp /mcp\nStreamable HTTP MCP tools"]
+  Core["kb-core\nknowledge model, service, retrieval, relations"]
+  File["kb-storage-file\nlocal-development workspace"]
+  DO["Cloudflare Durable Object\nwrite-authoritative snapshot state"]
+  R2["Cloudflare R2\ncanonical exported tenant state"]
+  Mirror["mirror-support workspace\nsemantic sync for entities/*.md + sources/*.md"]
+
+  Agent --> CLI
+  Agent --> HTTP
+  McpClient --> MCP
+  Human --> CLI
+  Human --> Mirror
+  CLI --> Skills
+  Skills --> CLI
+  CLI --> HTTP
+  CLI --> Core
+  HTTP --> Core
+  MCP --> Core
+  Core --> File
+  Core --> DO
+  DO --> R2
+  Mirror --> CLI
+  CLI --> Mirror
+```
+
+How the same architecture shows up in practice:
+
+| Actor / environment | Recommended path | What happens |
+| --- | --- | --- |
+| Plain local Codex / Claude / Pi / Cursor session | `npm install @emmassist-co/kb-cli`, set `KB_TENANT_ID` + `KB_ROOT_DIR`, run `npx kb-local ...` | The agent uses the CLI directly against a local file-backed KB. |
+| Multiple local tools on one machine | `npx kb-local serve --port 3001`, then `KB_BASE_URL=http://127.0.0.1:3001 npx kb-local ...` | A Node daemon exposes the same `/v1` contract locally. |
+| Deployed/serverless agent or remote operator | `KB_BASE_URL=https://YOUR-KB-HOST` + `KB_API_TOKEN`, then `npx kb-local ...` or direct HTTP | The caller talks to the canonical Worker-hosted KB over `/v1`. |
+| MCP-aware clients | configure `POST https://YOUR-KB-HOST/mcp` with the same bearer token | The MCP surface exposes the scoped KB tool catalog over the same tenant runtime. |
+| Human editing canonical knowledge | pull a mirror, edit `entities/*.md` / `sources/*.md`, run semantic sync | The daemon compiles safe markdown edits back into canonical KB mutations. |
+| Cloudflare deployment bootstrap | `npx kb-local cloudflare deploy` then `npx kb-local cloudflare verify` | The CLI creates/verifies the Worker, Durable Object binding, R2 bucket, `/v1`, `/mcp`, and shared bearer auth. |
+
+Important boundary: KB does **not** claim to own every chat bridge or agent runtime. It owns the durable memory contract and the package/CLI/MCP surfaces that agents can use from those runtimes. Product-specific chat bridges, OAuth callback products, and customer webhook flows should stay outside this repo unless they are explicitly rehomed here.
+
 ## Cloudflare-First Deployment Shape
 
 Production should bias toward:
