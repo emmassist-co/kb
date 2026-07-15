@@ -11,7 +11,7 @@ MCP transport adapter for the Cloudflare-first KB stack.
 ## Install
 
 ```bash
-npm install @emmassist-co/kb-mcp
+npm install @emmassist-co/kb-mcp --@emmassist-co:registry=https://npm.pkg.github.com
 ```
 
 ## Exports
@@ -72,7 +72,7 @@ Verify that host before handing it to an external client:
 ```bash
 KB_BASE_URL=https://kb.acme.example \
 KB_API_TOKEN=replace-me-with-a-secret \
-npx kb-local cloudflare verify --workspace-id acme
+npx kb cloudflare verify --workspace-id acme
 ```
 
 ## Verification
@@ -94,6 +94,10 @@ Codex-session registration smoke for debugging only:
 ```bash
 npm run smoke:codex-mcp -- --workspace-id kb-mcp-smoke
 ```
+
+## Agent Adoption Boundary
+
+Use CLI skills for command-running agents that can execute `kb` commands. Use `/mcp` for MCP-aware clients that need tool registration through their host. Skills do not auto-configure every MCP host; each client still needs its own server configuration pointing at `/mcp` with bearer auth.
 
 ## Notes
 

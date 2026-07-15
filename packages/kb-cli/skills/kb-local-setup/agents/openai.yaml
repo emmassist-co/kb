@@ -1,6 +1,6 @@
 interface:
   display_name: "KB Local Setup"
-  short_description: "Install and configure kb-local for a local agent"
+  short_description: "Install and configure KB CLI for a local agent"
   default_prompt: "Use $kb-local-setup to ask for the required local KB variables, install the CLI, and verify the agent is ready."
 
 policy:

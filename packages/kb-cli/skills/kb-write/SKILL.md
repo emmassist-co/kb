@@ -11,12 +11,12 @@ Use this when the task is to store, correct, structure, or clean up durable know
 ## Fast Path
 
 ```bash
-kb-local help
-kb-local help operator
-kb-local schema remember
-kb-local schema record
-kb-local schema relate
-kb-local schema annotate
+kb help
+kb help operator
+kb schema remember
+kb schema record
+kb schema relate
+kb schema annotate
 ```
 
 ## Preferred Write Pattern
@@ -24,19 +24,19 @@ kb-local schema annotate
 Prefer file-backed or stdin JSON:
 
 ```bash
-printf '%s\n' '{"intent":"fact_update","summary":"..."}' | kb-local remember --json -
-kb-local record --json @payload.json
-kb-local relate --json @payload.json
-kb-local annotate --json @payload.json
+printf '%s\n' '{"intent":"fact_update","summary":"..."}' | kb remember --json -
+kb record --json @payload.json
+kb relate --json @payload.json
+kb annotate --json @payload.json
 ```
 
 Validate before mutating when the payload is non-trivial:
 
 ```bash
-kb-local validate remember --json @payload.json
-kb-local validate record --json @payload.json
-kb-local validate relate --json @payload.json
-kb-local validate annotate --json @payload.json
+kb validate remember --json @payload.json
+kb validate record --json @payload.json
+kb validate relate --json @payload.json
+kb validate annotate --json @payload.json
 ```
 
 ## Command Split
@@ -57,25 +57,25 @@ In a deployed runtime, `kb help runtime` should be the compact contract for curr
 Reference or fact capture:
 
 ```bash
-printf '%s\n' '{"intent":"source_capture","summary":"Captured a reference source for the vendor handbook.","source":{"title":"Vendor handbook","url":"https://example.com/vendor-handbook","kind":"research"}}' | kb-local remember --json -
+printf '%s\n' '{"intent":"source_capture","summary":"Captured a reference source for the vendor handbook.","source":{"title":"Vendor handbook","url":"https://example.com/vendor-handbook","kind":"research"}}' | kb remember --json -
 ```
 
 Structured entity write:
 
 ```bash
-kb-local record --json @payload.json
+kb record --json @payload.json
 ```
 
 Timeline update:
 
 ```bash
-printf '%s\n' '{"entity_ids":["company-acme"],"summary":"2026-05-09: Confirmed founder edge.","effective_at":"2026-05-09T00:00:00.000Z"}' | kb-local annotate --json -
+printf '%s\n' '{"entity_ids":["company-acme"],"summary":"2026-05-09: Confirmed founder edge.","effective_at":"2026-05-09T00:00:00.000Z"}' | kb annotate --json -
 ```
 
 Standalone explicit edge:
 
 ```bash
-kb-local relate --json @relation.json
+kb relate --json @relation.json
 ```
 
 With a payload like:
@@ -96,11 +96,17 @@ With a payload like:
 - Default to `relate` for explicit edges. Only use `record.relations[]` when you are already creating or rewriting the entity in the same payload.
 - Do not use `annotate` to create relation edges.
 - Use `record-batch` and `annotate-batch` for larger cleanups.
-- If you truly need direct repair surfaces, discover them through `kb-local help operator` instead of treating them as part of the normal agent loop.
+- If you truly need direct repair surfaces, discover them through `kb help operator` instead of treating them as part of the normal agent loop.
 
 ## Install
 
-From this repo path:
+After installing `@emmassist-co/kb-cli`, prefer the package-local skill path:
+
+```bash
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write
+```
+
+If the package is not installed yet, the GitHub source path is available as a fallback:
 
 ```bash
 npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write

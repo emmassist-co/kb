@@ -33,7 +33,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Cloudflare is production, local is support/);
   assert.match(repoReadme, /Plain agents stay plain/);
   assert.match(repoReadme, /Codex \/ Claude \/ Pi \/ Cursor \/ scripts/);
-  assert.match(repoReadme, /kb-local CLI/);
+  assert.match(repoReadme, /kb CLI/);
+  assert.match(repoReadme, /kb-local` remains a backward-compatible alias/);
   assert.match(repoReadme, /kb-http \/v1/);
   assert.match(repoReadme, /kb-mcp \/mcp/);
   assert.match(repoReadme, /Cloudflare Durable Object/);
@@ -98,7 +99,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.doesNotMatch(setupSkill, /GITHUB_PACKAGES_TOKEN/);
   assert.match(setupSkill, /KB_ROOT_DIR/);
   assert.match(setupSkill, /KB_WORKSPACE_ID/);
-  assert.match(setupSkill, /npx kb-local inspect/);
+  assert.match(setupSkill, /npx kb inspect/);
+  assert.match(setupSkill, /node_modules\/@emmassist-co\/kb-cli\/skills\/kb-local-setup/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-local-setup/agents/openai.yaml')));
 
   const cloudflareSetupSkill = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-cloudflare-setup/SKILL.md'), 'utf8');
@@ -106,23 +108,32 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareSetupSkill, /canonical-production/);
   assert.match(cloudflareSetupSkill, /KB_BASE_URL/);
   assert.match(cloudflareSetupSkill, /KB_API_TOKEN/);
-  assert.match(cloudflareSetupSkill, /kb-local cloudflare deploy/);
-  assert.match(cloudflareSetupSkill, /kb-local cloudflare verify/);
+  assert.match(cloudflareSetupSkill, /kb cloudflare deploy/);
+  assert.match(cloudflareSetupSkill, /kb cloudflare verify/);
+  assert.match(cloudflareSetupSkill, /node_modules\/@emmassist-co\/kb-cli\/skills\/kb-cloudflare-setup/);
   assert.match(cloudflareSetupSkill, /docs\/cloudflare-agent-setup\.md/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-cloudflare-setup/agents/openai.yaml')));
 
+  const kbCliPackage = JSON.parse(readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/package.json'), 'utf8')) as {
+    bin?: Record<string, string>;
+  };
+  assert.equal(kbCliPackage.bin?.kb, './bin/kb-local.mjs');
+  assert.equal(kbCliPackage.bin?.['kb-local'], './bin/kb-local.mjs');
+
   const readme = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/README.md'), 'utf8');
   assert.match(readme, /npm install @emmassist-co\/kb-cli --@emmassist-co:registry=https:\/\/npm\.pkg\.github\.com/);
-  assert.match(readme, /npx kb-local inspect/);
+  assert.match(readme, /npx kb inspect/);
+  assert.match(readme, /`kb-local` remains a backward-compatible alias/);
   assert.match(readme, /kb-local-setup/);
   assert.match(readme, /cloudflare-agent-setup\.md/);
   assert.match(readme, /kb-cloudflare-setup/);
   assert.match(readme, /KB_API_TOKEN/);
-  assert.match(readme, /kb-local cloudflare deploy/);
-  assert.match(readme, /kb-local cloudflare verify/);
-  assert.match(readme, /kb-local validate-mirror --changes/);
-  assert.match(readme, /kb-local health --stats/);
-  assert.match(readme, /kb-local conflicts list/);
+  assert.match(readme, /kb cloudflare deploy/);
+  assert.match(readme, /kb cloudflare verify/);
+  assert.match(readme, /kb validate-mirror --changes/);
+  assert.match(readme, /kb health --stats/);
+  assert.match(readme, /kb conflicts list/);
+  assert.match(readme, /node_modules\/@emmassist-co\/kb-cli\/skills\/kb-write/);
   assert.match(readme, /npm\.pkg\.github\.com/);
 
   const mcpReadme = readFileSync(path.resolve(process.cwd(), 'packages/kb-mcp/README.md'), 'utf8');
@@ -134,6 +145,10 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(mcpReadme, /streamable-http/);
   assert.match(mcpReadme, /Authorization/);
   assert.match(mcpReadme, /workspace-scoped runtime/);
+  assert.match(mcpReadme, /Agent Adoption Boundary/);
+  assert.match(mcpReadme, /Use CLI skills for command-running agents/);
+  assert.match(mcpReadme, /Use `\/mcp` for MCP-aware clients/);
+  assert.match(mcpReadme, /npx kb cloudflare verify/);
 
   const storageGuidePath = path.resolve(process.cwd(), 'docs/architecture/kb-storage-adapters.md');
   assert.ok(existsSync(storageGuidePath));
@@ -157,17 +172,21 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(quickstart, /KB_WORKSPACE_ID/);
   assert.match(quickstart, /KB_ROOT_DIR/);
   assert.match(quickstart, /npm install @emmassist-co\/kb-cli --@emmassist-co:registry=https:\/\/npm\.pkg\.github\.com/);
-  assert.match(quickstart, /npx kb-local sync status/);
-  assert.match(quickstart, /npx kb-local validate-mirror/);
-  assert.match(quickstart, /npx kb-local health/);
+  assert.match(quickstart, /npx kb sync status/);
+  assert.match(quickstart, /npx kb validate-mirror/);
+  assert.match(quickstart, /npx kb health/);
   assert.match(quickstart, /support and debugging path/);
-  assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-local-setup/);
-  assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-cloudflare-setup/);
+  assert.match(quickstart, /npx skills add \.\/node_modules\/@emmassist-co\/kb-cli\/skills\/kb-local-setup/);
+  assert.match(quickstart, /npx skills add \.\/node_modules\/@emmassist-co\/kb-cli\/skills\/kb-cloudflare-setup/);
+  assert.match(quickstart, /GitHub source install remains available as a fallback/);
   assert.match(quickstart, /canonical Cloudflare KB surface/);
   assert.match(quickstart, /KB_API_TOKEN/);
-  assert.match(quickstart, /kb-local cloudflare deploy/);
-  assert.match(quickstart, /kb-local cloudflare verify/);
+  assert.match(quickstart, /kb cloudflare deploy/);
+  assert.match(quickstart, /kb cloudflare verify/);
   assert.match(quickstart, /streamable-http/);
+  assert.match(quickstart, /Command-running local agent/);
+  assert.match(quickstart, /MCP-aware client/);
+  assert.match(quickstart, /smoke:kb-agent-readiness/);
   assert.match(quickstart, /## Agent Operating Protocol/);
   assert.match(quickstart, /search before answering workspace-specific factual questions/);
   assert.match(quickstart, /kb-obsidian-semantic-sync\.md/);
@@ -201,14 +220,32 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareGuide, /workspaceRole: canonical-production/);
   assert.match(cloudflareGuide, /KB_BASE_URL/);
   assert.match(cloudflareGuide, /KB_API_TOKEN/);
-  assert.match(cloudflareGuide, /kb-local cloudflare deploy/);
-  assert.match(cloudflareGuide, /kb-local cloudflare verify/);
+  assert.match(cloudflareGuide, /kb cloudflare deploy/);
+  assert.match(cloudflareGuide, /kb cloudflare verify/);
+  assert.match(cloudflareGuide, /node_modules\/@emmassist-co\/kb-cli\/skills\/kb-write/);
   assert.match(cloudflareGuide, /@emmassist-co\/kb-mcp/);
   assert.match(cloudflareGuide, /kb-cloudflare-setup/);
   assert.match(cloudflareGuide, /wrangler\.jsonc/);
   assert.match(cloudflareGuide, /streamable-http/);
   assert.match(cloudflareGuide, /## Recovery And Repair Notes/);
   assert.match(cloudflareGuide, /If an agent writes stale or incorrect memory/);
+
+  for (const skillName of ['kb-local-setup', 'kb-write', 'kb-cloudflare-setup']) {
+    const skillDir = path.resolve(process.cwd(), 'packages/kb-cli/skills', skillName);
+    const skillText = readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8');
+    assert.match(skillText, /^---\n[\s\S]*name: /);
+    assert.match(skillText, /description: /);
+    assert.ok(existsSync(path.join(skillDir, 'agents/openai.yaml')));
+    assert.match(skillText, /node_modules\/@emmassist-co\/kb-cli\/skills/);
+    assert.match(skillText, /github\.com\/emmassist-co\/kb/);
+  }
+
+  assert.match(packageSkill, /kb remember --json -/);
+  assert.match(packageSkill, /kb record --json @payload\.json/);
+  assert.match(packageSkill, /kb relate --json @relation\.json/);
+  assert.match(packageSkill, /kb annotate --json -/);
+  assert.match(packageSkill, /kb validate record/);
+  assert.match(packageSkill, /query-relations/);
 
   const migrationStatus = readFileSync(path.resolve(process.cwd(), 'docs/migration-status.md'), 'utf8');
   assert.match(migrationStatus, /## Staged Public Package Set/);

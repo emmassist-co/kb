@@ -5,7 +5,7 @@ description: Use when a user wants a local agent or local repo to install and co
 
 # KB Local Setup
 
-Use this when the task is to get a local agent ready to use `kb-local`.
+Use this when the task is to get a local agent ready to use `kb`.
 
 ## Ask First
 
@@ -36,7 +36,7 @@ Use this for the simplest local setup:
 export KB_ROOT_DIR="$PWD/.kb"
 # Optional: export KB_WORKSPACE_ID=my-workspace
 
-npx kb-local inspect
+npx kb inspect
 ```
 
 ## Daemon Mode
@@ -47,14 +47,14 @@ Use this when other tools or agents should talk to KB over HTTP:
 export KB_ROOT_DIR="$PWD/.kb"
 # Optional: export KB_WORKSPACE_ID=my-workspace
 
-npx kb-local serve --port 3001
+npx kb serve --port 3001
 ```
 
 Then client commands can use:
 
 ```bash
 export KB_BASE_URL=http://127.0.0.1:3001
-npx kb-local search --json '{"query":"billing"}'
+npx kb search --json '{"query":"billing"}'
 ```
 
 ## Verify
@@ -62,12 +62,20 @@ npx kb-local search --json '{"query":"billing"}'
 After install, run:
 
 ```bash
-npx kb-local help
-npx kb-local inspect
-npx kb-local schema record
+npx kb help
+npx kb inspect
+npx kb schema record
 ```
 
 ## Install This Skill
+
+After installing `@emmassist-co/kb-cli`, prefer the package-local skill path:
+
+```bash
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-local-setup
+```
+
+If the package is not installed yet, the GitHub source path is available as a fallback:
 
 ```bash
 npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-local-setup

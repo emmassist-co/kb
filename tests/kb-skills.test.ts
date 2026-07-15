@@ -17,9 +17,9 @@ test('kb runtime and package skill text reflect the narrow write workflow', () =
   assert.doesNotMatch(runtimeSkill, /kb create-entity/);
 
   const packageSkill = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-write/SKILL.md'), 'utf8');
-  assert.match(packageSkill, /kb-local help operator/);
-  assert.match(packageSkill, /kb-local validate record/);
-  assert.match(packageSkill, /kb-local validate relate/);
+  assert.match(packageSkill, /kb help operator/);
+  assert.match(packageSkill, /kb validate record/);
+  assert.match(packageSkill, /kb validate relate/);
   assert.match(packageSkill, /Default to `relate` for explicit edges/);
   assert.match(packageSkill, /kb help runtime/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-write/agents/openai.yaml')));

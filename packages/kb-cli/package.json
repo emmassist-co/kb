@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-cli",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "private": false,
   "description": "CLI for local, HTTP-backed, and R2-synced operation of the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
@@ -38,6 +38,7 @@
     "skills"
   ],
   "bin": {
+    "kb": "./bin/kb-local.mjs",
     "kb-local": "./bin/kb-local.mjs"
   },
   "exports": {

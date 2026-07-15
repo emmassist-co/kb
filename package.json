@@ -25,6 +25,7 @@
     "build:kb-cli": "tsc -p packages/kb-cli/tsconfig.json",
     "build:public": "npm run clean && npm run build:kb-core && npm run build:kb-storage-file && npm run build:kb-storage-cloudflare && npm run build:kb-http && npm run build:kb-mcp && npm run build:kb-cli && npm run build:kb-flue-adapter",
     "verify:public-packages": "npm run build:public && node scripts/verify-public-packages.mjs",
+    "smoke:kb-agent-readiness": "node --import tsx/esm scripts/kb-agent-readiness-smoke.ts",
     "smoke:kb-mcp": "node --import tsx/esm scripts/kb-mcp-smoke.ts",
     "smoke:codex-mcp": "node --import tsx/esm scripts/kb-codex-mcp-smoke.ts",
     "serve:kb-mcp-stdio": "node --import tsx/esm scripts/kb-mcp-stdio.ts",

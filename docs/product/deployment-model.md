@@ -39,8 +39,8 @@ Production should bias toward:
 
 | Agent shape | Supported connection | Canonicality |
 | --- | --- | --- |
-| Plain local Codex / Claude / Pi / Cursor / shell agent | `kb-local` in-process against `KB_ROOT_DIR` | `local-development` |
-| Multiple local tools or agents | local `kb-local serve` Node daemon plus `KB_BASE_URL=http://127.0.0.1:<port>` | `local-development` |
+| Plain local Codex / Claude / Pi / Cursor / shell agent | `kb` in-process against `KB_ROOT_DIR` | `local-development` |
+| Multiple local tools or agents | local `kb serve` Node daemon plus `KB_BASE_URL=http://127.0.0.1:<port>` | `local-development` |
 | Remote/serverless agent | deployed Worker `/v1` with `KB_BASE_URL` and `KB_API_TOKEN` | `canonical-production` |
 | MCP-aware client | deployed Worker `/mcp` with the same bearer token | `canonical-production` |
 | Human-edited support mirror | `r2-mirror` plus semantic sync for `entities/*.md` and `sources/*.md` | `mirror-support` until synced |
