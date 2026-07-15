@@ -87,6 +87,7 @@ See:
 
 - [STRATEGY.md](./STRATEGY.md)
 - [docs/product/knowledge-base.md](./docs/product/knowledge-base.md)
+- [docs/product/kb-agent-improvement-support.md](./docs/product/kb-agent-improvement-support.md)
 - [docs/product/cloudflare-first-compounding-kb.md](./docs/product/cloudflare-first-compounding-kb.md)
 - [docs/cloudflare-agent-setup.md](./docs/cloudflare-agent-setup.md)
 
@@ -119,11 +120,14 @@ KB is a good fit when:
 
 KB is not trying to be:
 
+- an autonomous background worker that schedules, ingests, detects contradictions, or regenerates truth by itself
 - a chat app or IDE extension
 - a generic vector database
 - a replacement for an application database
 - a full personal-brain product with every ingest channel built in
 - proof of broad semantic memory beyond the measured retrieval and relation surfaces
+
+For external-agent improvement workflows, see [docs/product/kb-agent-improvement-support.md](./docs/product/kb-agent-improvement-support.md). The boundary is: agents think; KB stores, validates, retrieves, relates, and exposes evidence.
 
 ### Trust Model
 
@@ -160,6 +164,7 @@ Agents using KB should follow these rules:
 - Avoid dumping raw chat logs; summarize the durable fact, decision, or correction.
 - Ask the human before rewriting canonical truth when the change is ambiguous or destructive.
 - Run `inspect` or `doctor` when the active backend or workspace role is unclear.
+- Use the `kb-agent-improvement` skill and recipe pack when an external agent is explicitly asked to review or improve KB state; KB itself does not own the review, schedule, or run state.
 
 ## Agent-First Architecture Map
 
@@ -177,7 +182,7 @@ flowchart LR
   McpClient["MCP-aware client\nClaude / Cursor / other MCP hosts"]
   Human["Human operator\nCLI / editor / review"]
   CLI["kb CLI\nin-process, daemon, or remote HTTP mode"]
-  Skills["installable skills\nkb-local-setup / kb-write / kb-cloudflare-setup"]
+  Skills["installable skills\nkb-local-setup / kb-write / kb-agent-improvement / kb-cloudflare-setup"]
   HTTP["kb-http /v1\nNode daemon or Cloudflare Worker"]
   MCP["kb-mcp /mcp\nStreamable HTTP MCP tools"]
   Core["kb-core\nknowledge model, service, retrieval, relations"]

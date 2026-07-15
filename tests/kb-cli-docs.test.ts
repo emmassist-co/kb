@@ -27,6 +27,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Search KB before answering factual questions/);
   assert.match(repoReadme, /Use `relate` for explicit edges/);
   assert.match(repoReadme, /docs\/architecture\/kb-storage-adapters\.md/);
+  assert.match(repoReadme, /docs\/product\/kb-agent-improvement-support\.md/);
+  assert.match(repoReadme, /agents think; KB stores, validates, retrieves, relates, and exposes evidence/);
   assert.match(repoReadme, /## Agent-First Architecture Map/);
   assert.match(repoReadme, /One durable truth surface/);
   assert.match(repoReadme, /One contract, many transports/);
@@ -35,6 +37,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Codex \/ Claude \/ Pi \/ Cursor \/ scripts/);
   assert.match(repoReadme, /kb CLI/);
   assert.match(repoReadme, /kb-local` remains a backward-compatible alias/);
+  assert.match(repoReadme, /kb-agent-improvement/);
   assert.match(repoReadme, /kb-http \/v1/);
   assert.match(repoReadme, /kb-mcp \/mcp/);
   assert.match(repoReadme, /Cloudflare Durable Object/);
@@ -116,9 +119,17 @@ test('kb docs describe the staged public package set and current consumer entry 
 
   const kbCliPackage = JSON.parse(readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/package.json'), 'utf8')) as {
     bin?: Record<string, string>;
+    version: string;
+    files: string[];
   };
   assert.equal(kbCliPackage.bin?.kb, './bin/kb-local.mjs');
   assert.equal(kbCliPackage.bin?.['kb-local'], './bin/kb-local.mjs');
+
+  const agentImprovementDoc = readFileSync(path.resolve(process.cwd(), 'docs/product/kb-agent-improvement-support.md'), 'utf8');
+  assert.match(agentImprovementDoc, /Agents think\. KB stores, validates, retrieves, relates, and exposes evidence\./);
+  assert.match(agentImprovementDoc, /Recipe run state/);
+  assert.match(agentImprovementDoc, /explicit non-goal/);
+  assert.match(agentImprovementDoc, /Command Resolver/);
 
   const readme = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/README.md'), 'utf8');
   assert.match(readme, /npm install @emmassist-co\/kb-cli --@emmassist-co:registry=https:\/\/npm\.pkg\.github\.com/);
@@ -127,6 +138,9 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(readme, /kb-local-setup/);
   assert.match(readme, /cloudflare-agent-setup\.md/);
   assert.match(readme, /kb-cloudflare-setup/);
+  assert.match(readme, /kb-agent-improvement/);
+  assert.match(readme, /node_modules\/@emmassist-co\/kb-cli\/recipes/);
+  assert.match(readme, /recipes\/README\.md/);
   assert.match(readme, /KB_API_TOKEN/);
   assert.match(readme, /kb cloudflare deploy/);
   assert.match(readme, /kb cloudflare verify/);
@@ -179,6 +193,10 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(quickstart, /npx skills add \.\/node_modules\/@emmassist-co\/kb-cli\/skills\/kb-local-setup/);
   assert.match(quickstart, /npx skills add \.\/node_modules\/@emmassist-co\/kb-cli\/skills\/kb-cloudflare-setup/);
   assert.match(quickstart, /GitHub source install remains available as a fallback/);
+  assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-local-setup/);
+  assert.match(quickstart, /npx skills add https:\/\/github\.com\/emmassist-co\/kb\/tree\/main\/packages\/kb-cli\/skills\/kb-cloudflare-setup/);
+  assert.match(quickstart, /kb-agent-improvement/);
+  assert.match(quickstart, /node_modules\/@emmassist-co\/kb-cli\/recipes/);
   assert.match(quickstart, /canonical Cloudflare KB surface/);
   assert.match(quickstart, /KB_API_TOKEN/);
   assert.match(quickstart, /kb cloudflare deploy/);
@@ -225,19 +243,20 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareGuide, /node_modules\/@emmassist-co\/kb-cli\/skills\/kb-write/);
   assert.match(cloudflareGuide, /@emmassist-co\/kb-mcp/);
   assert.match(cloudflareGuide, /kb-cloudflare-setup/);
+  assert.match(cloudflareGuide, /kb-agent-improvement/);
+  assert.match(cloudflareGuide, /agents own reading, reasoning, scheduling, approval, and run state/);
   assert.match(cloudflareGuide, /wrangler\.jsonc/);
   assert.match(cloudflareGuide, /streamable-http/);
   assert.match(cloudflareGuide, /## Recovery And Repair Notes/);
   assert.match(cloudflareGuide, /If an agent writes stale or incorrect memory/);
 
-  for (const skillName of ['kb-local-setup', 'kb-write', 'kb-cloudflare-setup']) {
+  for (const skillName of ['kb-local-setup', 'kb-write', 'kb-agent-improvement', 'kb-cloudflare-setup']) {
     const skillDir = path.resolve(process.cwd(), 'packages/kb-cli/skills', skillName);
     const skillText = readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8');
     assert.match(skillText, /^---\n[\s\S]*name: /);
     assert.match(skillText, /description: /);
     assert.ok(existsSync(path.join(skillDir, 'agents/openai.yaml')));
-    assert.match(skillText, /node_modules\/@emmassist-co\/kb-cli\/skills/);
-    assert.match(skillText, /github\.com\/emmassist-co\/kb/);
+    assert.match(skillText, /node_modules\/@emmassist-co\/kb-cli\/skills|github\.com\/emmassist-co\/kb|packages\/kb-cli\/recipes/);
   }
 
   assert.match(packageSkill, /kb remember --json -/);
@@ -246,6 +265,49 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(packageSkill, /kb annotate --json -/);
   assert.match(packageSkill, /kb validate record/);
   assert.match(packageSkill, /query-relations/);
+
+  assert.equal(kbCliPackage.version, '1.7.0');
+  assert.ok(kbCliPackage.files.includes('skills'));
+  assert.ok(kbCliPackage.files.includes('recipes'));
+
+  const recipeIndexPath = path.resolve(process.cwd(), 'packages/kb-cli/recipes/README.md');
+  assert.ok(existsSync(recipeIndexPath));
+  const recipeIndex = readFileSync(recipeIndexPath, 'utf8');
+  assert.match(recipeIndex, /Agents think\. KB stores, validates, retrieves, relates, and exposes evidence\./);
+  assert.match(recipeIndex, /Manual Smoke-Test Checklist/);
+  assert.match(recipeIndex, /agent-maintenance-review\.md/);
+  assert.match(recipeIndex, /agent-doc-review-to-kb\.md/);
+  assert.match(recipeIndex, /agent-correction-sweep\.md/);
+  assert.match(recipeIndex, /agent-relation-curation\.md/);
+  assert.match(recipeIndex, /agent-stale-knowledge-review\.md/);
+  assert.match(recipeIndex, /proposal-format\.md/);
+  assert.doesNotMatch(recipeIndex, /kb-local improve/);
+  assert.doesNotMatch(recipeIndex, /kb-local ingest-docs/);
+  assert.doesNotMatch(recipeIndex, /kb-local detect-contradictions/);
+
+  for (const recipeName of ['agent-maintenance-review', 'agent-doc-review-to-kb', 'agent-correction-sweep', 'agent-relation-curation', 'agent-stale-knowledge-review']) {
+    const recipePath = path.resolve(process.cwd(), 'packages/kb-cli/recipes', `${recipeName}.md`);
+    assert.ok(existsSync(recipePath), `${recipeName} recipe should exist`);
+    const recipe = readFileSync(recipePath, 'utf8');
+    assert.match(recipe, /Worked Example/);
+    assert.match(recipe, /Situation/);
+    assert.match(recipe, /Inspect/);
+    assert.match(recipe, /Agent Judgment/);
+    assert.match(recipe, /Proposed Writes/);
+    assert.match(recipe, /Validation|Validate/);
+    assert.match(recipe, /Verification|Verify/);
+    assert.match(recipe, /Non-Goals/);
+    assert.doesNotMatch(recipe, /kb-local improve/);
+    assert.doesNotMatch(recipe, /kb-local ingest-docs/);
+    assert.doesNotMatch(recipe, /kb-local detect-contradictions/);
+  }
+
+  const proposalFormat = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/recipes/proposal-format.md'), 'utf8');
+  assert.match(proposalFormat, /kb-local validate remember/);
+  assert.match(proposalFormat, /kb-local validate record/);
+  assert.match(proposalFormat, /kb-local validate relate/);
+  assert.match(proposalFormat, /kb-local validate annotate/);
+  assert.match(proposalFormat, /KB does not execute proposal objects/);
 
   const migrationStatus = readFileSync(path.resolve(process.cwd(), 'docs/migration-status.md'), 'utf8');
   assert.match(migrationStatus, /## Staged Public Package Set/);

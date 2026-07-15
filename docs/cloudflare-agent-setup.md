@@ -380,10 +380,13 @@ For agents that should write into the KB, install the packaged skills from `node
 
 ```bash
 npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-agent-improvement
 npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-cloudflare-setup
 ```
 
-Use `kb-write` for normal write operations and `kb-cloudflare-setup` when the agent needs to help an operator stand up or reconnect the canonical Cloudflare KB surface, including shared-secret auth and MCP verification.
+If the package is not installed in the target workspace yet, use the GitHub source paths as a fallback.
+
+Use `kb-write` for normal write operations, `kb-agent-improvement` when an external agent is explicitly asked to review or improve KB state using recipes, and `kb-cloudflare-setup` when the agent needs to help an operator stand up or reconnect the canonical Cloudflare KB surface, including shared-secret auth and MCP verification. The improvement recipes do not make KB autonomous: agents own reading, reasoning, scheduling, approval, and run state.
 
 ## 9. Optional Local Mirror Support
 

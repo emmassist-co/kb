@@ -41,17 +41,38 @@ npx kb inspect
 
 This package ships an installable KB write skill at [skills/kb-write](./skills/kb-write).
 It also ships a local setup skill at [skills/kb-local-setup](./skills/kb-local-setup).
+It also ships an agent-improvement skill at [skills/kb-agent-improvement](./skills/kb-agent-improvement) for external-agent review and curation workflows.
 It also ships a Cloudflare setup skill at [skills/kb-cloudflare-setup](./skills/kb-cloudflare-setup).
+
+Agent-readable recipes live under [recipes](./recipes); start with the [recipe index](./recipes/README.md). They are playbooks for external agents, not KB-owned schedulers or workflow engines.
 
 Example install after this package is installed:
 
 ```bash
 npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-write
 npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-local-setup
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-agent-improvement
 npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-cloudflare-setup
 ```
 
-GitHub source installs remain available as a fallback when the package is not installed.
+GitHub source installs remain available as a fallback when the package is not installed yet:
+
+```bash
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-local-setup
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-agent-improvement
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-cloudflare-setup
+```
+
+## Agent Improvement Recipes
+
+After package install, external agents can read recipes from:
+
+```text
+./node_modules/@emmassist-co/kb-cli/recipes/
+```
+
+Use `kb-agent-improvement` when an agent is explicitly asked to review or improve KB state. The recipes keep judgment outside KB: the agent reads sources, reasons, prepares normal `remember` / `record` / `relate` / `annotate` payloads, validates them, and applies only authorized writes. KB does not schedule recipes, maintain recipe state, detect contradictions, or ingest documents by itself.
 
 ## Examples
 

@@ -1,0 +1,7 @@
+interface:
+  display_name: "KB Agent Improvement"
+  short_description: "Run external-agent KB improvement workflows safely"
+  default_prompt: "Use $kb-agent-improvement to inspect KB state, reason outside KB, validate proposed writes, and verify authorized KB updates."
+
+policy:
+  allow_implicit_invocation: true

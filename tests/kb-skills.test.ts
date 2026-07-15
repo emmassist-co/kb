@@ -23,4 +23,20 @@ test('kb runtime and package skill text reflect the narrow write workflow', () =
   assert.match(packageSkill, /Default to `relate` for explicit edges/);
   assert.match(packageSkill, /kb help runtime/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-write/agents/openai.yaml')));
+
+  const improvementSkillPath = path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-agent-improvement/SKILL.md');
+  assert.ok(existsSync(improvementSkillPath));
+  const improvementSkill = readFileSync(improvementSkillPath, 'utf8');
+  assert.match(improvementSkill, /Agents think\. KB stores, validates, retrieves, relates, and exposes evidence\./);
+  assert.match(improvementSkill, /kb-local inspect/);
+  assert.match(improvementSkill, /kb-local validate remember/);
+  assert.match(improvementSkill, /kb-local validate record/);
+  assert.match(improvementSkill, /kb-local validate relate/);
+  assert.match(improvementSkill, /kb-local validate annotate/);
+  assert.match(improvementSkill, /packages\/kb-cli\/recipes\/README\.md/);
+  assert.match(improvementSkill, /packages\/kb-cli\/recipes\/agent-correction-sweep\.md/);
+  assert.match(improvementSkill, /KB does not execute proposal objects/);
+  assert.doesNotMatch(improvementSkill, /kb-local improve/);
+  assert.doesNotMatch(improvementSkill, /kb-local ingest-docs/);
+  assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-agent-improvement/agents/openai.yaml')));
 });

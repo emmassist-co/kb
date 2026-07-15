@@ -19,6 +19,21 @@ import { validateKnowledgeBaseMirrorEntries } from '../packages/kb-cli/src/mirro
 import { summarizeKnowledgeBaseHealthChecks } from '../packages/kb-cli/src/health.js';
 import { isSandboxListenError } from './helpers.js';
 
+
+test('kb cli exposes static agent-improvement help without workflow commands', async () => {
+  const result = await runKnowledgeBaseCli(['help', 'agent-improvement']);
+
+  assert.equal(result.exitCode, 0);
+  assert.match(result.stdout, /kb agent improvement support/);
+  assert.match(result.stdout, /Agents think; KB stores, validates, retrieves, relates, and exposes evidence/);
+  assert.match(result.stdout, /kb-agent-improvement/);
+  assert.match(result.stdout, /agent-correction-sweep\.md/);
+  assert.match(result.stdout, /kb-local validate <remember\|record\|relate\|annotate>/);
+  assert.doesNotMatch(result.stdout, /kb-local improve/);
+  assert.doesNotMatch(result.stdout, /kb-local ingest-docs/);
+  assert.doesNotMatch(result.stdout, /kb-local detect-contradictions/);
+});
+
 test('kb cli local mode can record and search in-process', async () => {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-local-'));
 
