@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-storage-cloudflare",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": false,
   "description": "Cloudflare-native KB persistence and runtime adapters for canonical tenant state.",
   "license": "Apache-2.0",

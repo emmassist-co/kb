@@ -42,7 +42,7 @@ Use this file as the merged-work ledger for `kb/`.
 - Deployment status: not required
 - Deployment date: 2026-07-15
 - Deployment environment: repository docs
-- Deployment evidence: merged PR #9 to `main`
+- Deployment evidence: merged PR #9 to `main`; release version bump prepared for `@emmassist-co/kb-core@0.4.3`, `@emmassist-co/kb-cli@1.6.0`, `@emmassist-co/kb-mcp@0.1.2`, `@emmassist-co/kb-storage-file@0.2.2`, and `@emmassist-co/kb-storage-cloudflare@0.2.2`
 - Human testing status: pending
 - Human tester:
 - Human test date:
