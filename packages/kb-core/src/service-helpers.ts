@@ -257,6 +257,9 @@ export function inferExpectedAnswerKinds(input: {
 }): KnowledgeEntityKind[] {
   const queryTokens = tokenizeSearch(input.query);
   const relationType = input.relationType ?? (input.candidateRelationTypes?.length === 1 ? input.candidateRelationTypes[0] ?? null : null);
+  if (relationType) {
+    return relationPreferredKinds(relationType, input.query);
+  }
   if (queryTokens.includes('company') || queryTokens.includes('companies')) {
     return ['company'];
   }
@@ -267,8 +270,6 @@ export function inferExpectedAnswerKinds(input: {
   ) {
     return ['person'];
   }
-  if (relationType === 'attends') return ['person', 'team'];
-  if (relationType === 'member_of' || relationType === 'advises' || relationType === 'invested_in') return ['person'];
   return [];
 }
 
@@ -374,7 +375,7 @@ export function rankGraphResults(input: {
         reason: uniqueStrings([
           `relation:${input.relationType}`,
           `anchor:${input.anchorId}`,
-          ...(typeBoost > 0 ? [`type:${entity.meta.kind}`] : []),
+          ...(typeBoost > 0 ? [`type:${entity.meta.kind}`] : [`type-mismatch:${entity.meta.kind}`]),
           ...(entry.explicitSupport ? ['explicit-ref'] : []),
           ...(entry.sourceIds.size > 1 ? [`sources:${entry.sourceIds.size}`] : []),
           ...(entry.sourceSurfaces.size > 1 ? [`surfaces:${entry.sourceSurfaces.size}`] : []),
@@ -655,7 +656,7 @@ export function scoreToConfidence(score: number): 'low' | 'medium' | 'high' {
 export function applyAmbiguityCalibration(results: KnowledgeSearchResult[]): KnowledgeSearchResult[] {
   if (results.length < 2) return results;
   const topScore = Math.max(results[0].score, 0.001);
-  const closeSecond = results[1].score >= topScore * 0.45;
+  const closeSecond = results[1].score >= topScore * 0.44;
   if (!closeSecond) return results;
   return results.map((entry, index) => (index < 2 ? { ...entry, ambiguous: true } : entry));
 }
@@ -903,38 +904,50 @@ function scoreLink(link: KnowledgeLink): number {
 
 function expectedAnswerTypeBoost(relationType: string | null, entityKind: KnowledgeEntityKind, query: string): number {
   if (!relationType) return 0;
-  const lowerQuery = query.toLowerCase();
-  const preferredKinds = relationPreferredKinds(relationType, lowerQuery);
+  const preferredKinds = relationPreferredKinds(relationType, query);
   if (preferredKinds.includes(entityKind)) return 6;
   return relationType === 'applies_to' ? -8 : -4;
 }
 
 function relationPreferredKinds(relationType: string, query: string): KnowledgeEntityKind[] {
+  const normalized = query.toLowerCase();
   if (relationType === 'depends_on') {
-    if (query.includes('policy')) return ['policy'];
-    if (query.includes('system') || query.includes('tool')) return ['system'];
-    if (query.includes('vendor')) return ['vendor'];
+    if (normalized.includes('policy')) return ['policy'];
+    if (normalized.includes('system') || normalized.includes('tool')) return ['system'];
+    if (normalized.includes('vendor')) return ['vendor'];
     return ['process', 'policy', 'system', 'vendor'];
   }
   if (relationType === 'applies_to') {
-    if (query.includes('system') || query.includes('tool') || query.includes('vendor')) {
+    if (normalized.includes('system') || normalized.includes('tool') || normalized.includes('vendor')) {
       return ['policy', 'system', 'vendor'];
     }
     return ['policy'];
   }
+  if (relationType === 'member_of') {
+    if (/\b(what|which)\s+(company|team|org|organization)\b/.test(normalized)) return ['company', 'team'];
+    return ['person'];
+  }
+  if (relationType === 'invested_in') {
+    if (/\b(what|which)\s+(company|project|startup|startups)\b/.test(normalized)) return ['company', 'project'];
+    return ['person', 'company', 'team', 'vendor'];
+  }
+  if (relationType === 'advises') {
+    if (/\b(what|which)\s+(company|project|team|startup|startups)\b/.test(normalized)) return ['company', 'project', 'team'];
+    return ['person', 'company', 'team'];
+  }
   const map: Record<string, KnowledgeEntityKind[]> = {
     owns: ['person', 'team'],
-    approves: ['person'],
-    reviews: ['person'],
+    approves: ['person', 'team'],
+    reviews: ['person', 'team'],
     escalates_to: ['person', 'team'],
     attends: ['person', 'team'],
     vendor_for: ['vendor'],
     bills: ['vendor'],
     renews_with: ['vendor'],
-    uses_system: ['system'],
-    integrates_with: ['system']
+    uses_system: ['system', 'vendor'],
+    integrates_with: ['system', 'vendor']
   };
-  return map[relationType] ?? ['person', 'team', 'process', 'policy', 'system', 'vendor'];
+  return map[relationType] ?? ['person', 'team', 'process', 'policy', 'system', 'vendor', 'company', 'project'];
 }
 
 function lexicalSuppressionPenalty(entry: KnowledgeSearchResult, relationType: string | null): number {

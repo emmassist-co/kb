@@ -918,6 +918,16 @@ export class KnowledgeBaseService {
       return response;
     }
 
+    const graphHybridResults = await this.buildGraphFirstHybridRelationResults({
+      query: input.query,
+      limit: input.limit ?? 10,
+      lexicalBackend: input.lexicalBackend ?? defaultLexicalBackend(this.config.mode),
+      relationType,
+      anchorId: anchor?.meta.id ?? null,
+      candidateRelationTypes: classification.candidateRelationTypes ?? [],
+      graphResults,
+      traversedLinks
+    });
     const response = {
       query: input.query,
       classification: {
@@ -928,7 +938,7 @@ export class KnowledgeBaseService {
         candidateRelationTypes: classification.candidateRelationTypes ?? [],
         intent
       },
-      results: graphResults.map((result) => ({ ...result, retrievalMode: 'graph-first-hybrid' as const })),
+      results: graphHybridResults,
       traversedLinks
     };
     if (input.captureReplay !== false) {
@@ -1486,6 +1496,63 @@ export class KnowledgeBaseService {
         const created = left.createdAt.localeCompare(right.createdAt);
         return created !== 0 ? created : left.id.localeCompare(right.id);
       });
+  }
+
+  private async buildGraphFirstHybridRelationResults(input: {
+    query: string;
+    limit: number;
+    lexicalBackend: KnowledgeLexicalBackend;
+    relationType: string | null;
+    anchorId: string | null;
+    candidateRelationTypes: string[];
+    graphResults: KnowledgeSearchResult[];
+    traversedLinks: KnowledgeLink[];
+  }): Promise<KnowledgeSearchResult[]> {
+    const graphResults = input.graphResults.map((result) => ({ ...result, retrievalMode: 'graph-first-hybrid' as const }));
+    if (isGraphRelationCompleteEnough(graphResults, input.traversedLinks)) {
+      return graphResults.slice(0, input.limit);
+    }
+
+    const expectedKinds = inferExpectedAnswerKinds({
+      query: input.query,
+      relationType: input.relationType,
+      candidateRelationTypes: input.candidateRelationTypes
+    });
+    const graphIds = new Set(graphResults.map((result) => result.id));
+    const lexical = await this.lexicalSearch({
+      query: input.query,
+      limit: Math.max(input.limit * 2, 10),
+      kind: undefined,
+      assistQuery: true,
+      mode: 'search-only',
+      lexicalBackend: input.lexicalBackend
+    });
+    const fallbackCandidates = lexical.results
+      .filter((result) => !graphIds.has(result.id) && result.id !== input.anchorId)
+      .map((result) => {
+        const kindMismatch = expectedKinds.length > 0 && result.kind === 'entity' && result.entityKind != null && !expectedKinds.includes(result.entityKind);
+        return {
+          ...result,
+          score: Number((result.score - (kindMismatch ? 8 : 2)).toFixed(3)),
+          reason: uniqueStrings([
+            ...result.reason,
+            'lexical-fallback',
+            'graph-incomplete-fallback',
+            ...(kindMismatch ? ['fallback-kind-mismatch'] : ['fallback-kind-compatible'])
+          ]),
+          confidence: scoreToConfidence(result.score - (kindMismatch ? 8 : 2)),
+          ambiguous: true,
+          retrievalMode: 'search-only' as const
+        };
+      })
+      .filter((result) => result.score > 0)
+      .filter((result) => graphResults.length === 0 || !result.reason.includes('fallback-kind-mismatch'));
+    const hasCompatibleFallback = fallbackCandidates.some((result) => !result.reason.includes('fallback-kind-mismatch'));
+    const fallback = hasCompatibleFallback
+      ? fallbackCandidates.filter((result) => !result.reason.includes('fallback-kind-mismatch'))
+      : fallbackCandidates;
+
+    return [...graphResults, ...fallback].slice(0, input.limit);
   }
 
   private async lexicalSearch(input: KnowledgeSearchInput): Promise<{ query: string; assistedQuery?: string; results: KnowledgeSearchResult[] }> {
@@ -2129,6 +2196,14 @@ export class KnowledgeBaseService {
     }
     return removed.length;
   }
+}
+
+function isGraphRelationCompleteEnough(results: KnowledgeSearchResult[], traversedLinks: KnowledgeLink[]): boolean {
+  if (results.length === 0 || traversedLinks.length === 0) return false;
+  const hasCurrentEvidence = traversedLinks.some((link) => (link.status ?? 'active') === 'active' && link.evidenceKind !== 'timeline');
+  const hasStrongEvidence = traversedLinks.some((link) => link.confidence >= 0.72 || link.explicitReference || link.evidenceStrength === 'explicit-ref');
+  const hasUsableResult = results.some((result) => result.confidence !== 'low' && !result.reason.includes('type-mismatch'));
+  return hasCurrentEvidence && hasStrongEvidence && hasUsableResult;
 }
 
 function computeConnectedAnchorBias(input: {

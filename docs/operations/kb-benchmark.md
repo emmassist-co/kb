@@ -67,6 +67,24 @@ Run against the exact public GBrain GitHub benchmark:
 npm run eval:kb:gbrain-world
 ```
 
+Run the anti-cheat shortcut and template-coupling guards:
+
+```bash
+npm run check:kb:anti-cheat
+```
+
+Run the blind paraphrase relation guardrail:
+
+```bash
+npm run eval:kb:relation-paraphrase
+```
+
+Run the prose-only non-GBrain-domain transfer guardrail:
+
+```bash
+npm run eval:kb:relation-transfer
+```
+
 Run the default literal upstream `gbrain-evals` side-by-side comparison:
 
 ```bash
@@ -108,11 +126,19 @@ The metric contract matches the core BrainBench retrieval metrics:
 
 Important precision note:
 
-- local KB benchmark reporting now matches the real upstream `gbrain-evals` semantics
-- `P@k` is `hits / returned_docs`
-- it is not `hits / k`
-- this means a conservative retriever can show high precision while still losing badly on recall
+- local KB benchmark `precisionAtK` remains fixed-denominator: `hits / requested top-k slots`
+- local KB benchmark JSON also reports `returnedPrecisionAtK`: `hits / returned_docs`
+- `fixedPrecisionAtKCeiling` reports the best possible fixed P@K for a corpus/query set given gold-answer cardinality
+- upstream `gbrain-evals` headline precision is returned-denominator, so compare it to `returnedPrecisionAtK`, not fixed `precisionAtK`
+- this means a conservative retriever can show high returned-denominator precision while still losing badly on recall
 - the authoritative apples-to-apples command is `npm run eval:kb:gbrain-evals-upstream`
+
+Anti-cheat and transfer note:
+
+- `npm run check:kb:anti-cheat` fails if runtime or adapter scoring code starts depending on benchmark markers, `_facts`, gold labels, or public-template family branches
+- `relation-paraphrase-v1` changes query wording away from exact public GBrain templates while keeping relation intent stable
+- `relation-transfer-v1` omits structured relation seeds for selected cases and uses policies, vendors, systems, processes, and teams instead of the GBrain people/company/meeting surface
+- Do not describe GBrain results as product-general relation quality unless these guardrails pass too
 
 When you run with `--gbrain-world --gbrain-world-contract github-benchmark`, the benchmark uses the same primary relational retrieval case families GBrain uses in its public side-by-side runner:
 
@@ -150,11 +176,24 @@ The broader vendored corpus may still support internal exploratory benchmarks, b
 
 ## Current Snapshot
 
-- real upstream side-by-side:
-  - `gbrain`: `P@5 49.1%`, `R@5 97.9%`
+- real upstream side-by-side, using upstream returned-denominator precision:
+  - official GBrain GitHub README headline / real upstream adapter: `P@5 49.1%`, `R@5 97.9%`
   - `kb-upstream`: `P@5 76.6%`, `R@5 99.5%`, `259/261`
+
+Fairness and anti-cheat scope for the external comparison:
+
+- The headline comparison uses the same upstream `gbrain-evals` runner, the same `240` page corpus, the same `145` public queries, the same top-k, and the same returned-denominator scorer.
+- KB adapter scoring is metadata-blind: query `id`, `tier`, `tags`, `author`, `known_failure_modes`, `_facts`, gold labels, and relevant labels do not influence retrieval order.
+- Runtime/package code is guarded against GBrain-specific markers, benchmark slugs, `_facts`, query IDs, gold labels, relevant-label shortcuts, and public-template scoring branches.
+- GBrain references are expected in eval/docs/tests and corpus loaders only; they are not allowed in package runtime retrieval.
+- The fair claim is limited to the public GBrain relation benchmark. Do not expand it into a broad claim about all memory/search/synthesis workflows.
+- local exact-public-contract diagnostic rail:
+  - `kb`: fixed `P@5 36.0%`, returned-denominator `P@5 76.7%`, fixed ceiling `36.0%`, `R@5 100.0%`, `MRR 100.0%`, `nDCG 100.0%`
 - held-out synthetic adapter rail:
-  - `kb-upstream`: `P@5 32.1%`, `R@5 88.3%`, `MRR 76.1%`, `nDCG 77.4%`
+  - `kb-upstream`: fixed `P@5 20.0%`, returned-denominator `P@5 32.4%`, fixed ceiling `23.4%`, `R@5 87.2%`, `MRR 75.0%`, `nDCG 76.7%`
+- anti-cheat generalization rails:
+  - `relation-paraphrase-v1`: fixed `P@5 45.0%`, returned-denominator `P@5 87.5%`, fixed ceiling `45.0%`, `R@5 100.0%`, `MRR 100.0%`, `nDCG 100.0%`
+  - `relation-transfer-v1`: fixed `P@5 20.0%`, returned-denominator `P@5 87.5%`, fixed ceiling `20.0%`, `R@5 100.0%`, `MRR 100.0%`, `nDCG 100.0%`
 
 Recent note:
 

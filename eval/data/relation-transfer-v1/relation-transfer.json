@@ -1,0 +1,129 @@
+{
+  "corpusName": "relation-transfer-v1",
+  "provenance": "deterministic-synthetic-fixtures",
+  "metadata": {
+    "benchmarkTier": "regression-guardrail",
+    "benchmarkContractId": "relation-transfer-v1",
+    "benchmarkContractLabel": "Prose-only non-GBrain relation transfer guardrail",
+    "benchmarkFamilies": ["owns_prose", "uses_system_prose", "vendor_for_prose", "applies_to_prose"],
+    "coverage": {
+      "proseOnlyRelations": 1,
+      "nonGbrainDomain": 1,
+      "wrongTypeDistractors": 1,
+      "historicalDistractors": 1
+    }
+  },
+  "pages": [
+    {
+      "id": "process-invoice-dispute-workflow",
+      "type": "process",
+      "title": "Invoice Dispute Workflow",
+      "compiledTruth": "Invoice Dispute Workflow owner is Revenue Ops Team. Invoice Dispute Workflow uses LedgerLink for exception tracking. Refund Policy applies to Invoice Dispute Workflow. Escalations route through Revenue Ops Team.",
+      "timeline": "2024-03-15: Alex Rivera owned Invoice Dispute Workflow before Revenue Ops Team took over."
+    },
+    {
+      "id": "team-revenue-ops",
+      "type": "team",
+      "title": "Revenue Ops Team",
+      "compiledTruth": "Revenue Ops Team owns Invoice Dispute Workflow and handles dispute escalations.",
+      "timeline": ""
+    },
+    {
+      "id": "person-alex-rivera",
+      "type": "person",
+      "title": "Alex Rivera",
+      "compiledTruth": "Alex Rivera no longer owns Invoice Dispute Workflow.",
+      "timeline": "2024-03-15: Alex Rivera owned Invoice Dispute Workflow."
+    },
+    {
+      "id": "system-ledgerlink",
+      "type": "system",
+      "title": "LedgerLink",
+      "compiledTruth": "LedgerLink is the system used by Invoice Dispute Workflow for exception tracking.",
+      "timeline": ""
+    },
+    {
+      "id": "policy-refund-policy",
+      "type": "policy",
+      "title": "Refund Policy",
+      "compiledTruth": "Refund Policy applies to Invoice Dispute Workflow and governs refund exceptions.",
+      "timeline": ""
+    },
+    {
+      "id": "process-payroll-export-pipeline",
+      "type": "process",
+      "title": "Payroll Export Pipeline",
+      "compiledTruth": "Payroll Export Pipeline is supported by PayFlow Vendor for payroll file delivery. Payroll Export Pipeline depends on LedgerLink for reconciled invoice states.",
+      "timeline": ""
+    },
+    {
+      "id": "vendor-payflow",
+      "type": "vendor",
+      "title": "PayFlow Vendor",
+      "compiledTruth": "PayFlow Vendor is the outside provider that supports Payroll Export Pipeline and handles payroll file delivery.",
+      "timeline": ""
+    },
+    {
+      "id": "policy-payroll-policy",
+      "type": "policy",
+      "title": "Payroll Policy",
+      "compiledTruth": "Payroll Policy mentions Payroll Export Pipeline but does not provide the payroll file delivery service.",
+      "timeline": ""
+    },
+    {
+      "id": "system-legacy-ledger",
+      "type": "system",
+      "title": "Legacy Ledger",
+      "compiledTruth": "Legacy Ledger previously supported Invoice Dispute Workflow before LedgerLink replaced it.",
+      "timeline": "2023-10-10: Legacy Ledger was used by Invoice Dispute Workflow."
+    }
+  ],
+  "queries": [
+    {
+      "id": "transfer-owner-invoice-dispute",
+      "text": "Who owns Invoice Dispute Workflow?",
+      "relevant": ["team-revenue-ops"],
+      "relationType": "owns",
+      "anchorId": "process-invoice-dispute-workflow",
+      "family": "owns_prose",
+      "expectedTargetTypes": ["team", "person"],
+      "distractorGroups": {
+        "historical": ["person-alex-rivera"]
+      }
+    },
+    {
+      "id": "transfer-system-invoice-dispute",
+      "text": "What system does Invoice Dispute Workflow use?",
+      "relevant": ["system-ledgerlink"],
+      "relationType": "uses_system",
+      "anchorId": "process-invoice-dispute-workflow",
+      "family": "uses_system_prose",
+      "expectedTargetTypes": ["system"],
+      "distractorGroups": {
+        "historical": ["system-legacy-ledger"]
+      }
+    },
+    {
+      "id": "transfer-vendor-payroll-export",
+      "text": "What vendor supports Payroll Export Pipeline?",
+      "relevant": ["vendor-payflow"],
+      "relationType": "vendor_for",
+      "anchorId": "process-payroll-export-pipeline",
+      "family": "vendor_for_prose",
+      "expectedTargetTypes": ["vendor"],
+      "distractorGroups": {
+        "wrongType": ["policy-payroll-policy"],
+        "lexical": ["policy-payroll-policy"]
+      }
+    },
+    {
+      "id": "transfer-policy-invoice-dispute",
+      "text": "What policy applies to Invoice Dispute Workflow?",
+      "relevant": ["policy-refund-policy"],
+      "relationType": "applies_to",
+      "anchorId": "process-invoice-dispute-workflow",
+      "family": "applies_to_prose",
+      "expectedTargetTypes": ["policy"]
+    }
+  ]
+}

@@ -5,6 +5,10 @@ import { classifyRelationQuery } from '../../../packages/kb-core/src/relations.j
 import { buildQueryRetrievalPlan } from '../../../packages/kb-core/src/service-helpers.js';
 import type { KnowledgeLink, KnowledgeSearchResult } from '../../../packages/kb-core/src/types.js';
 
+interface AdapterScoringQuery {
+  text: string;
+}
+
 interface KbAdapterState {
   context: Awaited<ReturnType<typeof createSeededKnowledgeBaseContext>>;
   config: {
@@ -109,12 +113,13 @@ export class KbAdapter implements Adapter {
 
   async query(q: PublicQuery, state: BrainState): Promise<RankedDoc[]> {
     const { context, config } = state as KbAdapterState;
-    const relationClassification = classifyRelationQuery(q.text);
-    const planner = buildQueryRetrievalPlan(q.text);
-    const lexicalBackend = resolveQueryLexicalBackend(q.text, config.lexicalBackend);
+    const scoringQuery = toAdapterScoringQuery(q);
+    const relationClassification = classifyRelationQuery(scoringQuery.text);
+    const planner = buildQueryRetrievalPlan(scoringQuery.text);
+    const lexicalBackend = resolveQueryLexicalBackend(scoringQuery.text, config.lexicalBackend);
     if (relationClassification.relationType) {
       const relation = await context.service.queryRelations({
-        query: q.text,
+        query: scoringQuery.text,
         limit: config.k,
         mode: config.mode === 'search-only' ? 'graph-first-hybrid' : config.mode,
         lexicalBackend,
@@ -123,9 +128,8 @@ export class KbAdapter implements Adapter {
       return searchResultDocs(
         applyResultBudget(pruneHistoricalTail(relation.results, relation.classification.relationType), {
           mode: config.resultBudgetMode,
-          queryText: q.text,
+          queryText: scoringQuery.text,
           relationType: relation.classification.relationType,
-          queryFamily: classifyQueryFamily(q),
           planner
         })
       ).map((result) => ({
@@ -136,7 +140,7 @@ export class KbAdapter implements Adapter {
     }
 
     const search = await context.service.search({
-      query: q.text,
+      query: scoringQuery.text,
       limit: config.k,
       mode: config.mode,
       lexicalBackend
@@ -145,9 +149,8 @@ export class KbAdapter implements Adapter {
     return searchResultDocs(
       applyResultBudget(search.results, {
         mode: config.resultBudgetMode,
-        queryText: q.text,
+        queryText: scoringQuery.text,
         relationType: null,
-        queryFamily: classifyQueryFamily(q),
         planner
       })
     ).map((result) => ({
@@ -159,12 +162,13 @@ export class KbAdapter implements Adapter {
 
   async diagnoseQuery(q: PublicQuery, state: BrainState): Promise<KbAdapterQueryDiagnostics> {
     const { context, config } = state as KbAdapterState;
-    const lexicalBackend = resolveQueryLexicalBackend(q.text, config.lexicalBackend);
-    const planner = buildQueryRetrievalPlan(q.text);
-    const explanation = await context.service.explainSearch(q.text, config.k, lexicalBackend);
+    const scoringQuery = toAdapterScoringQuery(q);
+    const lexicalBackend = resolveQueryLexicalBackend(scoringQuery.text, config.lexicalBackend);
+    const planner = buildQueryRetrievalPlan(scoringQuery.text);
+    const explanation = await context.service.explainSearch(scoringQuery.text, config.k, lexicalBackend);
     const relationRun = explanation.classification.relationType
       ? await context.service.queryRelations({
-          query: q.text,
+          query: scoringQuery.text,
           limit: config.k,
           mode: config.mode === 'search-only' ? 'graph-first-hybrid' : config.mode,
           lexicalBackend,
@@ -179,10 +183,10 @@ export class KbAdapter implements Adapter {
     const topResult = summarizeAttribution(topResults[0] ?? null);
     return {
       queryId: q.id,
-      text: q.text,
+      text: scoringQuery.text,
       queryFamily,
       relationType: explanation.classification.relationType,
-      anchorQuery: classifyRelationQuery(q.text).anchorQuery ?? null,
+      anchorQuery: classifyRelationQuery(scoringQuery.text).anchorQuery ?? null,
       anchorId: explanation.classification.anchorId,
       classificationConfidence: explanation.classification.confidence,
       degraded: explanation.classification.degraded,
@@ -204,9 +208,8 @@ export class KbAdapter implements Adapter {
       resultBudgetMode: config.resultBudgetMode,
       resultBudgetProfile: classifyResultBudgetProfile({
         mode: config.resultBudgetMode,
-        queryText: q.text,
+        queryText: scoringQuery.text,
         relationType: explanation.classification.relationType,
-        queryFamily,
         results: topResults,
         planner
       }),
@@ -229,6 +232,10 @@ export class KbAdapter implements Adapter {
     const { context } = state as KbAdapterState;
     context.cleanup();
   }
+}
+
+function toAdapterScoringQuery(query: PublicQuery): AdapterScoringQuery {
+  return { text: query.text };
 }
 
 function coerceMode(value: unknown): 'search-only' | 'graph-only' | 'graph-first-hybrid' {
@@ -281,7 +288,6 @@ function applyResultBudget(
     mode: 'default' | 'single-answer-tight' | 'adaptive';
     queryText: string;
     relationType: string | null;
-    queryFamily: string;
     planner: ReturnType<typeof buildQueryRetrievalPlan>;
   }
 ): KnowledgeSearchResult[] {
@@ -289,7 +295,6 @@ function applyResultBudget(
     mode: input.mode,
     queryText: input.queryText,
     relationType: input.relationType,
-    queryFamily: input.queryFamily,
     results,
     planner: input.planner
   });
@@ -311,7 +316,6 @@ function classifyResultBudgetProfile(input: {
   mode: 'default' | 'single-answer-tight' | 'adaptive';
   queryText: string;
   relationType: string | null;
-  queryFamily: string;
   results: KnowledgeSearchResult[];
   planner: ReturnType<typeof buildQueryRetrievalPlan>;
 }): KbAdapterQueryDiagnostics['resultBudgetProfile'] {
@@ -328,9 +332,6 @@ function classifyResultBudgetProfile(input: {
   }
   if (input.relationType === 'member_of' || input.relationType === 'attends') return 'plural-broad';
   if (input.relationType === 'advises' || input.relationType === 'invested_in') return 'plural-broad';
-  if (input.queryFamily === 'works_at' || input.queryFamily === 'attended') return 'plural-broad';
-
-  if (input.queryFamily === 'advises' || input.queryFamily === 'invested_in') return 'plural-broad';
 
   return 'projection-medium';
 }

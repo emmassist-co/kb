@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { loadAdminWorldCorpus, loadCoreSixFixtures, loadFixtureCorpus, loadGbrainWorldCorpus, loadRepoDocsCorpus, normalizeSlug } from '../eval/runner/loaders.js';
-import { ndcgAtK, precisionAtK, recallAtK, reciprocalRankAtK } from '../eval/runner/types.js';
+import { loadAdminWorldCorpus, loadCoreSixFixtures, loadFixtureCorpus, loadGbrainWorldCorpus, loadRelationParaphraseCorpus, loadRelationTransferCorpus, loadRepoDocsCorpus, normalizeSlug } from '../eval/runner/loaders.js';
+import { fixedPrecisionCeilingAtK, ndcgAtK, precisionAtK, recallAtK, reciprocalRankAtK, returnedPrecisionAtK } from '../eval/runner/types.js';
 import { buildComparisonModes, compareBenchmarkParity, runBenchmark } from '../eval/runner/kb-benchmark.js';
 import { runSelectedCategories } from '../eval/runner/kb-eval.js';
+import { KbAdapter } from '../eval/adapters/gbrain-evals/kb-adapter.js';
 
 test('ranking metrics match expected top-k behavior', () => {
   const docs = [
@@ -15,6 +16,10 @@ test('ranking metrics match expected top-k behavior', () => {
   const relevant = new Set(['b', 'c']);
 
   assert.equal(precisionAtK(docs, relevant, 2), 0.5);
+  assert.equal(precisionAtK(docs.slice(0, 2), new Set(['a']), 5), 0.2);
+  assert.equal(returnedPrecisionAtK(docs.slice(0, 2), new Set(['a']), 5), 0.5);
+  assert.equal(returnedPrecisionAtK([], relevant, 5), 0);
+  assert.equal(fixedPrecisionCeilingAtK(new Set(['a', 'b', 'c']), 5), 0.6);
   assert.equal(recallAtK(docs, relevant, 2), 0.5);
   assert.equal(reciprocalRankAtK(docs, relevant, 3), 0.5);
   assert.equal(Number(ndcgAtK(docs, new Map([['b', 2], ['c', 1]]), 3).toFixed(4)), 0.6697);
@@ -57,6 +62,111 @@ test('gbrain world loader builds normalized ids and relational queries', () => {
   assert.ok(corpusLinks.queries.some((query) => query.family === 'related_companies'));
   assert.ok(corpusLinks.queries.some((query) => query.family === 'related_people'));
   assert.ok(corpusLinks.queries.some((query) => query.family === 'secondary_affiliations'));
+});
+
+test('gbrain adapter query path ignores benchmark metadata', async () => {
+  const adapter = new KbAdapter('kb-metadata-guard');
+  const pages = [
+    {
+      slug: 'companies/orbit-labs',
+      type: 'company' as const,
+      title: 'Orbit Labs',
+      compiled_truth: 'Orbit Labs builds orbital analytics.',
+      timeline: ''
+    },
+    {
+      slug: 'people/ada-patel',
+      type: 'person' as const,
+      title: 'Ada Patel',
+      compiled_truth: 'Ada Patel serves as an advisor to Orbit Labs on go-to-market strategy.',
+      timeline: ''
+    }
+  ];
+  const state = await adapter.init(pages, {
+    name: adapter.name,
+    k: 5,
+    mode: 'graph-first-hybrid',
+    resultBudgetMode: 'adaptive'
+  });
+
+  try {
+    const plain = await adapter.query(
+      {
+        id: 'plain-query',
+        tier: 'medium',
+        text: 'Who advises Orbit Labs?',
+        expected_output_type: 'canonical-entity-id'
+      },
+      state
+    );
+    const polluted = await adapter.query(
+      {
+        id: 'totally-different-id',
+        tier: 'externally-authored',
+        text: 'Who advises Orbit Labs?',
+        expected_output_type: 'canonical-entity-id',
+        tags: ['wrong-family', 'benchmark-only-tag'],
+        author: 'metadata-should-not-score',
+        known_failure_modes: ['pretend this belongs to another benchmark family']
+      },
+      state
+    );
+
+    assert.deepEqual(
+      polluted.map((doc) => doc.page_id),
+      plain.map((doc) => doc.page_id)
+    );
+  } finally {
+    await adapter.teardown?.(state);
+  }
+});
+
+test('relation guardrail corpora load paraphrase and prose-only transfer rails', () => {
+  const paraphrase = loadRelationParaphraseCorpus(path.resolve(process.cwd(), 'eval/data/relation-paraphrase-v1'));
+  const transfer = loadRelationTransferCorpus(path.resolve(process.cwd(), 'eval/data/relation-transfer-v1'));
+
+  assert.equal(paraphrase.metadata?.benchmarkTier, 'regression-guardrail');
+  assert.equal(paraphrase.queries.length, 4);
+  assert.equal(paraphrase.queries.every((query) => query.indirectPhrasing), true);
+  assert.equal(paraphrase.queries.some((query) => /^Who (attended|works at|invested in|advises)\b/i.test(query.text)), false);
+  assert.equal(transfer.metadata?.benchmarkTier, 'regression-guardrail');
+  assert.equal(transfer.queries.length, 4);
+  assert.equal(transfer.pages.some((page) => page.relations?.length), false);
+});
+
+test('blind paraphrase relation rail passes guardrail floors', async () => {
+  const corpus = loadRelationParaphraseCorpus(path.resolve(process.cwd(), 'eval/data/relation-paraphrase-v1'));
+  const result = await runBenchmark({
+    corpusName: corpus.corpusName,
+    pages: corpus.pages,
+    queries: corpus.queries,
+    metadata: corpus.metadata,
+    k: 5,
+    mode: 'graph-first-hybrid'
+  });
+
+  assert.equal(result.gates?.passed, true);
+  assert.equal(result.recallAtK, 1);
+  assert.ok((result.returnedPrecisionAtK ?? 0) >= 0.5);
+  assert.ok((result.fixedPrecisionAtKCeiling ?? 0) > 0);
+});
+
+test('prose-only non-gbrain transfer rail extracts relations without structured seeds', async () => {
+  const corpus = loadRelationTransferCorpus(path.resolve(process.cwd(), 'eval/data/relation-transfer-v1'));
+  const result = await runBenchmark({
+    corpusName: corpus.corpusName,
+    pages: corpus.pages,
+    queries: corpus.queries,
+    metadata: corpus.metadata,
+    k: 5,
+    mode: 'graph-first-hybrid'
+  });
+
+  assert.equal(result.gates?.passed, true);
+  assert.equal(result.recallAtK, 1);
+  assert.equal(result.extractionQuality?.structuredSupportRate, 0);
+  assert.equal(result.extractionQuality?.proseSupportRate, 1);
+  assert.equal(result.diagnostics?.historicalOverCurrentCount, 0);
 });
 
 test('repo docs loader builds retrieval corpus from real local docs', () => {
@@ -268,6 +378,160 @@ test('benchmark runner can score a non-local adapter', async () => {
   assert.equal(result.queryCount, 1);
   assert.equal(result.precisionAtK, 1);
   assert.equal(result.recallAtK, 1);
+});
+
+test('benchmark runner exposes scorer parity metrics and false-positive buckets', async () => {
+  const result = await runBenchmark({
+    corpusName: 'metric-parity-fixture',
+    pages: [
+      {
+        id: 'person-ada',
+        type: 'person',
+        title: 'Ada',
+        compiledTruth: 'Ada advises Orbit.',
+        timeline: ''
+      },
+      {
+        id: 'company-orbit',
+        type: 'company',
+        title: 'Orbit',
+        compiledTruth: 'Orbit is advised by Ada.',
+        timeline: ''
+      },
+      {
+        id: 'project-orbit-plan',
+        type: 'project',
+        title: 'Orbit plan',
+        compiledTruth: 'Orbit plan mentions Ada.',
+        timeline: ''
+      },
+      {
+        id: 'person-ben',
+        type: 'person',
+        title: 'Ben',
+        compiledTruth: 'Ben works elsewhere.',
+        timeline: ''
+      },
+      {
+        id: 'person-cora',
+        type: 'person',
+        title: 'Cora',
+        compiledTruth: 'Cora works elsewhere.',
+        timeline: ''
+      }
+    ],
+    queries: [
+      {
+        id: 'q-1',
+        text: 'Who advises Orbit?',
+        relevant: ['person-ada'],
+        expectedTargetTypes: ['person'],
+        distractorGroups: {
+          wrongType: ['project-orbit-plan']
+        }
+      }
+    ],
+    k: 5,
+    adapter: {
+      async search() {
+        return {
+          query: 'Who advises Orbit?',
+          mode: 'search-only',
+          results: [
+            {
+              id: 'person-ada',
+              title: 'Ada',
+              kind: 'entity',
+              entityKind: 'person',
+              score: 10,
+              reason: ['fixture'],
+              matchedFields: ['fixture'],
+              sourceIds: [],
+              confidence: 'high',
+              ambiguous: false
+            },
+            {
+              id: 'project-orbit-plan',
+              title: 'Orbit plan',
+              kind: 'entity',
+              entityKind: 'project',
+              score: 9,
+              reason: ['fixture'],
+              matchedFields: ['fixture'],
+              sourceIds: [],
+              confidence: 'medium',
+              ambiguous: false
+            }
+          ]
+        };
+      },
+      async queryRelations() {
+        return {
+          query: 'Who advises Orbit?',
+          classification: {},
+          results: []
+        };
+      },
+      async exportSnapshot() {
+        return {
+          mode: 'basic',
+          entities: [],
+          sources: [],
+          events: [],
+          links: [],
+          drafts: []
+        };
+      }
+    }
+  });
+
+  assert.equal(result.precisionAtK, 0.2);
+  assert.equal(result.returnedPrecisionAtK, 0.5);
+  assert.equal(result.fixedPrecisionAtKCeiling, 0.2);
+  assert.equal(result.totalRelevantHitsAtK, 1);
+  assert.equal(result.totalReturnedAtK, 2);
+  assert.equal(result.topKSlotDenominator, 5);
+  assert.deepEqual(result.returnedCountStats, { min: 2, max: 2, mean: 2, histogram: { '0': 0, '1': 0, '2': 1, '3': 0, '4': 0, '5': 0 } });
+  assert.equal(result.diagnostics?.falsePositiveCount, 1);
+  assert.equal(result.diagnostics?.falsePositiveBuckets?.wrongType, 1);
+});
+
+test('benchmark relation extraction covers prose-only fixtures without structured relations', async () => {
+  const result = await runBenchmark({
+    corpusName: 'prose-only-relation-fixture',
+    pages: [
+      {
+        id: 'company-orbit',
+        type: 'company',
+        title: 'Orbit Labs',
+        compiledTruth: 'Orbit Labs builds orbital analytics.',
+        timeline: ''
+      },
+      {
+        id: 'person-ada',
+        type: 'person',
+        title: 'Ada Patel',
+        compiledTruth: 'Ada Patel serves as an advisor to Orbit Labs on go-to-market strategy.',
+        timeline: ''
+      }
+    ],
+    queries: [
+      {
+        id: 'q-advises-orbit',
+        text: 'Who advises Orbit Labs?',
+        relevant: ['person-ada'],
+        relationType: 'advises',
+        anchorId: 'company-orbit',
+        expectedTargetTypes: ['person']
+      }
+    ],
+    k: 2,
+    mode: 'graph-first-hybrid'
+  });
+
+  assert.equal(result.perQuery[0].returned[0]?.pageId, 'person-ada');
+  assert.equal(result.recallAtK, 1);
+  assert.ok((result.extractionQuality?.proseSupportRate ?? 0) > 0);
 });
 
 test('benchmark parity comparator fails metrics beyond the drift threshold', () => {

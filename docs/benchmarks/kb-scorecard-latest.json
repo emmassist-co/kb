@@ -2,7 +2,7 @@
   "suite": "kb:core-six",
   "corpus": "kb-core-six",
   "provenance": "deterministic-synthetic-fixtures",
-  "generatedAt": "2026-06-11T12:23:33.850Z",
+  "generatedAt": "2026-07-15T09:46:42.438Z",
   "policy": {
     "optimizeOn": [
       "admin-world-v3 dev"
@@ -12,7 +12,9 @@
     ],
     "regressionGuardrails": [
       "core-six dev",
-      "core-six holdout"
+      "core-six holdout",
+      "relation-paraphrase-v1",
+      "relation-transfer-v1"
     ],
     "externalReference": [
       "gbrain-world:github-benchmark"
@@ -20,7 +22,9 @@
     "notes": [
       "Optimize on product-core admin-world retrieval quality.",
       "Use deterministic core-six categories as regression floors.",
-      "Keep the exact GBrain GitHub benchmark contract as an external comparison rail rather than a direct ship target."
+      "Keep anti-cheat relation paraphrase and prose-only transfer rails green before making product-general relation-quality claims.",
+      "Keep the exact GBrain GitHub benchmark contract as an external comparison rail rather than a direct ship target.",
+      "The GBrain comparison uses the same upstream runner, 240-page corpus, 145 public queries, top-k, and returned-denominator scorer; KB runtime/scoring remains benchmark-metadata-blind."
     ]
   },
   "categories": [
@@ -30,10 +34,12 @@
       "provenance": "deterministic-synthetic-fixtures",
       "caseCount": 72,
       "metrics": {
-        "precisionAtK": 0.29999999999999966,
-        "recallAtK": 0.9444444444444444,
-        "mrrAtK": 0.9310185185185185,
-        "ndcgAtK": 0.8835922501252271,
+        "precisionAtK": 0.30555555555555525,
+        "returnedPrecisionAtK": 0.3381944444444441,
+        "fixedPrecisionAtKCeiling": 0.31666666666666626,
+        "recallAtK": 0.9652777777777778,
+        "mrrAtK": 0.8969907407407407,
+        "ndcgAtK": 0.872545214400178,
         "explainabilityRate": 1
       },
       "thresholds": {
@@ -44,16 +50,7 @@
         "explainabilityRate": 1
       },
       "passed": true,
-      "failures": [
-        {
-          "caseId": "q-leadership-attendees",
-          "summary": "Retrieval result was empty or lacked explainable matched fields.",
-          "expected": [
-            "meeting-leadership-weekly"
-          ],
-          "actual": []
-        }
-      ],
+      "failures": [],
       "sampleSize": 10
     },
     {

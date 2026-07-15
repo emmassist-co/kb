@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-14 - Add GBrain Metric Parity, Relation Precision, And Anti-Cheat Guardrails
+
+- Area: benchmark, package, subsystem
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added fixed-vs-returned precision reporting, fixed precision ceilings, returned-count and false-positive diagnostics, schema-safe relation fallback/answer-kind behavior for advisor/investor/member-style queries, runtime anti-shortcut/template-coupling guards, and paraphrase/prose-only transfer relation rails.
+- Customer-visible impact: maintainers and operators can compare KB to GBrain using matching scorer semantics while keeping product-core fixed P@5 gates; relation search is less likely to pad sparse graph answers with anchor or wrong-kind lexical results; benchmark claims now carry explicit anti-cheat/generalization coverage.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: review the updated benchmark markdown/JSON output and manually exercise relation searches for advisor and organization-investor queries through the CLI or package surface.
+- Automated coverage: `npm run check:kb:anti-cheat`; `node --import tsx/esm --test tests/kb-eval-cli-guard.test.ts tests/kb-benchmark.test.ts tests/kb-cli-docs.test.ts tests/kb-relations.test.ts`; `npm run typecheck`; `npm test`; `npm run eval:kb:all -- --json`; `npm run eval:kb:admin-world -- --split dev --json`; `npm run eval:kb:admin-world -- --split holdout --json`; `npm run eval:kb:relation-paraphrase -- --json`; `npm run eval:kb:relation-transfer -- --json`; `npm run eval:kb:gbrain-world -- --json`; `npm run eval:kb:gbrain-evals-upstream`; `KB_GBRAIN_QUERY_SET=synthetic KB_GBRAIN_COMPACT=true node --import tsx/esm scripts/run-gbrain-evals-kb-adapter.ts`
+- Needs iteration: no
+- Follow-up: publish `@emmassist-co/kb-core@0.4.3` after release approval and update downstream consumers to the released package.
+
 ## 2026-06-23 - Add KB Mirror Operator Reliability Commands
 
 - Area: CLI command, package

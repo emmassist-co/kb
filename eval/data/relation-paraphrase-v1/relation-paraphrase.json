@@ -1,0 +1,157 @@
+{
+  "corpusName": "relation-paraphrase-v1",
+  "provenance": "deterministic-synthetic-fixtures",
+  "metadata": {
+    "benchmarkTier": "regression-guardrail",
+    "benchmarkContractId": "relation-paraphrase-v1",
+    "benchmarkContractLabel": "Blind paraphrase relation guardrail",
+    "benchmarkFamilies": ["advises_paraphrase", "invested_in_paraphrase", "attends_paraphrase", "member_of_paraphrase"],
+    "coverage": {
+      "paraphraseRelationFamilies": 4,
+      "nonTemplateQueries": 1,
+      "metadataBlind": 1
+    }
+  },
+  "pages": [
+    {
+      "id": "company-orbit-labs",
+      "type": "company",
+      "title": "Orbit Labs",
+      "compiledTruth": "Orbit Labs builds orbital analytics. The company works with advisors Ada Patel and Ben Lee. Northstar Capital and Cora Singh invested in Orbit Labs.",
+      "timeline": "",
+      "relations": [
+        { "type": "advises", "targets": ["person-ada-patel", "person-ben-lee"] },
+        { "type": "invested_in", "targets": ["company-northstar-capital", "person-cora-singh"] }
+      ]
+    },
+    {
+      "id": "person-ada-patel",
+      "type": "person",
+      "title": "Ada Patel",
+      "compiledTruth": "Ada Patel serves as an advisor to Orbit Labs on go-to-market strategy.",
+      "timeline": ""
+    },
+    {
+      "id": "person-ben-lee",
+      "type": "person",
+      "title": "Ben Lee",
+      "compiledTruth": "Ben Lee is an advisor for Orbit Labs on developer platforms.",
+      "timeline": ""
+    },
+    {
+      "id": "company-northstar-capital",
+      "type": "company",
+      "title": "Northstar Capital",
+      "compiledTruth": "Northstar Capital invested in Orbit Labs during the seed round.",
+      "timeline": ""
+    },
+    {
+      "id": "person-cora-singh",
+      "type": "person",
+      "title": "Cora Singh",
+      "compiledTruth": "Cora Singh invested in Orbit Labs as an angel investor.",
+      "timeline": ""
+    },
+    {
+      "id": "company-violet-robotics",
+      "type": "company",
+      "title": "Violet Robotics",
+      "compiledTruth": "Violet Robotics employs Lina Park and Marco Chen on its robotics platform team.",
+      "timeline": "",
+      "relations": [
+        { "type": "member_of", "targets": ["person-lina-park", "person-marco-chen"] }
+      ]
+    },
+    {
+      "id": "person-lina-park",
+      "type": "person",
+      "title": "Lina Park",
+      "compiledTruth": "Lina Park is an engineer at Violet Robotics.",
+      "timeline": ""
+    },
+    {
+      "id": "person-marco-chen",
+      "type": "person",
+      "title": "Marco Chen",
+      "compiledTruth": "Marco Chen is a staff engineer at Violet Robotics.",
+      "timeline": ""
+    },
+    {
+      "id": "meeting-q3-risk-review",
+      "type": "meeting",
+      "title": "Q3 Risk Review",
+      "compiledTruth": "Q3 Risk Review attendance included Ada Patel, Priya Shah, and Compliance Team.",
+      "timeline": "",
+      "relations": [
+        { "type": "attends", "targets": ["person-ada-patel", "person-priya-shah", "team-compliance"] }
+      ]
+    },
+    {
+      "id": "person-priya-shah",
+      "type": "person",
+      "title": "Priya Shah",
+      "compiledTruth": "Priya Shah joined the Q3 Risk Review.",
+      "timeline": ""
+    },
+    {
+      "id": "team-compliance",
+      "type": "team",
+      "title": "Compliance Team",
+      "compiledTruth": "Compliance Team attends risk and audit reviews.",
+      "timeline": ""
+    },
+    {
+      "id": "project-orbit-advisory-deck",
+      "type": "project",
+      "title": "Orbit Advisory Deck",
+      "compiledTruth": "Orbit Advisory Deck mentions Orbit Labs, Ada Patel, and Ben Lee, but it is a project artifact rather than an advisor.",
+      "timeline": ""
+    }
+  ],
+  "queries": [
+    {
+      "id": "paraphrase-advisors-orbit",
+      "text": "Which advisors are at Orbit Labs?",
+      "relevant": ["person-ada-patel", "person-ben-lee"],
+      "relationType": "advises",
+      "anchorId": "company-orbit-labs",
+      "family": "advises_paraphrase",
+      "expectedTargetTypes": ["person"],
+      "distractorGroups": {
+        "wrongType": ["project-orbit-advisory-deck"],
+        "lexical": ["project-orbit-advisory-deck"]
+      },
+      "indirectPhrasing": true
+    },
+    {
+      "id": "paraphrase-investors-orbit",
+      "text": "Investors for Orbit Labs",
+      "relevant": ["company-northstar-capital", "person-cora-singh"],
+      "relationType": "invested_in",
+      "anchorId": "company-orbit-labs",
+      "family": "invested_in_paraphrase",
+      "expectedTargetTypes": ["company", "person"],
+      "indirectPhrasing": true
+    },
+    {
+      "id": "paraphrase-attendance-risk-review",
+      "text": "Who usually sits in on Q3 Risk Review?",
+      "relevant": ["person-ada-patel", "person-priya-shah", "team-compliance"],
+      "relationType": "attends",
+      "anchorId": "meeting-q3-risk-review",
+      "family": "attends_paraphrase",
+      "expectedTargetTypes": ["person", "team"],
+      "indirectPhrasing": true
+    },
+    {
+      "id": "paraphrase-engineers-violet",
+      "text": "Which engineers are at Violet Robotics?",
+      "relevant": ["person-lina-park", "person-marco-chen"],
+      "relationType": "member_of",
+      "anchorId": "company-violet-robotics",
+      "family": "member_of_paraphrase",
+      "expectedTargetTypes": ["person"],
+      "indirectPhrasing": true
+    }
+  ]
+}

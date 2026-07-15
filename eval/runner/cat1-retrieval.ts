@@ -1,8 +1,19 @@
 import type { KnowledgeExportSnapshot, KnowledgeRelationQueryResult, KnowledgeSearchResult } from '../../packages/kb-core/src/types.js';
-import { loadAdminWorldCorpus, loadFixtureCorpus, loadGbrainWorldCorpus, loadRepoDocsCorpus } from './loaders.js';
+import { loadAdminWorldCorpus, loadFixtureCorpus, loadGbrainWorldCorpus, loadRelationParaphraseCorpus, loadRelationTransferCorpus, loadRepoDocsCorpus } from './loaders.js';
 import { searchResultDocs, withSeededKnowledgeBase } from './shared.js';
-import type { EvalCategoryResult, EvalCorpus, EvalQuery, EvalRunResult, RankedDoc } from './types.js';
-import { mean, ndcgAtK, passThresholds, precisionAtK, recallAtK, reciprocalRankAtK } from './types.js';
+import type { EvalCategoryResult, EvalCorpus, EvalQuery, EvalRunResult, FalsePositiveBucket, RankedDoc } from './types.js';
+import {
+  fixedPrecisionCeilingAtK,
+  mean,
+  ndcgAtK,
+  passThresholds,
+  precisionAtK,
+  recallAtK,
+  reciprocalRankAtK,
+  relevantHitsAtK,
+  returnedPrecisionAtK,
+  summarizeReturnedCountStats
+} from './types.js';
 
 export async function runRetrievalCategory(input: {
   corpusPath?: string;
@@ -10,6 +21,8 @@ export async function runRetrievalCategory(input: {
   gbrainWorldContract?: 'github-benchmark' | 'corpus-linkable';
   adminWorldPath?: string;
   repoDocsPath?: string;
+  relationParaphrasePath?: string;
+  relationTransferPath?: string;
   k?: number;
   mode?: 'search-only' | 'graph-only' | 'graph-first-hybrid';
   lexicalBackend?: 'legacy-lexical' | 'bm25-lexical';
@@ -21,7 +34,11 @@ export async function runRetrievalCategory(input: {
       ? loadAdminWorldCorpus(input.adminWorldPath, input.split)
     : input.repoDocsPath
       ? loadRepoDocsCorpus(input.repoDocsPath)
-      : loadFixtureCorpus(input.corpusPath ?? new URL('../data/kb-world-v0', import.meta.url).pathname);
+      : input.relationParaphrasePath
+        ? loadRelationParaphraseCorpus(input.relationParaphrasePath)
+        : input.relationTransferPath
+          ? loadRelationTransferCorpus(input.relationTransferPath)
+          : loadFixtureCorpus(input.corpusPath ?? new URL('../data/kb-world-v0', import.meta.url).pathname);
   const k = input.k ?? 5;
   const benchmark = await runRetrievalBenchmark({
     corpusName: loaded.corpusName,
@@ -42,6 +59,8 @@ export async function runRetrievalCategory(input: {
     caseCount: loaded.queries.length,
     metrics: {
       precisionAtK: benchmark.precisionAtK,
+      returnedPrecisionAtK: benchmark.returnedPrecisionAtK ?? 0,
+      fixedPrecisionAtKCeiling: benchmark.fixedPrecisionAtKCeiling ?? 0,
       recallAtK: benchmark.recallAtK,
       mrrAtK: benchmark.mrrAtK,
       ndcgAtK: benchmark.ndcgAtK,
@@ -107,9 +126,14 @@ export async function runRetrievalBenchmark(input: {
     },
     async ({ service, snapshot }) => {
       const perQuery: EvalRunResult['perQuery'] = [];
-      const familyMetrics = new Map<string, Array<{ p: number; r: number; mrr: number; ndcg: number }>>();
+      const familyMetrics = new Map<string, Array<{ p: number; returnedP: number; ceiling: number; r: number; mrr: number; ndcg: number; returnedCount: number }>>();
       const familyGraphCoverage = new Map<string, { covered: number; total: number }>();
       let totalP = 0;
+      let totalReturnedP = 0;
+      let totalFixedCeiling = 0;
+      let totalHitsAtK = 0;
+      let totalReturnedAtK = 0;
+      const returnedCounts: number[] = [];
       let totalR = 0;
       let totalMrr = 0;
       let totalNdcg = 0;
@@ -126,6 +150,9 @@ export async function runRetrievalBenchmark(input: {
       let graphEdgeMissingCount = 0;
       let graphEdgePresentButBadlyRankedCount = 0;
       let totalCandidateDensity = 0;
+      let falsePositiveCount = 0;
+      const falsePositiveBuckets = createFalsePositiveBuckets();
+      const falsePositiveSamples: Array<{ queryId: string; pageId: string; rank: number; bucket: FalsePositiveBucket }> = [];
       const topFalsePositives: Array<{ queryId: string; returned: string[]; relevant: string[] }> = [];
       const exportSnapshot = await snapshot();
       const pageTypeById = new Map(input.pages.map((page) => [page.id, page.type]));
@@ -159,18 +186,27 @@ export async function runRetrievalBenchmark(input: {
         const grades = new Map<string, number>(
           Object.entries(query.grades ?? Object.fromEntries(query.relevant.map((id) => [id, 1])))
         );
+        const hitCount = relevantHitsAtK(returned, relevant, benchmarkK);
+        const returnedCount = returned.slice(0, benchmarkK).length;
         const p = precisionAtK(returned, relevant, benchmarkK);
+        const returnedP = returnedPrecisionAtK(returned, relevant, benchmarkK);
+        const ceiling = fixedPrecisionCeilingAtK(relevant, benchmarkK);
         const r = recallAtK(returned, relevant, benchmarkK);
         const mrr = reciprocalRankAtK(returned, relevant, benchmarkK);
         const ndcg = ndcgAtK(returned, grades, benchmarkK);
         totalP += p;
+        totalReturnedP += returnedP;
+        totalFixedCeiling += ceiling;
+        totalHitsAtK += hitCount;
+        totalReturnedAtK += returnedCount;
+        returnedCounts.push(returnedCount);
         totalR += r;
         totalMrr += mrr;
         totalNdcg += ndcg;
         totalCandidateDensity += returnedAll.length;
         if (query.family) {
           const family = familyMetrics.get(query.family) ?? [];
-          family.push({ p, r, mrr, ndcg });
+          family.push({ p, returnedP, ceiling, r, mrr, ndcg, returnedCount });
           familyMetrics.set(query.family, family);
         }
         if (query.anchorId && graphExplanation && graphExplanation.classification.anchorId !== query.anchorId) {
@@ -181,6 +217,15 @@ export async function runRetrievalBenchmark(input: {
         }
         if (returned.length && !relevant.has(returned[0].pageId)) {
           topFalsePositives.push({ queryId: query.id, returned: returned.map((doc) => doc.pageId), relevant: query.relevant });
+        }
+        for (const doc of returned) {
+          if (relevant.has(doc.pageId)) continue;
+          const bucket = classifyFalsePositiveBucket({ query, doc, pageTypeById });
+          falsePositiveCount += 1;
+          falsePositiveBuckets[bucket] += 1;
+          if (falsePositiveSamples.length < 25) {
+            falsePositiveSamples.push({ queryId: query.id, pageId: doc.pageId, rank: doc.rank, bucket });
+          }
         }
         if (returned.length && query.expectedTargetTypes?.length) {
           const topType = pageTypeById.get(returned[0].pageId);
@@ -213,7 +258,10 @@ export async function runRetrievalBenchmark(input: {
         }
         if (query.anchorId && query.relationType && input.mode !== 'search-only') {
           const graphLinks = exportSnapshot.links.filter(
-            (link) => link.fromId === query.anchorId && link.type === query.relationType && relevant.has(link.toId)
+            (link) =>
+              link.type === query.relationType &&
+              ((link.fromId === query.anchorId && relevant.has(link.toId)) ||
+                (link.toId === query.anchorId && relevant.has(link.fromId)))
           );
           if (query.family) {
             const familyCoverage = familyGraphCoverage.get(query.family) ?? { covered: 0, total: 0 };
@@ -247,7 +295,11 @@ export async function runRetrievalBenchmark(input: {
           usesAlias: query.usesAlias,
           indirectPhrasing: query.indirectPhrasing,
           returned,
+          returnedCount,
+          relevantHitsAtK: hitCount,
           precisionAtK: p,
+          returnedPrecisionAtK: returnedP,
+          fixedPrecisionAtKCeiling: ceiling,
           recallAtK: r,
           reciprocalRank: mrr,
           ndcgAtK: ndcg
@@ -261,6 +313,12 @@ export async function runRetrievalBenchmark(input: {
         queryCount: input.queries.length,
         k: input.k,
         precisionAtK: input.queries.length ? totalP / input.queries.length : 0,
+        returnedPrecisionAtK: input.queries.length ? totalReturnedP / input.queries.length : 0,
+        fixedPrecisionAtKCeiling: input.queries.length ? totalFixedCeiling / input.queries.length : 0,
+        totalRelevantHitsAtK: totalHitsAtK,
+        totalReturnedAtK,
+        topKSlotDenominator: input.queries.length * benchmarkK,
+        returnedCountStats: summarizeReturnedCountStats(returnedCounts, benchmarkK),
         recallAtK: input.queries.length ? totalR / input.queries.length : 0,
         mrrAtK: input.queries.length ? totalMrr / input.queries.length : 0,
         ndcgAtK: input.queries.length ? totalNdcg / input.queries.length : 0,
@@ -270,10 +328,17 @@ export async function runRetrievalBenchmark(input: {
             {
               queryCount: values.length,
               precisionAtK: mean(values.map((value) => value.p)),
+              returnedPrecisionAtK: mean(values.map((value) => value.returnedP)),
+              fixedPrecisionAtKCeiling: mean(values.map((value) => value.ceiling)),
+              returnedCountStats: summarizeReturnedCountStats(values.map((value) => value.returnedCount), benchmarkK),
               recallAtK: mean(values.map((value) => value.r)),
               mrrAtK: mean(values.map((value) => value.mrr)),
               ndcgAtK: mean(values.map((value) => value.ndcg)),
-              passesFloor: meetsFloor(mean(values.map((value) => value.p)), mean(values.map((value) => value.r)))
+              passesFloor: meetsFamilyFloor({
+                precisionAtK: mean(values.map((value) => value.p)),
+                recallAtK: mean(values.map((value) => value.r)),
+                benchmarkTier: input.metadata?.benchmarkTier
+              })
             }
           ])
         ),
@@ -307,6 +372,10 @@ export async function runRetrievalBenchmark(input: {
           graphEdgeMissingCount,
           graphEdgePresentButBadlyRankedCount,
           averageCandidateDensity: input.queries.length ? totalCandidateDensity / input.queries.length : 0,
+          falsePositiveCount,
+          falsePositiveRate: totalReturnedAtK ? falsePositiveCount / totalReturnedAtK : 0,
+          falsePositiveBuckets,
+          falsePositiveSamples,
           topFalsePositives: topFalsePositives.slice(0, 10)
         },
         extractionQuality: {
@@ -377,9 +446,14 @@ async function scoreRetrievalBenchmark(
 ): Promise<EvalRunResult> {
   const benchmarkK = Math.min(input.k, Math.max(1, input.pages.length));
   const perQuery: EvalRunResult['perQuery'] = [];
-  const familyMetrics = new Map<string, Array<{ p: number; r: number; mrr: number; ndcg: number }>>();
+  const familyMetrics = new Map<string, Array<{ p: number; returnedP: number; ceiling: number; r: number; mrr: number; ndcg: number; returnedCount: number }>>();
   const familyGraphCoverage = new Map<string, { covered: number; total: number }>();
   let totalP = 0;
+  let totalReturnedP = 0;
+  let totalFixedCeiling = 0;
+  let totalHitsAtK = 0;
+  let totalReturnedAtK = 0;
+  const returnedCounts: number[] = [];
   let totalR = 0;
   let totalMrr = 0;
   let totalNdcg = 0;
@@ -396,6 +470,9 @@ async function scoreRetrievalBenchmark(
   let graphEdgeMissingCount = 0;
   let graphEdgePresentButBadlyRankedCount = 0;
   let totalCandidateDensity = 0;
+  let falsePositiveCount = 0;
+  const falsePositiveBuckets = createFalsePositiveBuckets();
+  const falsePositiveSamples: Array<{ queryId: string; pageId: string; rank: number; bucket: FalsePositiveBucket }> = [];
   const topFalsePositives: Array<{ queryId: string; returned: string[]; relevant: string[] }> = [];
   const exportSnapshot = await adapter.exportSnapshot();
   const pageTypeById = new Map(input.pages.map((page) => [page.id, page.type]));
@@ -427,18 +504,27 @@ async function scoreRetrievalBenchmark(
     const grades = new Map<string, number>(
       Object.entries(query.grades ?? Object.fromEntries(query.relevant.map((id) => [id, 1])))
     );
+    const hitCount = relevantHitsAtK(returned, relevant, benchmarkK);
+    const returnedCount = returned.slice(0, benchmarkK).length;
     const p = precisionAtK(returned, relevant, benchmarkK);
+    const returnedP = returnedPrecisionAtK(returned, relevant, benchmarkK);
+    const ceiling = fixedPrecisionCeilingAtK(relevant, benchmarkK);
     const r = recallAtK(returned, relevant, benchmarkK);
     const mrr = reciprocalRankAtK(returned, relevant, benchmarkK);
     const ndcg = ndcgAtK(returned, grades, benchmarkK);
     totalP += p;
+    totalReturnedP += returnedP;
+    totalFixedCeiling += ceiling;
+    totalHitsAtK += hitCount;
+    totalReturnedAtK += returnedCount;
+    returnedCounts.push(returnedCount);
     totalR += r;
     totalMrr += mrr;
     totalNdcg += ndcg;
     totalCandidateDensity += returnedAll.length;
     if (query.family) {
       const family = familyMetrics.get(query.family) ?? [];
-      family.push({ p, r, mrr, ndcg });
+      family.push({ p, returnedP, ceiling, r, mrr, ndcg, returnedCount });
       familyMetrics.set(query.family, family);
     }
     if (query.anchorId && graphExplanation && graphExplanation.classification.anchorId !== query.anchorId) {
@@ -449,6 +535,15 @@ async function scoreRetrievalBenchmark(
     }
     if (returned.length && !relevant.has(returned[0].pageId)) {
       topFalsePositives.push({ queryId: query.id, returned: returned.map((doc) => doc.pageId), relevant: query.relevant });
+    }
+    for (const doc of returned) {
+      if (relevant.has(doc.pageId)) continue;
+      const bucket = classifyFalsePositiveBucket({ query, doc, pageTypeById });
+      falsePositiveCount += 1;
+      falsePositiveBuckets[bucket] += 1;
+      if (falsePositiveSamples.length < 25) {
+        falsePositiveSamples.push({ queryId: query.id, pageId: doc.pageId, rank: doc.rank, bucket });
+      }
     }
     if (returned.length && query.expectedTargetTypes?.length) {
       const topType = pageTypeById.get(returned[0].pageId);
@@ -479,7 +574,10 @@ async function scoreRetrievalBenchmark(
     }
     if (query.anchorId && query.relationType && input.mode !== 'search-only') {
       const graphLinks = exportSnapshot.links.filter(
-        (link) => link.fromId === query.anchorId && link.type === query.relationType && relevant.has(link.toId)
+        (link) =>
+          link.type === query.relationType &&
+          ((link.fromId === query.anchorId && relevant.has(link.toId)) ||
+            (link.toId === query.anchorId && relevant.has(link.fromId)))
       );
       if (query.family) {
         const familyCoverage = familyGraphCoverage.get(query.family) ?? { covered: 0, total: 0 };
@@ -513,7 +611,11 @@ async function scoreRetrievalBenchmark(
       usesAlias: query.usesAlias,
       indirectPhrasing: query.indirectPhrasing,
       returned,
+      returnedCount,
+      relevantHitsAtK: hitCount,
       precisionAtK: p,
+      returnedPrecisionAtK: returnedP,
+      fixedPrecisionAtKCeiling: ceiling,
       recallAtK: r,
       reciprocalRank: mrr,
       ndcgAtK: ndcg
@@ -527,6 +629,12 @@ async function scoreRetrievalBenchmark(
     queryCount: input.queries.length,
     k: input.k,
     precisionAtK: input.queries.length ? totalP / input.queries.length : 0,
+    returnedPrecisionAtK: input.queries.length ? totalReturnedP / input.queries.length : 0,
+    fixedPrecisionAtKCeiling: input.queries.length ? totalFixedCeiling / input.queries.length : 0,
+    totalRelevantHitsAtK: totalHitsAtK,
+    totalReturnedAtK,
+    topKSlotDenominator: input.queries.length * benchmarkK,
+    returnedCountStats: summarizeReturnedCountStats(returnedCounts, benchmarkK),
     recallAtK: input.queries.length ? totalR / input.queries.length : 0,
     mrrAtK: input.queries.length ? totalMrr / input.queries.length : 0,
     ndcgAtK: input.queries.length ? totalNdcg / input.queries.length : 0,
@@ -536,10 +644,17 @@ async function scoreRetrievalBenchmark(
         {
           queryCount: values.length,
           precisionAtK: mean(values.map((value) => value.p)),
+          returnedPrecisionAtK: mean(values.map((value) => value.returnedP)),
+          fixedPrecisionAtKCeiling: mean(values.map((value) => value.ceiling)),
+          returnedCountStats: summarizeReturnedCountStats(values.map((value) => value.returnedCount), benchmarkK),
           recallAtK: mean(values.map((value) => value.r)),
           mrrAtK: mean(values.map((value) => value.mrr)),
           ndcgAtK: mean(values.map((value) => value.ndcg)),
-          passesFloor: meetsFloor(mean(values.map((value) => value.p)), mean(values.map((value) => value.r)))
+          passesFloor: meetsFamilyFloor({
+            precisionAtK: mean(values.map((value) => value.p)),
+            recallAtK: mean(values.map((value) => value.r)),
+            benchmarkTier: input.metadata?.benchmarkTier
+          })
         }
       ])
     ),
@@ -573,6 +688,10 @@ async function scoreRetrievalBenchmark(
       graphEdgeMissingCount,
       graphEdgePresentButBadlyRankedCount,
       averageCandidateDensity: input.queries.length ? totalCandidateDensity / input.queries.length : 0,
+      falsePositiveCount,
+      falsePositiveRate: totalReturnedAtK ? falsePositiveCount / totalReturnedAtK : 0,
+      falsePositiveBuckets,
+      falsePositiveSamples,
       topFalsePositives: topFalsePositives.slice(0, 10)
     },
     extractionQuality: {
@@ -596,6 +715,36 @@ async function scoreRetrievalBenchmark(
 
 export function extractRankedDocs(results: KnowledgeSearchResult[]): RankedDoc[] {
   return searchResultDocs(results) as RankedDoc[];
+}
+
+function createFalsePositiveBuckets(): Record<FalsePositiveBucket, number> {
+  return {
+    wrongType: 0,
+    anchorPage: 0,
+    siblingDistractor: 0,
+    lexicalDistractor: 0,
+    historicalStale: 0,
+    relationDirectionMismatch: 0,
+    unknown: 0
+  };
+}
+
+function classifyFalsePositiveBucket(input: {
+  query: EvalQuery;
+  doc: RankedDoc;
+  pageTypeById: Map<string, string>;
+}): FalsePositiveBucket {
+  const pageId = input.doc.pageId;
+  if (input.query.anchorId && pageId === input.query.anchorId) return 'anchorPage';
+  if (input.query.expectedTargetTypes?.length) {
+    const type = input.pageTypeById.get(pageId);
+    if (!type || !input.query.expectedTargetTypes.includes(type)) return 'wrongType';
+  }
+  if (input.query.distractorGroups?.historical?.includes(pageId)) return 'historicalStale';
+  if (input.query.distractorGroups?.sibling?.includes(pageId)) return 'siblingDistractor';
+  if (input.query.distractorGroups?.lexical?.includes(pageId)) return 'lexicalDistractor';
+  if (input.query.distractorGroups?.relationDirection?.includes(pageId)) return 'relationDirectionMismatch';
+  return 'unknown';
 }
 
 function buildBenchmarkGates(result: EvalRunResult): EvalRunResult['gates'] {
@@ -651,6 +800,22 @@ function buildBenchmarkGates(result: EvalRunResult): EvalRunResult['gates'] {
       milestone: 'guardrail-only'
     };
   }
+  if (tier === 'regression-guardrail') {
+    const guardrails = [
+      gate('Relation transfer fixed P@5', result.precisionAtK, '>= 20%', result.precisionAtK >= 0.2),
+      gate('Relation transfer returned P@5', result.returnedPrecisionAtK ?? 0, '>= 50%', (result.returnedPrecisionAtK ?? 0) >= 0.5),
+      gate('Relation transfer R@5', result.recallAtK, '>= 80%', result.recallAtK >= 0.8),
+      gate('Wrong-type top result rate', result.diagnostics?.wrongTypeTopResultRate ?? 0, '<= 0%', (result.diagnostics?.wrongTypeTopResultRate ?? 0) <= 0),
+      gate('Anchor page over answer rate', result.diagnostics?.anchorPageOverAnswerRate ?? 0, '<= 10%', (result.diagnostics?.anchorPageOverAnswerRate ?? 0) <= 0.1)
+    ];
+    return {
+      benchmarkTier: tier,
+      overall: [],
+      guardrails,
+      passed: guardrails.every((entry) => entry.passed),
+      milestone: 'guardrail-only'
+    };
+  }
   return {
     benchmarkTier: tier,
     overall: [],
@@ -663,6 +828,16 @@ function gate(label: string, actual: number, expected: string, passed: boolean) 
   return { label, actual, expected, passed };
 }
 
-function meetsFloor(precisionAtK: number, recallAtK: number) {
-  return precisionAtK + 1e-9 >= 0.25 && recallAtK + 1e-9 >= 0.8;
+function meetsFamilyFloor(input: {
+  precisionAtK: number;
+  recallAtK: number;
+  benchmarkTier?: EvalRunResult['corpusMetadata']['benchmarkTier'];
+}) {
+  const precisionFloor = input.benchmarkTier === 'regression-guardrail'
+    ? 0.2
+    : input.benchmarkTier === 'external-reference'
+      ? 0.26
+      : 0.25;
+  const recallFloor = input.benchmarkTier === 'external-reference' ? 0.82 : 0.8;
+  return input.precisionAtK + 1e-9 >= precisionFloor && input.recallAtK + 1e-9 >= recallFloor;
 }

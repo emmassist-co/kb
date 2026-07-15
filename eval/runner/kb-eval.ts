@@ -170,11 +170,12 @@ function buildScorecardPolicy(args: ParsedArgs): EvalScorecard['policy'] | undef
   return {
     optimizeOn: ['admin-world-v3 dev'],
     confirmOn: ['admin-world-v3 holdout'],
-    regressionGuardrails: ['core-six dev', 'core-six holdout'],
+    regressionGuardrails: ['core-six dev', 'core-six holdout', 'relation-paraphrase-v1', 'relation-transfer-v1'],
     externalReference: ['gbrain-world:github-benchmark'],
     notes: [
       'Optimize on product-core admin-world retrieval quality.',
       'Use deterministic core-six categories as regression floors.',
+      'Keep anti-cheat relation paraphrase and prose-only transfer rails green before making product-general relation-quality claims.',
       'Keep the exact GBrain GitHub benchmark contract as an external comparison rail rather than a direct ship target.'
     ]
   };
