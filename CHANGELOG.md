@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Stop Persisting Noisy Mention Links
+
+- Area: kb-core, cli
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: stopped the heuristic relation extractor from materializing lexical co-mentions as durable `mentioned_in` graph edges, made `related`/traversal ignore legacy `mentioned_in` links by default, added an explicit `kb traverse --include-mentions` escape hatch, and prepared coordinated package metadata bumps (`kb-core` 0.4.4, `kb-cli` 1.8.0, dependent packages patch bumps).
+- Customer-visible impact: KB graph traversal no longer implies relationships between entities that only appeared in the same source text; operators can still inspect legacy mention edges intentionally with `--include-mentions`.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: rebuild a workspace with co-mentioned entities, verify no new `mentioned_in` link files are created, then compare `kb traverse` with and without `--include-mentions`.
+- Automated coverage: `node --import tsx/esm --test tests/kb-relations.test.ts`; `node --import tsx/esm --test tests/kb-cli.test.ts`; `npm run typecheck`; `npm test`
+- Needs iteration: no
+- Follow-up: none
+
 ## 2026-07-15 - Add External-Agent KB Improvement Recipes
 
 - Area: package, docs, skills

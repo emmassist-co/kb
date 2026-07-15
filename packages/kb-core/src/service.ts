@@ -971,6 +971,7 @@ export class KnowledgeBaseService {
     direction?: 'in' | 'out' | 'both';
     depth?: number;
     explicitOnly?: boolean;
+    includeMentions?: boolean;
     originKind?: 'entity' | 'source' | 'event' | 'seed';
   }): Promise<{ id: string; depth: number; edges: KnowledgeLink[]; entityIds: string[] }> {
     const direction = input.direction ?? 'both';
@@ -983,6 +984,7 @@ export class KnowledgeBaseService {
     for (let step = 0; step < depth; step += 1) {
       const next = new Set<string>();
       for (const link of allLinks) {
+        if (!input.includeMentions && link.type === 'mentioned_in') continue;
         if (input.type && link.type !== input.type) continue;
         if (input.explicitOnly && !link.explicitReference) continue;
         if (input.originKind && link.originKind !== input.originKind) continue;
@@ -1295,7 +1297,7 @@ export class KnowledgeBaseService {
       .filter((source) => sourceIds.includes(source.meta.id))
       .flatMap((source) => source.meta.linkedEntities)
       .filter((entityId) => entityId !== id);
-    const links = await this.store.listLinks();
+    const links = (await this.store.listLinks()).filter((link) => link.type !== 'mentioned_in');
     const graphRelated = links
       .filter((link) => link.fromId === id || link.toId === id)
       .flatMap((link) => [link.fromId, link.toId])

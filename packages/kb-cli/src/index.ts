@@ -720,6 +720,7 @@ function buildTraversePayload(parsed: ParsedArgs): JsonObject {
     direction: readString(parsed.flags.direction),
     depth: typeof parsed.flags.depth === 'string' ? Number.parseInt(parsed.flags.depth, 10) : undefined,
     explicitOnly: readBoolean(parsed.flags['explicit-only']),
+    includeMentions: readBoolean(parsed.flags['include-mentions']),
     originKind: readString(parsed.flags['origin-kind'])
   };
 }
@@ -851,7 +852,7 @@ function renderHelp(topic?: string): string {
     '  kb validate <remember|record|relate|annotate|search|query-relations|record-batch|annotate-batch> --json @payload.json',
     '  kb related --id ENTITY_ID',
     '  kb links --id ENTITY_ID',
-    '  kb traverse --id ENTITY_ID [--type RELATION] [--direction in|out|both] [--depth 1] [--explicit-only] [--origin-kind entity|source|event|seed]',
+    '  kb traverse --id ENTITY_ID [--type RELATION] [--direction in|out|both] [--depth 1] [--explicit-only] [--include-mentions] [--origin-kind entity|source|event|seed]',
     '  kb rebuild',
     '  kb doctor',
     '  kb export',
