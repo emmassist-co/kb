@@ -54,7 +54,7 @@ Or confirm `CLOUDFLARE_API_TOKEN` is already available.
 2. In the deploy workspace, install the published packages:
 
 ```bash
-npm install @emmassist-co/kb-core @emmassist-co/kb-http @emmassist-co/kb-mcp @emmassist-co/kb-storage-cloudflare @emmassist-co/kb-cli
+npm install @emmassist-co/kb-core @emmassist-co/kb-http @emmassist-co/kb-mcp @emmassist-co/kb-storage-cloudflare @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 npm install -D typescript wrangler
 ```
 

@@ -112,7 +112,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-cloudflare-setup/agents/openai.yaml')));
 
   const readme = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/README.md'), 'utf8');
-  assert.match(readme, /npm install @emmassist-co\/kb-cli/);
+  assert.match(readme, /npm install @emmassist-co\/kb-cli --@emmassist-co:registry=https:\/\/npm\.pkg\.github\.com/);
   assert.match(readme, /npx kb-local inspect/);
   assert.match(readme, /kb-local-setup/);
   assert.match(readme, /cloudflare-agent-setup\.md/);
@@ -123,7 +123,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(readme, /kb-local validate-mirror --changes/);
   assert.match(readme, /kb-local health --stats/);
   assert.match(readme, /kb-local conflicts list/);
-  assert.doesNotMatch(readme, /npm\.pkg\.github\.com/);
+  assert.match(readme, /npm\.pkg\.github\.com/);
 
   const mcpReadme = readFileSync(path.resolve(process.cwd(), 'packages/kb-mcp/README.md'), 'utf8');
   assert.match(mcpReadme, /MCP transport adapter/);
@@ -152,11 +152,11 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareStoreReadme, /kb-storage-adapters\.md/);
 
   const quickstart = readFileSync(path.resolve(process.cwd(), 'docs/consumer-quickstart.md'), 'utf8');
-  assert.match(quickstart, /public npm registry/);
+  assert.match(quickstart, /GitHub Packages for the `@emmassist-co` scope/);
   assert.match(quickstart, /cloudflare-agent-setup\.md/);
   assert.match(quickstart, /KB_WORKSPACE_ID/);
   assert.match(quickstart, /KB_ROOT_DIR/);
-  assert.match(quickstart, /npm install @emmassist-co\/kb-cli/);
+  assert.match(quickstart, /npm install @emmassist-co\/kb-cli --@emmassist-co:registry=https:\/\/npm\.pkg\.github\.com/);
   assert.match(quickstart, /npx kb-local sync status/);
   assert.match(quickstart, /npx kb-local validate-mirror/);
   assert.match(quickstart, /npx kb-local health/);
@@ -174,7 +174,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(quickstart, /entities\/\*\.md/);
   assert.match(quickstart, /sources\/\*\.md/);
   assert.doesNotMatch(quickstart, /GITHUB_PACKAGES_TOKEN/);
-  assert.doesNotMatch(quickstart, /npm\.pkg\.github\.com/);
+  assert.match(quickstart, /npm\.pkg\.github\.com/);
 
   const obsidianGuidePath = path.resolve(process.cwd(), 'docs/operations/kb-obsidian-semantic-sync.md');
   assert.ok(existsSync(obsidianGuidePath));

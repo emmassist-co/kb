@@ -25,7 +25,7 @@ If the user does not care about the root dir, default to `.kb` inside the curren
 Install the CLI:
 
 ```bash
-npm install @emmassist-co/kb-cli
+npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 ```
 
 ## In-Process Mode

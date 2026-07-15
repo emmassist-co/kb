@@ -7,7 +7,7 @@ For the canonical Cloudflare production path, use [docs/cloudflare-agent-setup.m
 ## What You Need
 
 - Node `22+`
-- access to the public npm registry
+- access to npm plus GitHub Packages for the `@emmassist-co` scope
 
 ## Variables To Decide
 
@@ -28,7 +28,7 @@ Recommended defaults:
 ## 1. Install The CLI
 
 ```bash
-npm install @emmassist-co/kb-cli
+npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 ```
 
 This gives you `kb-local`.
@@ -38,7 +38,7 @@ This gives you `kb-local`.
 If your agent runtime already uses Flue and you want the KB command surface inside that runtime, install the adapter alongside your local Flue SDK:
 
 ```bash
-npm install @emmassist-co/kb-flue-adapter @flue/sdk
+npm install @emmassist-co/kb-flue-adapter @flue/sdk --@emmassist-co:registry=https://npm.pkg.github.com
 ```
 
 The adapter no longer depends on legacy Flue subpath exports, so the same package works for Flue `0.3.x` and the root-export Flue `1.x` line. The returned command is structural, so consumers can assign it to their local Flue `Command` type.

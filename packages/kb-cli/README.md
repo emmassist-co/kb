@@ -10,7 +10,7 @@ Canonical Cloudflare deployment guide: [docs/cloudflare-agent-setup.md](../../do
 Minimal install for a local agent host:
 
 ```bash
-npm install @emmassist-co/kb-cli
+npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 ```
 
 Then run:

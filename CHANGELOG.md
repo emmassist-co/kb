@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Fix GitHub Packages Install Examples
+
+- Area: docs, package
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: corrected install examples to use a scoped `@emmassist-co` GitHub Packages registry override so public npm dependencies continue resolving from the default npm registry, and prepared a `@emmassist-co/kb-cli` patch release with the corrected README and skills.
+- Customer-visible impact: first-time operators can install `@emmassist-co/kb-cli` into a clean local folder without the registry override breaking public dependencies like `@aws-sdk/client-s3`.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: clean temp folder install using `npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com`, then `kb-local inspect`, `remember`, and `search` with `KB_ROOT_DIR` pointed at a local folder.
+- Automated coverage: clean temp-folder install smoke with `--@emmassist-co:registry=https://npm.pkg.github.com`, `kb-local inspect`, `kb-local remember --json`, and `kb-local search --json`; `node --import tsx/esm --test tests/kb-cli-docs.test.ts`; `npm run typecheck`; `npm test`; `npm run check:kb:anti-cheat`
+- Needs iteration: no
+- Follow-up: none
+
 ## 2026-07-15 - Add Agent Adoption And Storage Adapter Docs
 
 - Area: docs

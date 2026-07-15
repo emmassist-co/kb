@@ -9,7 +9,7 @@ Cloudflare-first compounding knowledge base for agents, operator runtimes, and w
 If another coding agent wants a working KB in a fresh repo, this is the shortest supported path:
 
 ```bash
-npm install @emmassist-co/kb-cli
+npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 
 export KB_ROOT_DIR="$PWD/.kb"
 
@@ -203,7 +203,7 @@ How the same architecture shows up in practice:
 
 | Actor / environment | Recommended path | What happens |
 | --- | --- | --- |
-| Plain local Codex / Claude / Pi / Cursor session | `npm install @emmassist-co/kb-cli`, set `KB_ROOT_DIR`, run `npx kb-local ...` | The agent uses the CLI directly against a local file-backed KB. |
+| Plain local Codex / Claude / Pi / Cursor session | `npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com`, set `KB_ROOT_DIR`, run `npx kb-local ...` | The agent uses the CLI directly against a local file-backed KB. |
 | Multiple local tools on one machine | `npx kb-local serve --port 3001`, then `KB_BASE_URL=http://127.0.0.1:3001 npx kb-local ...` | A Node daemon exposes the same `/v1` contract locally. |
 | Deployed/serverless agent or remote operator | `KB_BASE_URL=https://YOUR-KB-HOST` + `KB_API_TOKEN`, then `npx kb-local ...` or direct HTTP | The caller talks to the canonical Worker-hosted KB over `/v1`. |
 | MCP-aware clients | configure `POST https://YOUR-KB-HOST/mcp` with the same bearer token | The MCP surface exposes the scoped KB tool catalog over the same workspace runtime. |

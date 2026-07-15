@@ -47,7 +47,7 @@ In a fresh folder:
 
 ```bash
 npm init -y
-npm install @emmassist-co/kb-core @emmassist-co/kb-http @emmassist-co/kb-mcp @emmassist-co/kb-storage-cloudflare @emmassist-co/kb-cli
+npm install @emmassist-co/kb-core @emmassist-co/kb-http @emmassist-co/kb-mcp @emmassist-co/kb-storage-cloudflare @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 npm install -D typescript wrangler
 ```
 
@@ -368,7 +368,7 @@ npm run verify:deployment -- --kb-http-smoke --base-url https://YOUR-KB-HOST
 Once the Worker is live, the simplest agent connection path is the remote HTTP mode already supported by `kb-local`:
 
 ```bash
-npm install @emmassist-co/kb-cli
+npm install @emmassist-co/kb-cli --@emmassist-co:registry=https://npm.pkg.github.com
 
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
