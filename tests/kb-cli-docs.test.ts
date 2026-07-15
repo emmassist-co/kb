@@ -46,7 +46,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /does \*\*not\*\* claim to own every chat bridge or agent runtime/);
   assert.match(repoReadme, /## Setup And Lifecycle Paths/);
   assert.match(repoReadme, /Local browser dashboard/);
-  assert.match(repoReadme, /npx kb-local dashboard --port 3001/);
+  assert.match(repoReadme, /npx kb dashboard --port 3001/);
   assert.match(repoReadme, /CLI-only installs can omit the dashboard package/);
   assert.match(repoReadme, /without Obsidian/);
   assert.match(repoReadme, /Local-to-remote migration is intentionally boring/);
