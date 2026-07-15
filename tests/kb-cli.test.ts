@@ -1408,6 +1408,30 @@ test('kb cli traverse can filter for explicit structured edges', async () => {
     assert.equal(parsed.edges.length, 1);
     assert.equal(parsed.edges[0]?.type, 'founder_of');
     assert.equal(parsed.edges[0]?.explicitReference, true);
+
+    const mention = await runKnowledgeBaseCli(
+      [
+        'replace-relations',
+        '--json',
+        '{"origin":{"kind":"seed","id":"legacy-mentioned-in"},"links":[{"type":"mentioned_in","fromId":"person-alex","toId":"company-acme"}]}'
+      ],
+      { transport: { mode: 'local', tenantId: 'acme', rootDir } }
+    );
+    assert.equal(mention.exitCode, 0);
+
+    const defaultTraversal = await runKnowledgeBaseCli(
+      ['traverse', '--id', 'person-alex', '--type', 'mentioned_in'],
+      { transport: { mode: 'local', tenantId: 'acme', rootDir } }
+    );
+    assert.equal(defaultTraversal.exitCode, 0);
+    assert.equal((JSON.parse(defaultTraversal.stdout) as { edges: unknown[] }).edges.length, 0);
+
+    const includeMentionsTraversal = await runKnowledgeBaseCli(
+      ['traverse', '--id', 'person-alex', '--type', 'mentioned_in', '--include-mentions'],
+      { transport: { mode: 'local', tenantId: 'acme', rootDir } }
+    );
+    assert.equal(includeMentionsTraversal.exitCode, 0);
+    assert.equal((JSON.parse(includeMentionsTraversal.stdout) as { edges: unknown[] }).edges.length, 1);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }

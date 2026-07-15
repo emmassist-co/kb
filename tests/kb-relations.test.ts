@@ -63,6 +63,70 @@ test('heuristic extractor emits evidence-bearing relation proposals', () => {
   assert.match(membership?.evidenceSpan?.text ?? '', /works at Anchor/i);
 });
 
+test('heuristic extractor does not turn co-mentions into durable mention proposals', () => {
+  const entities: EntityDocument[] = [
+    createEmptyEntity({ id: 'person-catarina', tenantId: 'acme', kind: 'person', title: 'Catarina' }),
+    createEmptyEntity({ id: 'company-apsl', tenantId: 'acme', kind: 'company', title: 'APSL' }),
+    createEmptyEntity({ id: 'company-ja-consultores', tenantId: 'acme', kind: 'company', title: 'JA Consultores' })
+  ];
+
+  const proposals = extractRelationProposalsFromText(
+    { tenantId: 'acme', entities, sources: [] },
+    defaultRelationRules(),
+    {
+      originKind: 'source',
+      originId: 'src-legal-facts',
+      text: 'Catarina is a shareholder of APSL. JA Consultores is the accountant for APSL.',
+      sourceIds: ['src-legal-facts'],
+      evidenceKind: 'direct',
+      sourceSurface: 'source-content'
+    }
+  );
+
+  assert.equal(proposals.some((proposal) => proposal.type === 'mentioned_in'), false);
+  assert.equal(
+    proposals.some(
+      (proposal) =>
+        [proposal.fromId, proposal.toId].includes('person-catarina') &&
+        [proposal.fromId, proposal.toId].includes('company-ja-consultores')
+    ),
+    false
+  );
+});
+
+test('service traversal excludes legacy mentioned_in links unless explicitly requested', async () => {
+  const service = new KnowledgeBaseService(
+    'acme',
+    TEST_CONFIG,
+    new SnapshotKnowledgeStore(createEmptyPersistedKnowledgeState('basic'))
+  );
+
+  await service.createEntity({ id: 'person-catarina', kind: 'person', title: 'Catarina' });
+  await service.createEntity({ id: 'company-apsl', kind: 'company', title: 'APSL' });
+  await service.createEntity({ id: 'company-ja-consultores', kind: 'company', title: 'JA Consultores' });
+  await service.replaceRelations({
+    origin: { kind: 'seed', id: 'legacy-mentioned-in' },
+    links: [
+      { type: 'mentioned_in', fromId: 'person-catarina', toId: 'company-ja-consultores', confidence: 0.25 },
+      { type: 'shareholder_of', fromId: 'person-catarina', toId: 'company-apsl', confidence: 0.95 }
+    ]
+  });
+
+  const defaultTraversal = await service.traverse({ id: 'person-catarina' });
+  assert.equal(defaultTraversal.edges.some((link) => link.type === 'mentioned_in'), false);
+  assert.equal(defaultTraversal.entityIds.includes('company-ja-consultores'), false);
+  assert.equal(defaultTraversal.entityIds.includes('company-apsl'), true);
+
+  const mentionTraversal = await service.traverse({ id: 'person-catarina', includeMentions: true });
+  assert.equal(mentionTraversal.edges.some((link) => link.type === 'mentioned_in'), true);
+  assert.equal(mentionTraversal.entityIds.includes('company-ja-consultores'), true);
+
+  const related = await service.related('person-catarina');
+  assert.equal(related.linkTypes.includes('mentioned_in'), false);
+  assert.equal(related.relatedEntities.includes('company-ja-consultores'), false);
+  assert.equal(related.relatedEntities.includes('company-apsl'), true);
+});
+
 test('service persists extractor metadata without changing member queries', async () => {
   const service = new KnowledgeBaseService(
     'acme',

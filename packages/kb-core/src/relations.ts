@@ -222,31 +222,6 @@ export function extractRelationProposalsFromText(
         typedLinkCount += priorProposals.length;
       }
 
-      if (mentions.length >= 2) {
-        for (let index = 0; index < mentions.length; index += 1) {
-          for (let nextIndex = index + 1; nextIndex < mentions.length; nextIndex += 1) {
-            proposals.push(
-              createProposal({
-                type: 'mentioned_in',
-                fromId: mentions[index].id,
-                toId: mentions[nextIndex].id,
-                sourceIds: input.sourceIds,
-                confidence: 0.25,
-                evidenceKind: 'mention',
-                evidenceStrength: 'co-mention',
-                sourceSurface: input.sourceSurface ?? inferSourceSurface(input.originKind, input.evidenceKind),
-                explicitReference: false,
-                originKind: input.originKind,
-                originId: input.originId,
-                ruleId: 'mentioned_in',
-                createdAt: input.createdAt,
-                evidenceText: clause,
-                evidenceSpan: findEvidenceSpan(sanitized, clause)
-              })
-            );
-          }
-        }
-      }
     }
   }
 
