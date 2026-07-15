@@ -33,6 +33,7 @@ test('kb runtime and package skill text reflect the narrow write workflow', () =
   assert.match(improvementSkill, /kb-local validate record/);
   assert.match(improvementSkill, /kb-local validate relate/);
   assert.match(improvementSkill, /kb-local validate annotate/);
+  assert.match(improvementSkill, /packages\/kb-cli\/recipes\/README\.md/);
   assert.match(improvementSkill, /packages\/kb-cli\/recipes\/agent-correction-sweep\.md/);
   assert.match(improvementSkill, /KB does not execute proposal objects/);
   assert.doesNotMatch(improvementSkill, /kb-local improve/);

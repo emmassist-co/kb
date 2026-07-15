@@ -55,6 +55,53 @@ kb-local links --id <id>
 kb-local doctor
 ```
 
+## Worked Example
+
+### Situation
+
+An operator asks an agent to review whether the billing-related KB area has weak evidence or missing edges.
+
+### Inspect
+
+```bash
+kb-local inspect
+kb-local search --json '{"query":"billing"}'
+kb-local get vendor-stripe
+kb-local links --id vendor-stripe
+kb-local doctor
+```
+
+### Agent Judgment
+
+The agent decides outside KB that `vendor-stripe` has a clear owner note in current truth but no explicit owner edge. KB did not detect that; it only exposed the record and links.
+
+### Proposed Writes
+
+```json
+{
+  "command": "relate",
+  "payload": {
+    "type": "owner_of",
+    "fromId": "person-alex",
+    "toId": "vendor-stripe",
+    "confidence": 0.9
+  }
+}
+```
+
+### Validate
+
+```bash
+kb-local validate relate --json @relation.json
+```
+
+### Verify
+
+```bash
+kb-local links --id vendor-stripe
+kb-local traverse --id person-alex --type owner_of --explicit-only
+```
+
 ## Non-Goals
 
 - No autonomous schedule.

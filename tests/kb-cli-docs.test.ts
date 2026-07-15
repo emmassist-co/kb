@@ -140,6 +140,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(readme, /kb-cloudflare-setup/);
   assert.match(readme, /kb-agent-improvement/);
   assert.match(readme, /node_modules\/@emmassist-co\/kb-cli\/recipes/);
+  assert.match(readme, /recipes\/README\.md/);
   assert.match(readme, /KB_API_TOKEN/);
   assert.match(readme, /kb cloudflare deploy/);
   assert.match(readme, /kb cloudflare verify/);
@@ -269,12 +270,32 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.ok(kbCliPackage.files.includes('skills'));
   assert.ok(kbCliPackage.files.includes('recipes'));
 
-  for (const recipeName of ['agent-maintenance-review', 'agent-doc-review-to-kb', 'agent-correction-sweep', 'agent-relation-curation', 'agent-stale-knowledge-review', 'proposal-format']) {
+  const recipeIndexPath = path.resolve(process.cwd(), 'packages/kb-cli/recipes/README.md');
+  assert.ok(existsSync(recipeIndexPath));
+  const recipeIndex = readFileSync(recipeIndexPath, 'utf8');
+  assert.match(recipeIndex, /Agents think\. KB stores, validates, retrieves, relates, and exposes evidence\./);
+  assert.match(recipeIndex, /Manual Smoke-Test Checklist/);
+  assert.match(recipeIndex, /agent-maintenance-review\.md/);
+  assert.match(recipeIndex, /agent-doc-review-to-kb\.md/);
+  assert.match(recipeIndex, /agent-correction-sweep\.md/);
+  assert.match(recipeIndex, /agent-relation-curation\.md/);
+  assert.match(recipeIndex, /agent-stale-knowledge-review\.md/);
+  assert.match(recipeIndex, /proposal-format\.md/);
+  assert.doesNotMatch(recipeIndex, /kb-local improve/);
+  assert.doesNotMatch(recipeIndex, /kb-local ingest-docs/);
+  assert.doesNotMatch(recipeIndex, /kb-local detect-contradictions/);
+
+  for (const recipeName of ['agent-maintenance-review', 'agent-doc-review-to-kb', 'agent-correction-sweep', 'agent-relation-curation', 'agent-stale-knowledge-review']) {
     const recipePath = path.resolve(process.cwd(), 'packages/kb-cli/recipes', `${recipeName}.md`);
     assert.ok(existsSync(recipePath), `${recipeName} recipe should exist`);
     const recipe = readFileSync(recipePath, 'utf8');
-    assert.match(recipe, /Validation/);
-    assert.match(recipe, /Verification/);
+    assert.match(recipe, /Worked Example/);
+    assert.match(recipe, /Situation/);
+    assert.match(recipe, /Inspect/);
+    assert.match(recipe, /Agent Judgment/);
+    assert.match(recipe, /Proposed Writes/);
+    assert.match(recipe, /Validation|Validate/);
+    assert.match(recipe, /Verification|Verify/);
     assert.match(recipe, /Non-Goals/);
     assert.doesNotMatch(recipe, /kb-local improve/);
     assert.doesNotMatch(recipe, /kb-local ingest-docs/);

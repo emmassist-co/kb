@@ -49,6 +49,64 @@ kb-local query-relations --json '{"query":"corrected relationship","mode":"graph
 kb-local traverse --id <id> --explicit-only
 ```
 
+## Worked Example
+
+### Situation
+
+A user says, "Stripe billing owner is Alex, not Sam," and asks the agent to make sure KB reflects the correction.
+
+### Inspect
+
+```bash
+kb-local inspect
+kb-local search --json '{"query":"Stripe billing owner"}'
+kb-local get vendor-stripe
+kb-local links --id vendor-stripe
+```
+
+### Agent Judgment
+
+The agent decides outside KB that this is a direct user correction with high confidence and that the current owner edge should be superseded by an explicit Alex edge.
+
+### Proposed Writes
+
+```json
+{
+  "command": "remember",
+  "payload": {
+    "intent": "correction",
+    "summary": "User corrected Stripe billing owner to Alex, not Sam.",
+    "confidence": "high"
+  }
+}
+```
+
+```json
+{
+  "command": "relate",
+  "payload": {
+    "type": "owner_of",
+    "fromId": "person-alex",
+    "toId": "vendor-stripe",
+    "confidence": 0.95
+  }
+}
+```
+
+### Validate
+
+```bash
+kb-local validate remember --json @correction.json
+kb-local validate relate --json @relation.json
+```
+
+### Verify
+
+```bash
+kb-local query-relations --json '{"query":"owner of Stripe","mode":"graph-first-hybrid"}'
+kb-local traverse --id person-alex --type owner_of --explicit-only
+```
+
 ## Non-Goals
 
 - No automatic correction propagation.

@@ -37,8 +37,8 @@ Use this file as the merged-work ledger for `kb/`.
 - Area: package, docs, skills
 - Merged to `main`: no
 - Commit / PR: pending
-- Feature summary: added an agent-improvement support doctrine, packaged `kb-agent-improvement` skill, external-agent recipe pack, proposal-format guidance, and static CLI help for agents that improve KB state while keeping all thinking, scheduling, ingestion, contradiction review, and run state outside KB.
-- Customer-visible impact: agents and operators can install recipe guidance for KB maintenance, correction sweeps, document-review-to-KB capture, relation curation, and stale knowledge review without expecting KB to run autonomous workflows.
+- Feature summary: added an agent-improvement support doctrine, packaged `kb-agent-improvement` skill, external-agent recipe pack with an index and worked examples, proposal-format guidance, a manual smoke-test checklist, and static CLI help for agents that improve KB state while keeping all thinking, scheduling, ingestion, contradiction review, and run state outside KB.
+- Customer-visible impact: agents and operators can install recipe guidance for KB maintenance, correction sweeps, document-review-to-KB capture, relation curation, and stale knowledge review, choose the right recipe from one index, and follow concrete examples without expecting KB to run autonomous workflows.
 - Deployment status: pending
 - Deployment date:
 - Deployment environment:

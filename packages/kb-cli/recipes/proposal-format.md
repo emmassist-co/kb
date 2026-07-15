@@ -4,6 +4,8 @@
 
 Give external agents a reviewable handoff shape for proposed KB changes without creating a KB-owned proposal workflow engine.
 
+Use this from [`README.md`](./README.md) or any agent recipe when a change needs review before mutation.
+
 A proposal is a document or JSON object that an agent, human, or orchestrator can review. KB does not execute proposal objects. Every mutation in a proposal must compile down to a normal `kb-local remember`, `record`, `relate`, or `annotate` payload.
 
 ## Shape

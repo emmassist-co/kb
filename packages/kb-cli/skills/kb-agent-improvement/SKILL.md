@@ -29,6 +29,7 @@ kb-local schema annotate
 Read the recipe that matches the workflow:
 
 ```text
+packages/kb-cli/recipes/README.md
 packages/kb-cli/recipes/agent-maintenance-review.md
 packages/kb-cli/recipes/agent-doc-review-to-kb.md
 packages/kb-cli/recipes/agent-correction-sweep.md

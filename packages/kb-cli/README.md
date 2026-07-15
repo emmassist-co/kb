@@ -44,7 +44,7 @@ It also ships a local setup skill at [skills/kb-local-setup](./skills/kb-local-s
 It also ships an agent-improvement skill at [skills/kb-agent-improvement](./skills/kb-agent-improvement) for external-agent review and curation workflows.
 It also ships a Cloudflare setup skill at [skills/kb-cloudflare-setup](./skills/kb-cloudflare-setup).
 
-Agent-readable recipes live under [recipes](./recipes). They are playbooks for external agents, not KB-owned schedulers or workflow engines.
+Agent-readable recipes live under [recipes](./recipes); start with the [recipe index](./recipes/README.md). They are playbooks for external agents, not KB-owned schedulers or workflow engines.
 
 Example install after this package is installed:
 

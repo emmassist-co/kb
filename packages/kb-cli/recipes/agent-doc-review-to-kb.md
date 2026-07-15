@@ -52,6 +52,51 @@ kb-local query-relations --json '{"query":"relationship question","mode":"graph-
 kb-local links --id <id>
 ```
 
+## Worked Example
+
+### Situation
+
+A human points an agent at a vendor onboarding note and asks it to preserve only durable KB-worthy facts.
+
+### Inspect
+
+```bash
+kb-local inspect
+kb-local search --json '{"query":"Acme onboarding"}'
+kb-local schema remember
+kb-local schema record
+```
+
+### Agent Judgment
+
+The agent reads the note outside KB and decides that the durable fact is a support escalation policy for Acme. KB did not read or ingest the document; it only receives selected payloads.
+
+### Proposed Writes
+
+```json
+{
+  "command": "remember",
+  "payload": {
+    "intent": "source_capture",
+    "summary": "Acme onboarding note says urgent support escalations go to the platform team.",
+    "content": "Reviewed vendor onboarding note supplied by the operator.",
+    "confidence": "medium"
+  }
+}
+```
+
+### Validate
+
+```bash
+kb-local validate remember --json @remember.json
+```
+
+### Verify
+
+```bash
+kb-local search --json '{"query":"Acme urgent support escalations"}'
+```
+
 ## Non-Goals
 
 - Do not create a KB-side doc ingestion command.

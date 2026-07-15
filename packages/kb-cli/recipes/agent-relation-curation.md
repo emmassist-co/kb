@@ -48,6 +48,53 @@ kb-local traverse --id <from-id> --type <relation-type> --explicit-only
 kb-local query-relations --json '{"query":"relationship question","mode":"graph-first-hybrid"}'
 ```
 
+## Worked Example
+
+### Situation
+
+An agent reviewing records sees that Priya is named as Acme's security reviewer and wants that relationship to be traversable.
+
+### Inspect
+
+```bash
+kb-local inspect
+kb-local search --json '{"query":"Priya Acme security reviewer"}'
+kb-local get person-priya
+kb-local get company-acme
+kb-local links --id person-priya
+```
+
+### Agent Judgment
+
+The agent decides outside KB that the evidence supports a current explicit reviewer relation. KB does not suggest the edge; it only validates and stores it.
+
+### Proposed Writes
+
+```json
+{
+  "command": "relate",
+  "payload": {
+    "type": "security_reviewer_for",
+    "fromId": "person-priya",
+    "toId": "company-acme",
+    "confidence": 0.85
+  }
+}
+```
+
+### Validate
+
+```bash
+kb-local validate relate --json @relation.json
+```
+
+### Verify
+
+```bash
+kb-local traverse --id person-priya --type security_reviewer_for --explicit-only
+kb-local query-relations --json '{"query":"security reviewer for Acme","mode":"graph-first-hybrid"}'
+```
+
 ## Non-Goals
 
 - No KB-side relation suggestion engine.
