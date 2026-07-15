@@ -35,7 +35,8 @@
   "files": [
     "bin",
     "dist",
-    "skills"
+    "skills",
+    "recipes"
   ],
   "bin": {
     "kb": "./bin/kb-local.mjs",

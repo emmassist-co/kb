@@ -122,11 +122,41 @@ If the package is not installed yet, the GitHub source install remains available
 npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-write
 ```
 
+KB local setup skill:
+
+```bash
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-local-setup
+```
+
+Use `kb-local-setup` when the agent should ask the user for the local setup variables and get the environment ready.
+
+KB agent-improvement skill, for agents explicitly asked to review or improve KB state:
+
+```bash
+npx skills add ./node_modules/@emmassist-co/kb-cli/skills/kb-agent-improvement
+```
+
+If the package is not installed yet, use the GitHub source fallback:
+
+```bash
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-agent-improvement
+```
+
+Use `kb-agent-improvement` with the recipe pack under `./node_modules/@emmassist-co/kb-cli/recipes/`. The recipes are external-agent playbooks: agents do the reading and reasoning, while KB provides storage, validation, retrieval, relation, and provenance primitives.
+
+KB Cloudflare setup skill:
+
+```bash
+npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skills/kb-cloudflare-setup
+```
+
+Use `kb-cloudflare-setup` when the agent should guide an operator through deploying the canonical Cloudflare KB surface, verifying `canonical-production`, and handing the agent a working `KB_BASE_URL`.
+
 ## Agent Operating Protocol
 
 Agents should search before answering workspace-specific factual questions, write durable decisions with `record` or `remember`, capture external evidence with source metadata, use `relate` for explicit entity edges, and reserve `annotate` for timeline/provenance notes. Do not dump raw chat logs into KB; summarize the durable fact, decision, correction, or source-backed claim.
 
-If memory looks wrong, prefer a correction or superseding update over silent deletion. Use `inspect`, `doctor`, `validate-mirror`, `health`, and conflict commands to understand state before repairing it.
+If memory looks wrong, prefer a correction or superseding update over silent deletion. If an agent is running a maintenance, correction, relation, stale-review, or document-review workflow, it should use `kb-agent-improvement`; KB itself does not own schedules, recipe state, document ingestion, contradiction detection, or truth regeneration. Use `inspect`, `doctor`, `validate-mirror`, `health`, and conflict commands to understand state before repairing it.
 
 Protected remote KBs also require:
 

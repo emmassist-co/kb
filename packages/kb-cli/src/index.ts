@@ -775,6 +775,38 @@ function renderHelp(topic?: string): string {
       ...Object.entries(schema.enums).map(([key, values]) => `${key}: ${values.join(', ')}`)
     ].join('\n');
   }
+  if (topic === 'agent-improvement') {
+    return [
+      'kb agent improvement support',
+      '',
+      'KB does not run improvement workflows by itself. Agents think; KB stores, validates, retrieves, relates, and exposes evidence.',
+      '',
+      'Installable skill:',
+      '  ./node_modules/@emmassist-co/kb-cli/skills/kb-agent-improvement',
+      '',
+      'Recipe playbooks:',
+      '  ./node_modules/@emmassist-co/kb-cli/recipes/agent-maintenance-review.md',
+      '  ./node_modules/@emmassist-co/kb-cli/recipes/agent-doc-review-to-kb.md',
+      '  ./node_modules/@emmassist-co/kb-cli/recipes/agent-correction-sweep.md',
+      '  ./node_modules/@emmassist-co/kb-cli/recipes/agent-relation-curation.md',
+      '  ./node_modules/@emmassist-co/kb-cli/recipes/agent-stale-knowledge-review.md',
+      '  ./node_modules/@emmassist-co/kb-cli/recipes/proposal-format.md',
+      '',
+      'Normal commands for external-agent workflows:',
+      '  kb-local inspect',
+      '  kb-local search --json \'{"query":"..."}\'',
+      '  kb-local get <id>',
+      '  kb-local links --id <id>',
+      '  kb-local traverse --id <id>',
+      '  kb-local validate <remember|record|relate|annotate> --json @payload.json',
+      '  kb-local remember --json @payload.json',
+      '  kb-local record --json @payload.json',
+      '  kb-local relate --json @payload.json',
+      '  kb-local annotate --json @payload.json',
+      '',
+      'External agents own reading, reasoning, scheduling, approval, and any recipe run state.'
+    ].join('\n');
+  }
   if (topic === 'operator') {
     return [
       'kb operator surface',

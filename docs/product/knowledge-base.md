@@ -105,6 +105,15 @@ When KB is wired into Flue or another runtime, the operating rules should be exp
 
 These rules belong in runtime surfaces and verification, not only in prose.
 
+
+## External-Agent Improvement Support
+
+KB can support improvement workflows without becoming the worker that runs them. The boundary is: agents think; KB stores, validates, retrieves, relates, and exposes evidence.
+
+External agents may use packaged skills and recipes to review corrections, stale-looking records, relation coverage, or document-derived evidence. The agent or runtime owns all scheduling, source reading, contradiction judgment, duplicate judgment, proposal construction, human approval, and recipe run state. KB remains the durable substrate for validated writes and inspectable reads.
+
+See [kb-agent-improvement-support.md](./kb-agent-improvement-support.md) for the support matrix and recipe contract.
+
 ## Verification Expectations
 
 The harness and eval layer should keep checking:

@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Add External-Agent KB Improvement Recipes
+
+- Area: package, docs, skills
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added an agent-improvement support doctrine, packaged `kb-agent-improvement` skill, external-agent recipe pack, proposal-format guidance, and static CLI help for agents that improve KB state while keeping all thinking, scheduling, ingestion, contradiction review, and run state outside KB.
+- Customer-visible impact: agents and operators can install recipe guidance for KB maintenance, correction sweeps, document-review-to-KB capture, relation curation, and stale knowledge review without expecting KB to run autonomous workflows.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: install `@emmassist-co/kb-cli`, add `./node_modules/@emmassist-co/kb-cli/skills/kb-agent-improvement`, read one recipe from `./node_modules/@emmassist-co/kb-cli/recipes/`, and manually validate a proposed `remember` / `record` / `relate` / `annotate` payload flow.
+- Automated coverage: `node --import tsx/esm --test tests/kb-skills.test.ts tests/kb-cli-docs.test.ts tests/kb-cli.test.ts`; `npm run typecheck`; `npm test`; `npm pack --workspace packages/kb-cli --dry-run --json` recipe/skill inclusion check
+- Needs iteration: no
+- Follow-up: none
+
 ## 2026-07-15 - Make KB Frictionless For Agent Adoption
 
 - Area: cli, docs, package
