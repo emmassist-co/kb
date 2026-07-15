@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { KbAdapter, type KbAdapterQueryDiagnostics } from '../eval/adapters/gbrain-evals/kb-adapter.js';
 import type { Page, Query, RankedDoc } from '../eval/adapters/gbrain-evals/upstream-contract.js';
 import { sanitizePage, sanitizeQuery } from '../eval/adapters/gbrain-evals/upstream-contract.js';
-import { ndcgAtK, precisionAtK, recallAtK, reciprocalRankAtK } from '../eval/runner/types.js';
+import { fixedPrecisionCeilingAtK, ndcgAtK, precisionAtK, recallAtK, reciprocalRankAtK, returnedPrecisionAtK } from '../eval/runner/types.js';
 
 interface QueryContract {
   queries: Array<{
@@ -55,6 +55,8 @@ export async function runGbrainEvalsKbAdapterSnapshot(
     const perQuery = [];
     const diagnostics: KbAdapterQueryDiagnostics[] = [];
     let totalP = 0;
+    let totalReturnedP = 0;
+    let totalCeiling = 0;
     let totalR = 0;
     let totalMrr = 0;
     let totalNdcg = 0;
@@ -71,12 +73,17 @@ export async function runGbrainEvalsKbAdapterSnapshot(
       const returned = await adapter.query(sanitizeQuery(query), state);
       const relevant = new Set(query.gold.relevant ?? []);
       const grades = new Map<string, number>(Object.entries(query.gold.grades ?? Object.fromEntries([...relevant].map((slug) => [slug, 1]))));
-      const p = precisionAtK(convertRankedDocs(returned), relevant, 5);
-      const r = recallAtK(convertRankedDocs(returned), relevant, 5);
-      const mrr = reciprocalRankAtK(convertRankedDocs(returned), relevant, 5);
-      const ndcg = ndcgAtK(convertRankedDocs(returned), grades, 5);
+      const rankedDocs = convertRankedDocs(returned);
+      const p = precisionAtK(rankedDocs, relevant, 5);
+      const returnedP = returnedPrecisionAtK(rankedDocs, relevant, 5);
+      const ceiling = fixedPrecisionCeilingAtK(relevant, 5);
+      const r = recallAtK(rankedDocs, relevant, 5);
+      const mrr = reciprocalRankAtK(rankedDocs, relevant, 5);
+      const ndcg = ndcgAtK(rankedDocs, grades, 5);
       diagnostics.push(await adapter.diagnoseQuery(sanitizeQuery(query), state));
       totalP += p;
+      totalReturnedP += returnedP;
+      totalCeiling += ceiling;
       totalR += r;
       totalMrr += mrr;
       totalNdcg += ndcg;
@@ -94,6 +101,8 @@ export async function runGbrainEvalsKbAdapterSnapshot(
         relevant: [...relevant],
         returned: returned.map((doc) => doc.page_id),
         precisionAt5: p,
+        returnedPrecisionAt5: returnedP,
+        fixedPrecisionAt5Ceiling: ceiling,
         recallAt5: r,
         mrrAt5: mrr,
         ndcgAt5: ndcg
@@ -106,6 +115,13 @@ export async function runGbrainEvalsKbAdapterSnapshot(
       resultBudgetMode,
       queryCount: queries.length,
       precisionAt5: totalP / queries.length,
+      returnedPrecisionAt5: totalReturnedP / queries.length,
+      fixedPrecisionAt5Ceiling: totalCeiling / queries.length,
+      scorer: {
+        precisionAt5: 'hits/requested_top_k_slots',
+        returnedPrecisionAt5: 'hits/returned_docs',
+        recallAt5: 'hits/gold_answers'
+      },
       recallAt5: totalR / queries.length,
       mrrAt5: totalMrr / queries.length,
       ndcgAt5: totalNdcg / queries.length,
@@ -237,6 +253,8 @@ function summarizeFamilyMetrics(
     family: string;
     residualBucket: string;
     precisionAt5: number;
+    returnedPrecisionAt5: number;
+    fixedPrecisionAt5Ceiling: number;
     recallAt5: number;
     mrrAt5: number;
     ndcgAt5: number;
@@ -248,6 +266,8 @@ function summarizeFamilyMetrics(
         const current = map.get(entry.family) ?? {
           queryCount: 0,
           precisionAt5: 0,
+          returnedPrecisionAt5: 0,
+          fixedPrecisionAt5Ceiling: 0,
           recallAt5: 0,
           mrrAt5: 0,
           ndcgAt5: 0,
@@ -255,18 +275,22 @@ function summarizeFamilyMetrics(
         };
         current.queryCount += 1;
         current.precisionAt5 += entry.precisionAt5;
+        current.returnedPrecisionAt5 += entry.returnedPrecisionAt5;
+        current.fixedPrecisionAt5Ceiling += entry.fixedPrecisionAt5Ceiling;
         current.recallAt5 += entry.recallAt5;
         current.mrrAt5 += entry.mrrAt5;
         current.ndcgAt5 += entry.ndcgAt5;
         current.residualBuckets.set(entry.residualBucket, (current.residualBuckets.get(entry.residualBucket) ?? 0) + 1);
         map.set(entry.family, current);
         return map;
-      }, new Map<string, { queryCount: number; precisionAt5: number; recallAt5: number; mrrAt5: number; ndcgAt5: number; residualBuckets: Map<string, number> }>()).entries()
+      }, new Map<string, { queryCount: number; precisionAt5: number; returnedPrecisionAt5: number; fixedPrecisionAt5Ceiling: number; recallAt5: number; mrrAt5: number; ndcgAt5: number; residualBuckets: Map<string, number> }>()).entries()
     ].map(([family, metrics]) => [
       family,
       {
         queryCount: metrics.queryCount,
         precisionAt5: metrics.precisionAt5 / metrics.queryCount,
+        returnedPrecisionAt5: metrics.returnedPrecisionAt5 / metrics.queryCount,
+        fixedPrecisionAt5Ceiling: metrics.fixedPrecisionAt5Ceiling / metrics.queryCount,
         recallAt5: metrics.recallAt5 / metrics.queryCount,
         mrrAt5: metrics.mrrAt5 / metrics.queryCount,
         ndcgAt5: metrics.ndcgAt5 / metrics.queryCount,
@@ -281,6 +305,8 @@ function summarizeResidualBucketMetrics(
     family: string;
     residualBucket: string;
     precisionAt5: number;
+    returnedPrecisionAt5: number;
+    fixedPrecisionAt5Ceiling: number;
     recallAt5: number;
     mrrAt5: number;
     ndcgAt5: number;
@@ -292,6 +318,8 @@ function summarizeResidualBucketMetrics(
         const current = map.get(entry.residualBucket) ?? {
           queryCount: 0,
           precisionAt5: 0,
+          returnedPrecisionAt5: 0,
+          fixedPrecisionAt5Ceiling: 0,
           recallAt5: 0,
           mrrAt5: 0,
           ndcgAt5: 0,
@@ -299,18 +327,22 @@ function summarizeResidualBucketMetrics(
         };
         current.queryCount += 1;
         current.precisionAt5 += entry.precisionAt5;
+        current.returnedPrecisionAt5 += entry.returnedPrecisionAt5;
+        current.fixedPrecisionAt5Ceiling += entry.fixedPrecisionAt5Ceiling;
         current.recallAt5 += entry.recallAt5;
         current.mrrAt5 += entry.mrrAt5;
         current.ndcgAt5 += entry.ndcgAt5;
         current.families.set(entry.family, (current.families.get(entry.family) ?? 0) + 1);
         map.set(entry.residualBucket, current);
         return map;
-      }, new Map<string, { queryCount: number; precisionAt5: number; recallAt5: number; mrrAt5: number; ndcgAt5: number; families: Map<string, number> }>()).entries()
+      }, new Map<string, { queryCount: number; precisionAt5: number; returnedPrecisionAt5: number; fixedPrecisionAt5Ceiling: number; recallAt5: number; mrrAt5: number; ndcgAt5: number; families: Map<string, number> }>()).entries()
     ].map(([bucket, metrics]) => [
       bucket,
       {
         queryCount: metrics.queryCount,
         precisionAt5: metrics.precisionAt5 / metrics.queryCount,
+        returnedPrecisionAt5: metrics.returnedPrecisionAt5 / metrics.queryCount,
+        fixedPrecisionAt5Ceiling: metrics.fixedPrecisionAt5Ceiling / metrics.queryCount,
         recallAt5: metrics.recallAt5 / metrics.queryCount,
         mrrAt5: metrics.mrrAt5 / metrics.queryCount,
         ndcgAt5: metrics.ndcgAt5 / metrics.queryCount,

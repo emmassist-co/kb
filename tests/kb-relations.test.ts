@@ -97,6 +97,102 @@ test('service persists extractor metadata without changing member queries', asyn
   assert.equal(result.results[0]?.id, 'person-carol-wilson');
 });
 
+test('relation answer-kind policy allows organization investors', async () => {
+  const service = new KnowledgeBaseService(
+    'acme',
+    TEST_CONFIG,
+    new SnapshotKnowledgeStore(createEmptyPersistedKnowledgeState('basic'))
+  );
+
+  await service.createEntity({
+    id: 'company-orbit',
+    kind: 'company',
+    title: 'Orbit Labs'
+  });
+  await service.createEntity({
+    id: 'company-northstar',
+    kind: 'company',
+    title: 'Northstar Capital',
+    currentTruth: 'Northstar Capital invested in Orbit Labs during the seed round.'
+  });
+
+  const result = await service.queryRelations({
+    query: 'Who invested in Orbit Labs?',
+    limit: 5,
+    mode: 'graph-first-hybrid'
+  });
+
+  assert.equal(result.results[0]?.id, 'company-northstar');
+  assert.equal(result.results[0]?.entityKind, 'company');
+  assert.doesNotMatch(result.results[0]?.reason.join(' ') ?? '', /type-mismatch/);
+});
+
+test('advisor relation returns multiple current advisors without investor distractors', async () => {
+  const service = new KnowledgeBaseService(
+    'acme',
+    TEST_CONFIG,
+    new SnapshotKnowledgeStore(createEmptyPersistedKnowledgeState('basic'))
+  );
+
+  await service.createEntity({ id: 'company-orbit', kind: 'company', title: 'Orbit Labs' });
+  await service.createEntity({
+    id: 'person-ada',
+    kind: 'person',
+    title: 'Ada Patel',
+    currentTruth: 'Ada Patel serves as an advisor to Orbit Labs on go-to-market strategy.'
+  });
+  await service.createEntity({
+    id: 'person-ben',
+    kind: 'person',
+    title: 'Ben Lee',
+    currentTruth: 'Ben Lee serves as an advisor to Orbit Labs on developer platforms.'
+  });
+  await service.createEntity({
+    id: 'person-cora',
+    kind: 'person',
+    title: 'Cora Singh',
+    currentTruth: 'Cora Singh invested in Orbit Labs but is not an advisor.'
+  });
+
+  const result = await service.queryRelations({
+    query: 'Who advises Orbit Labs?',
+    limit: 5,
+    mode: 'graph-first-hybrid'
+  });
+  const ids = result.results.map((entry) => entry.id);
+
+  assert.ok(ids.includes('person-ada'));
+  assert.ok(ids.includes('person-ben'));
+  assert.equal(ids.includes('person-cora'), false);
+});
+
+test('graph-first relation search falls back to type-compatible lexical support when graph evidence is sparse', async () => {
+  const service = new KnowledgeBaseService(
+    'acme',
+    TEST_CONFIG,
+    new SnapshotKnowledgeStore(createEmptyPersistedKnowledgeState('basic'))
+  );
+
+  await service.createEntity({ id: 'company-orbit', kind: 'company', title: 'Orbit Labs' });
+  await service.createEntity({
+    id: 'person-ada',
+    kind: 'person',
+    title: 'Ada Patel',
+    currentTruth: 'Ada Patel is an advisory operator for Orbit Labs market strategy.'
+  });
+
+  const result = await service.queryRelations({
+    query: 'Who advises Orbit Labs?',
+    limit: 5,
+    mode: 'graph-first-hybrid'
+  });
+
+  assert.equal(result.traversedLinks.length, 0);
+  assert.equal(result.results[0]?.id, 'person-ada');
+  assert.equal(result.results[0]?.retrievalMode, 'search-only');
+  assert.ok(result.results[0]?.reason.includes('graph-incomplete-fallback'));
+});
+
 test('page prior activation surfaces are enforced by rule config', () => {
   const entities: EntityDocument[] = [
     createEmptyEntity({

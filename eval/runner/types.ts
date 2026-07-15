@@ -43,6 +43,7 @@ export interface EvalQuery {
     sibling?: string[];
     lexical?: string[];
     historical?: string[];
+    relationDirection?: string[];
   };
   requiresTimeline?: boolean;
   intentionallyAmbiguous?: boolean;
@@ -61,6 +62,22 @@ export interface RankedDoc {
   confidence?: 'low' | 'medium' | 'high';
   ambiguous?: boolean;
 }
+
+export interface ReturnedCountStats {
+  min: number;
+  max: number;
+  mean: number;
+  histogram: Record<string, number>;
+}
+
+export type FalsePositiveBucket =
+  | 'wrongType'
+  | 'anchorPage'
+  | 'siblingDistractor'
+  | 'lexicalDistractor'
+  | 'historicalStale'
+  | 'relationDirectionMismatch'
+  | 'unknown';
 
 export interface EvalFailure {
   caseId: string;
@@ -123,12 +140,21 @@ export interface EvalRunResult {
   queryCount: number;
   k: number;
   precisionAtK: number;
+  returnedPrecisionAtK?: number;
+  fixedPrecisionAtKCeiling?: number;
+  totalRelevantHitsAtK?: number;
+  totalReturnedAtK?: number;
+  topKSlotDenominator?: number;
+  returnedCountStats?: ReturnedCountStats;
   recallAtK: number;
   mrrAtK: number;
   ndcgAtK: number;
   familyBreakdown?: Record<string, {
     queryCount: number;
     precisionAtK: number;
+    returnedPrecisionAtK?: number;
+    fixedPrecisionAtKCeiling?: number;
+    returnedCountStats?: ReturnedCountStats;
     recallAtK: number;
     mrrAtK: number;
     ndcgAtK: number;
@@ -232,6 +258,10 @@ export interface EvalRunResult {
     graphEdgeMissingCount?: number;
     graphEdgePresentButBadlyRankedCount?: number;
     averageCandidateDensity?: number;
+    falsePositiveCount?: number;
+    falsePositiveRate?: number;
+    falsePositiveBuckets?: Record<FalsePositiveBucket, number>;
+    falsePositiveSamples?: Array<{ queryId: string; pageId: string; rank: number; bucket: FalsePositiveBucket }>;
     topFalsePositives: Array<{ queryId: string; returned: string[]; relevant: string[] }>;
   };
   extractionQuality?: {
@@ -254,13 +284,18 @@ export interface EvalRunResult {
       sibling?: string[];
       lexical?: string[];
       historical?: string[];
+      relationDirection?: string[];
     };
     requiresTimeline?: boolean;
     intentionallyAmbiguous?: boolean;
     usesAlias?: boolean;
     indirectPhrasing?: boolean;
     returned: RankedDoc[];
+    returnedCount?: number;
+    relevantHitsAtK?: number;
     precisionAtK: number;
+    returnedPrecisionAtK?: number;
+    fixedPrecisionAtKCeiling?: number;
     recallAtK: number;
     reciprocalRank: number;
     ndcgAtK: number;
@@ -346,14 +381,43 @@ export interface EvalCorpus {
   };
 }
 
-export function precisionAtK(docs: RankedDoc[], relevant: Set<string>, k: number): number {
+export function relevantHitsAtK(docs: RankedDoc[], relevant: Set<string>, k: number): number {
   const top = docs.slice(0, k);
-  if (top.length === 0) return 0;
   let hits = 0;
   for (const doc of top) {
     if (relevant.has(doc.pageId)) hits += 1;
   }
-  return hits / top.length;
+  return hits;
+}
+
+export function precisionAtK(docs: RankedDoc[], relevant: Set<string>, k: number): number {
+  if (k <= 0) return 0;
+  return relevantHitsAtK(docs, relevant, k) / k;
+}
+
+export function returnedPrecisionAtK(docs: RankedDoc[], relevant: Set<string>, k: number): number {
+  const top = docs.slice(0, k);
+  if (top.length === 0) return 0;
+  return relevantHitsAtK(top, relevant, k) / top.length;
+}
+
+export function fixedPrecisionCeilingAtK(relevant: Set<string>, k: number): number {
+  if (k <= 0) return 0;
+  return Math.min(relevant.size, k) / k;
+}
+
+export function summarizeReturnedCountStats(counts: number[], k: number): ReturnedCountStats {
+  const histogram = Object.fromEntries(Array.from({ length: Math.max(0, k) + 1 }, (_, value) => [String(value), 0])) as Record<string, number>;
+  for (const count of counts) {
+    const bucket = String(Math.max(0, Math.min(k, count)));
+    histogram[bucket] = (histogram[bucket] ?? 0) + 1;
+  }
+  return {
+    min: counts.length ? Math.min(...counts) : 0,
+    max: counts.length ? Math.max(...counts) : 0,
+    mean: mean(counts),
+    histogram
+  };
 }
 
 export function recallAtK(docs: RankedDoc[], relevant: Set<string>, k: number): number {

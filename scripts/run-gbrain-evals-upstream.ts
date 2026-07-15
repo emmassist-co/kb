@@ -27,7 +27,11 @@ interface ParsedArgs {
 
 const PUBLISHED_GBRAIN_REFERENCE = {
   precisionAt5: 0.491,
-  recallAt5: 0.979
+  recallAt5: 0.979,
+  scorer: {
+    precisionAt5: 'hits/returned_docs',
+    recallAt5: 'hits/gold_answers'
+  }
 };
 
 async function main() {
@@ -63,6 +67,7 @@ async function resolveGbrainRepo(repoRoot: string): Promise<string> {
 
 async function runAgainstUpstreamHarness(kbRepoRoot: string, gbrainRepoRoot: string, args: ParsedArgs) {
   const multiAdapterPath = path.join(gbrainRepoRoot, 'eval/runner/multi-adapter.ts');
+  const tempMultiAdapterPath = path.join(gbrainRepoRoot, 'eval/runner/multi-adapter.kb-temp.ts');
   const adapterPath = path.join(gbrainRepoRoot, 'eval/runner/adapters/kb-upstream.ts');
   const originalMultiAdapter = sanitizeMultiAdapter(await readFile(multiAdapterPath, 'utf8'));
   const adapterSource = buildAdapterSource(path.join(kbRepoRoot, 'eval/adapters/gbrain-evals/kb-adapter.ts'));
@@ -85,19 +90,21 @@ async function runAgainstUpstreamHarness(kbRepoRoot: string, gbrainRepoRoot: str
     throw new Error('Failed to patch gbrain-evals multi-adapter.ts; upstream layout changed.');
   }
 
+  await unlink(tempMultiAdapterPath).catch(() => undefined);
+  await unlink(adapterPath).catch(() => undefined);
   await writeFile(adapterPath, adapterSource, 'utf8');
-  await writeFile(multiAdapterPath, patchedMultiAdapter, 'utf8');
+  await writeFile(tempMultiAdapterPath, patchedMultiAdapter, 'utf8');
 
   try {
     await ensureBunLockAndModules(gbrainRepoRoot);
-    const bunArgs = ['eval/runner/multi-adapter.ts'];
+    const bunArgs = ['eval/runner/multi-adapter.kb-temp.ts'];
     if (args.adapter === 'gbrain') bunArgs.push(`--adapter=${args.adapter}`);
     bunArgs.push('--json');
     const raw = await execFile('bun', bunArgs, { cwd: gbrainRepoRoot });
     const parsed = JSON.parse(stripToJson(raw.stdout)) as UpstreamRunnerOutput;
     return formatResult(parsed, args.adapter);
   } finally {
-    await writeFile(multiAdapterPath, originalMultiAdapter, 'utf8');
+    await unlink(tempMultiAdapterPath).catch(() => undefined);
     await unlink(adapterPath).catch(() => undefined);
   }
 }
@@ -136,6 +143,10 @@ function formatKbOnly(parsed: UpstreamRunnerOutput, kb: UpstreamScorecard, gbrai
     totalExpected: kb.total_expected,
     stddevPrecisionAt5: kb.stddev_precision_at_k,
     stddevRecallAt5: kb.stddev_recall_at_k,
+    scorer: {
+      precisionAt5: 'hits/returned_docs',
+      recallAt5: 'hits/gold_answers'
+    },
     publishedReference: PUBLISHED_GBRAIN_REFERENCE,
     realGbrain: {
       precisionAt5: gbrain.mean_precision_at_k,
@@ -167,7 +178,11 @@ function formatGbrainOnly(parsed: UpstreamRunnerOutput, gbrain: UpstreamScorecar
     correctInTopK: gbrain.correct_in_top_k,
     totalExpected: gbrain.total_expected,
     stddevPrecisionAt5: gbrain.stddev_precision_at_k,
-    stddevRecallAt5: gbrain.stddev_recall_at_k
+    stddevRecallAt5: gbrain.stddev_recall_at_k,
+    scorer: {
+      precisionAt5: 'hits/returned_docs',
+      recallAt5: 'hits/gold_answers'
+    }
   };
 }
 
@@ -184,6 +199,10 @@ function formatComparison(parsed: UpstreamRunnerOutput, gbrain: UpstreamScorecar
       precisionAt5: kb.mean_precision_at_k - gbrain.mean_precision_at_k,
       recallAt5: kb.mean_recall_at_k - gbrain.mean_recall_at_k,
       correctInTopK: kb.correct_in_top_k - gbrain.correct_in_top_k
+    },
+    scorer: {
+      precisionAt5: 'hits/returned_docs',
+      recallAt5: 'hits/gold_answers'
     }
   };
 }
@@ -197,7 +216,11 @@ function formatScorecard(scorecard: UpstreamScorecard) {
     stddevPrecisionAt5: scorecard.stddev_precision_at_k,
     stddevRecallAt5: scorecard.stddev_recall_at_k,
     correctInTopK: scorecard.correct_in_top_k,
-    totalExpected: scorecard.total_expected
+    totalExpected: scorecard.total_expected,
+    scorer: {
+      precisionAt5: 'hits/returned_docs',
+      recallAt5: 'hits/gold_answers'
+    }
   };
 }
 

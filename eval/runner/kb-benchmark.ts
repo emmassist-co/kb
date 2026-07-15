@@ -8,6 +8,8 @@ interface ParsedArgs {
   gbrainWorldContract?: 'github-benchmark' | 'corpus-linkable';
   adminWorldPath?: string;
   repoDocsPath?: string;
+  relationParaphrasePath?: string;
+  relationTransferPath?: string;
   json: boolean;
   k: number;
   mode?: 'search-only' | 'graph-only' | 'graph-first-hybrid';
@@ -27,6 +29,9 @@ interface BenchmarkComparison {
     name: string;
     precisionAtK: number;
     recallAtK: number;
+    precisionScorer: 'hits/returned_docs';
+    recallScorer: 'hits/gold_answers';
+    source: string;
   };
   primary: EvalRunResult;
 }
@@ -34,7 +39,10 @@ interface BenchmarkComparison {
 const GBRAIN_HEADLINE_REFERENCE = {
   name: 'gbrain-readme-headline',
   precisionAtK: 0.491,
-  recallAtK: 0.979
+  recallAtK: 0.979,
+  precisionScorer: 'hits/returned_docs' as const,
+  recallScorer: 'hits/gold_answers' as const,
+  source: 'upstream gbrain-evals public headline'
 };
 
 async function main() {
@@ -55,6 +63,8 @@ async function main() {
     gbrainWorldContract: args.gbrainWorldContract,
     adminWorldPath: args.adminWorldPath,
     repoDocsPath: args.repoDocsPath,
+    relationParaphrasePath: args.relationParaphrasePath,
+    relationTransferPath: args.relationTransferPath,
     k: args.k,
     mode: args.mode,
     lexicalBackend: args.lexicalBackend,
@@ -193,6 +203,8 @@ async function runSingleMode(
     gbrainWorldContract: args.gbrainWorldContract,
     adminWorldPath: args.adminWorldPath,
     repoDocsPath: args.repoDocsPath,
+    relationParaphrasePath: args.relationParaphrasePath,
+    relationTransferPath: args.relationTransferPath,
     k: args.k,
     mode: mode.mode,
     lexicalBackend: mode.lexicalBackend,
@@ -218,7 +230,10 @@ function printMarkdown(result: EvalRunResult) {
   console.log(`Queries: ${result.queryCount}`);
   console.log(`Top-K: ${result.k}`);
   console.log('');
-  console.log(`- P@${result.k}: ${(result.precisionAtK * 100).toFixed(1)}%`);
+  console.log(`- Fixed P@${result.k} (hits / requested top-k slots): ${(result.precisionAtK * 100).toFixed(1)}%`);
+  console.log(`- Returned-denominator P@${result.k} (hits / returned docs): ${percent(result.returnedPrecisionAtK)}`);
+  console.log(`- Fixed P@${result.k} ceiling: ${percent(result.fixedPrecisionAtKCeiling)}`);
+  console.log(`- Returned docs@${result.k}: ${formatReturnedCountStats(result.returnedCountStats)}`);
   console.log(`- Recall@${result.k}: ${(result.recallAtK * 100).toFixed(1)}%`);
   console.log(`- MRR@${result.k}: ${(result.mrrAtK * 100).toFixed(1)}%`);
   console.log(`- nDCG@${result.k}: ${(result.ndcgAtK * 100).toFixed(1)}%`);
@@ -244,7 +259,7 @@ function printMarkdown(result: EvalRunResult) {
     console.log('');
     console.log('## Families');
     for (const [family, metrics] of Object.entries(result.familyBreakdown)) {
-      console.log(`- ${family}: P@${result.k} ${(metrics.precisionAtK * 100).toFixed(1)}%, R@${result.k} ${(metrics.recallAtK * 100).toFixed(1)}%, MRR ${(metrics.mrrAtK * 100).toFixed(1)}%, gate ${metrics.passesFloor ? 'pass' : 'fail'}`);
+      console.log(`- ${family}: fixed P@${result.k} ${(metrics.precisionAtK * 100).toFixed(1)}%, returned P@${result.k} ${percent(metrics.returnedPrecisionAtK)}, ceiling ${percent(metrics.fixedPrecisionAtKCeiling)}, R@${result.k} ${(metrics.recallAtK * 100).toFixed(1)}%, MRR ${(metrics.mrrAtK * 100).toFixed(1)}%, returned ${formatReturnedCountStats(metrics.returnedCountStats)}, gate ${metrics.passesFloor ? 'pass' : 'fail'}`);
     }
   }
   if (result.familyGraphLift && Object.keys(result.familyGraphLift).length > 0) {
@@ -276,6 +291,10 @@ function printMarkdown(result: EvalRunResult) {
     console.log(`- lexical distractor win rate: ${percent(result.diagnostics.lexicalDistractorWinRate)}`);
     console.log(`- graph edge missing count: ${result.diagnostics.graphEdgeMissingCount ?? 0}`);
     console.log(`- graph edge present but badly ranked count: ${result.diagnostics.graphEdgePresentButBadlyRankedCount ?? 0}`);
+    console.log(`- false-positive rate over returned docs: ${percent(result.diagnostics.falsePositiveRate)}`);
+    if (result.diagnostics.falsePositiveBuckets) {
+      console.log(`- false-positive buckets: ${formatBuckets(result.diagnostics.falsePositiveBuckets)}`);
+    }
   }
   if (result.extractionQuality) {
     console.log('');
@@ -296,10 +315,10 @@ function printMarkdown(result: EvalRunResult) {
     }
   }
   console.log('');
-  console.log('| Query | P@K | R@K | MRR | nDCG |');
-  console.log('| --- | ---: | ---: | ---: | ---: |');
+  console.log('| Query | Fixed P@K | Returned P@K | R@K | MRR | nDCG |');
+  console.log('| --- | ---: | ---: | ---: | ---: | ---: |');
   for (const query of result.perQuery.slice(0, 20)) {
-    console.log(`| ${escapePipe(query.text)} | ${(query.precisionAtK * 100).toFixed(1)}% | ${(query.recallAtK * 100).toFixed(1)}% | ${(query.reciprocalRank * 100).toFixed(1)}% | ${(query.ndcgAtK * 100).toFixed(1)}% |`);
+    console.log(`| ${escapePipe(query.text)} | ${(query.precisionAtK * 100).toFixed(1)}% | ${percent(query.returnedPrecisionAtK)} | ${(query.recallAtK * 100).toFixed(1)}% | ${(query.reciprocalRank * 100).toFixed(1)}% | ${(query.ndcgAtK * 100).toFixed(1)}% |`);
   }
 }
 
@@ -343,6 +362,12 @@ function parseArgs(argv: string[]): ParsedArgs {
     } else if (arg === '--repo-docs') {
       parsed.repoDocsPath = argv[index + 1];
       index += 1;
+    } else if (arg === '--relation-paraphrase') {
+      parsed.relationParaphrasePath = argv[index + 1];
+      index += 1;
+    } else if (arg === '--relation-transfer') {
+      parsed.relationTransferPath = argv[index + 1];
+      index += 1;
     } else if (arg === '--admin-world') {
       parsed.adminWorldPath = argv[index + 1];
       index += 1;
@@ -377,21 +402,24 @@ function printSideBySide(comparison: BenchmarkComparison) {
   }
   console.log(`Best stack: \`${comparison.bestStack.mode}\` / \`${comparison.bestStack.lexicalBackend ?? 'n/a'}\``);
   if (comparison.externalReference) {
-    console.log(`External reference: \`${comparison.externalReference.name}\` P@5 ${(comparison.externalReference.precisionAtK * 100).toFixed(1)}%, R@5 ${(comparison.externalReference.recallAtK * 100).toFixed(1)}%`);
-    console.log(`Best-stack delta vs reference: P@5 ${signedPercent(comparison.bestStack.precisionAtK - comparison.externalReference.precisionAtK)}, R@5 ${signedPercent(comparison.bestStack.recallAtK - comparison.externalReference.recallAtK)}`);
+    console.log(`External reference: \`${comparison.externalReference.name}\` returned-denominator P@5 ${(comparison.externalReference.precisionAtK * 100).toFixed(1)}%, R@5 ${(comparison.externalReference.recallAtK * 100).toFixed(1)}% (${comparison.externalReference.source})`);
+    console.log(`Best-stack returned-denominator delta vs reference: P@5 ${signedPercent((comparison.bestStack.returnedPrecisionAtK ?? comparison.bestStack.precisionAtK) - comparison.externalReference.precisionAtK)}, R@5 ${signedPercent(comparison.bestStack.recallAtK - comparison.externalReference.recallAtK)}`);
   }
   console.log('');
   console.log('## Headline');
-  console.log(`- P@K: ${(comparison.bestStack.precisionAtK * 100).toFixed(1)}%`);
+  console.log(`- Fixed P@K (hits / requested top-k slots): ${(comparison.bestStack.precisionAtK * 100).toFixed(1)}%`);
+  console.log(`- Returned-denominator P@K (hits / returned docs): ${percent(comparison.bestStack.returnedPrecisionAtK)}`);
+  console.log(`- Fixed P@K ceiling: ${percent(comparison.bestStack.fixedPrecisionAtKCeiling)}`);
+  console.log(`- Returned docs@K: ${formatReturnedCountStats(comparison.bestStack.returnedCountStats)}`);
   console.log(`- R@K: ${(comparison.bestStack.recallAtK * 100).toFixed(1)}%`);
   console.log(`- MRR: ${(comparison.bestStack.mrrAtK * 100).toFixed(1)}%`);
   console.log(`- nDCG: ${(comparison.bestStack.ndcgAtK * 100).toFixed(1)}%`);
   console.log('');
   console.log('## Ablations');
-  console.log('| Mode | Lexical | P@K | R@K | MRR | nDCG |');
-  console.log('| --- | --- | ---: | ---: | ---: | ---: |');
+  console.log('| Mode | Lexical | Fixed P@K | Returned P@K | Ceiling | R@K | MRR | nDCG |');
+  console.log('| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |');
   for (const result of comparison.modes) {
-    console.log(`| ${result.mode} | ${result.lexicalBackend ?? 'n/a'} | ${(result.precisionAtK * 100).toFixed(1)}% | ${(result.recallAtK * 100).toFixed(1)}% | ${(result.mrrAtK * 100).toFixed(1)}% | ${(result.ndcgAtK * 100).toFixed(1)}% |`);
+    console.log(`| ${result.mode} | ${result.lexicalBackend ?? 'n/a'} | ${(result.precisionAtK * 100).toFixed(1)}% | ${percent(result.returnedPrecisionAtK)} | ${percent(result.fixedPrecisionAtKCeiling)} | ${(result.recallAtK * 100).toFixed(1)}% | ${(result.mrrAtK * 100).toFixed(1)}% | ${(result.ndcgAtK * 100).toFixed(1)}% |`);
   }
   console.log('');
   console.log(`Hardness passed: ${comparison.hardness.passed ? 'yes' : 'no'}`);
@@ -467,6 +495,17 @@ function signedPercent(value: number): string {
 
 function formatNumber(value?: number): string {
   return value == null ? 'n/a' : value.toFixed(2);
+}
+
+function formatReturnedCountStats(stats?: EvalRunResult['returnedCountStats']): string {
+  if (!stats) return 'n/a';
+  return `min ${stats.min}, mean ${stats.mean.toFixed(2)}, max ${stats.max}`;
+}
+
+function formatBuckets(buckets: Record<string, number>): string {
+  return Object.entries(buckets)
+    .map(([bucket, count]) => `${bucket}=${count}`)
+    .join(', ');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

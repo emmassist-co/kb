@@ -152,12 +152,14 @@ The public bar for `kb` is not "some tests pass." The eval stack has three disti
   The current corpus carries `288 retrieval queries`, including `72 holdout queries`, across `9 relation families`.
 - `gbrain-evals-upstream` is the external-reference retrieval benchmark.
   In this repo, that means the literal upstream `gbrain-evals` harness run side-by-side against real `gbrain` and our KB on the public `world-v1` benchmark.
-  Local reporting uses the same precision denominator as upstream GBrain: `hits / returned_docs`, not `hits / 5`.
+  Local benchmark JSON reports both fixed-denominator `precisionAtK` (`hits / requested top-k slots`) and GBrain-compatible `returnedPrecisionAtK` (`hits / returned_docs`).
   If the runner, corpus, query set, or metric semantics differ, it is not an apples-to-apples GBrain comparison.
 - `gbrain-evals` synthetic heldout is the anti-overfitting diagnostic rail.
   It uses the local adapter snapshot runner on the vendored synthetic query set and exists to reject benchmark-shaped wins that do not survive wording or answer-surface variation.
 - `gbrain-world` is a faster local diagnostic rail.
   It uses the vendored `world-v1` corpus and the public relational contract, but it is not the final external claim.
+- `relation-paraphrase-v1` and `relation-transfer-v1` are anti-cheat generalization rails.
+  They guard against public-template overfitting by testing paraphrased relation questions, prose-only extraction, and non-GBrain-domain relation transfer.
 - relation extraction assumptions are being pushed into workspace-configurable rule data in `packages/kb-core/src/relation-rules.json`.
   Page priors now declare their page families and allowed source surfaces in config rather than relying only on imperative guards in core code.
 - `core-six` is the deterministic floor-raising suite.
@@ -165,34 +167,47 @@ The public bar for `kb` is not "some tests pass." The eval stack has three disti
 
 Current public benchmark posture:
 
-| Rail | Role | Size | P@5 | R@5 | MRR@5 | nDCG@5 | Status |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| `core-six` | deterministic floor | `72 retrieval + 28 non-retrieval` | `30.0%` | `94.4%` | `93.1%` | `88.4%` | `pass` |
-| `admin-world-v3 dev` | product-core optimize rail | `216 queries` | `41.5%` | `99.3%` | `98.7%` | `92.6%` | `floor reached` |
-| `admin-world-v3 holdout` | product-core confirm rail | `72 queries` | `41.7%` | `99.3%` | `100.0%` | `93.6%` | `floor reached` |
-| `gbrain-evals-upstream` | strict public external rail | `145 queries` | `76.6%` | `99.5%` | `n/a` | `n/a` | `real gbrain side-by-side` |
-| `gbrain-evals` synthetic heldout | anti-overfitting rail | `47 queries` | `32.1%` | `88.3%` | `76.1%` | `77.4%` | `held-out improving` |
-| `gbrain-world` | local diagnostic rail | `145 queries` | `35.6%` | `99.3%` | `100.0%` | `99.5%` | `diagnostic only` |
+| Rail | Role | Size | Fixed P@5 | Returned P@5 | Fixed ceiling | R@5 | MRR@5 | nDCG@5 | Status |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `core-six` | deterministic floor | `72 retrieval + 28 non-retrieval` | `30.6%` | `33.8%` | `31.7%` | `96.5%` | `89.7%` | `87.3%` | `pass` |
+| `admin-world-v3 dev` | product-core optimize rail | `216 queries` | `40.0%` | `90.3%` | `42.0%` | `95.6%` | `98.7%` | `91.4%` | `floor reached` |
+| `admin-world-v3 holdout` | product-core confirm rail | `72 queries` | `40.6%` | `90.9%` | `42.2%` | `96.5%` | `100.0%` | `93.0%` | `floor reached` |
+| `gbrain-evals-upstream` | strict public external rail | `145 queries` | `n/a` | `76.6%` | `n/a` | `99.5%` | `n/a` | `n/a` | `real gbrain side-by-side` |
+| `gbrain-evals` synthetic heldout | anti-overfitting rail | `47 queries` | `20.0%` | `32.4%` | `23.4%` | `87.2%` | `75.0%` | `76.7%` | `held-out diagnostic` |
+| `gbrain-world` | local diagnostic rail | `145 queries` | `36.0%` | `76.7%` | `36.0%` | `100.0%` | `100.0%` | `100.0%` | `diagnostic only` |
+| `relation-paraphrase-v1` | anti-cheat paraphrase rail | `4 queries` | `45.0%` | `87.5%` | `45.0%` | `100.0%` | `100.0%` | `100.0%` | `guardrail pass` |
+| `relation-transfer-v1` | prose-only transfer rail | `4 queries` | `20.0%` | `87.5%` | `20.0%` | `100.0%` | `100.0%` | `100.0%` | `guardrail pass` |
 
 External reference, kept separate from our measured score:
 
-| System | P@5 | R@5 |
+| System | Returned-denominator P@5 | R@5 |
 | --- | ---: | ---: |
-| `GBrain` real upstream adapter on the same run | `49.1%` | `97.9%` |
+| `GBrain` official GitHub README headline / real upstream adapter on the same run | `49.1%` | `97.9%` |
 | `kb-upstream` on the same real upstream run | `76.6%` | `99.5%` |
+
+Fairness and anti-cheat status for this comparison:
+
+- The headline comparison uses the same upstream `gbrain-evals` runner, the same `240` page corpus, the same `145` public queries, the same top-k, and the same returned-denominator scorer.
+- KB's scoring path is benchmark-metadata-blind: query `id`, `tier`, `tags`, `author`, `known_failure_modes`, `_facts`, gold labels, and relevant labels do not affect retrieval order.
+- `packages/kb-core/src` is guarded against GBrain-specific markers, benchmark slugs, `_facts`, query IDs, gold labels, and relevant-label shortcuts.
+- GBrain references are allowed only in eval/docs/tests and loader code that builds diagnostic corpora or gold labels, not in package runtime retrieval.
+- This is a fair claim about the public GBrain relation benchmark. It is not a claim that KB is broadly better than GBrain across synthesis, ingestion, vector/reranker search, or every memory workflow.
 
 - Latest deterministic scorecard: [`docs/benchmarks/kb-scorecard-latest.md`](./docs/benchmarks/kb-scorecard-latest.md)
   Current result: `core-six` passes `100%` of categories.
 - Latest external-reference snapshot: `npm run eval:kb:gbrain-evals-upstream`
   Default command compares both systems on the real upstream harness.
-  Current real side-by-side result: `gbrain P@5 49.1%, R@5 97.9%` versus `kb-upstream P@5 76.6%, R@5 99.5%`.
+  Current real side-by-side result: `gbrain returned-denominator P@5 49.1%, R@5 97.9%` versus `kb-upstream returned-denominator P@5 76.6%, R@5 99.5%`.
   For machine-only KB scoring, use `npm run eval:kb:gbrain-evals-upstream:kb`.
-  The same-harness result now shows KB ahead on recall and `correctInTopK`, while still keeping a higher precision score under the upstream `hits / returned_docs` definition.
+  The same-harness result now shows KB ahead on recall and `correctInTopK`, while keeping precision labels tied to the upstream `hits / returned_docs` definition.
 - Latest held-out anti-overfitting snapshot: `KB_GBRAIN_QUERY_SET=synthetic KB_GBRAIN_COMPACT=true node --import tsx/esm scripts/run-gbrain-evals-kb-adapter.ts`
-  Current measured held-out result: `P@5 32.1%, R@5 88.3%, MRR 76.1%, nDCG 77.4%`.
+  Current measured held-out result: fixed `P@5 20.0%`, returned-denominator `P@5 32.4%`, fixed ceiling `23.4%`, `R@5 87.2%`, `MRR 75.0%`, `nDCG 76.7%`.
   The latest kept change fixed the previously isolated `relationship-depth` miss without moving the real upstream rail.
 - Latest local diagnostic snapshot: `npm run eval:kb:gbrain-world`
-  Current measured KB score on the repo-local diagnostic rail: `P@5 35.6%`, `R@5 99.3%`, `MRR 100.0%`, `nDCG 99.5%`.
+  Current measured KB score on the repo-local diagnostic rail: fixed `P@5 36.0%`, returned-denominator `P@5 76.7%`, fixed ceiling `36.0%`, `R@5 100.0%`, `MRR 100.0%`, `nDCG 100.0%`.
+- Latest anti-cheat generalization snapshots: `npm run eval:kb:relation-paraphrase` and `npm run eval:kb:relation-transfer`
+  Current measured KB scores: paraphrase rail fixed `P@5 45.0%`, returned-denominator `P@5 87.5%`, `R@5 100.0%`; prose-only transfer rail fixed `P@5 20.0%`, returned-denominator `P@5 87.5%`, `R@5 100.0%`.
+  These rails are required before describing the GBrain posture as evidence of product-general relation quality.
 
 That means the repo is not claiming "we beat GBrain." It is claiming:
 
@@ -211,6 +226,7 @@ Release policy:
 - run the literal upstream `gbrain-evals` harness as the public external reference rail
 - keep the synthetic held-out rail green enough to avoid accepting benchmark-shaped regressions
 - keep `gbrain-world` as a faster local diagnostic rail, not the final external claim
+- keep `relation-paraphrase-v1`, `relation-transfer-v1`, and `npm run check:kb:anti-cheat` green before making product-general relation-quality claims
 - after any major KB change, rerun the benchmark rails and refresh the published benchmark snapshot in this README and `docs/benchmarks/kb-scorecard-latest.*`
 
 Major changes that should trigger a benchmark refresh include:

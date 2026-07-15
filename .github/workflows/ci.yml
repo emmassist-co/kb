@@ -31,6 +31,8 @@ jobs:
         run: npm run verify:public-packages
       - name: Run typecheck
         run: npm run typecheck
+      - name: Run KB anti-cheat guardrails
+        run: npm run check:kb:anti-cheat
       - name: Run npm test shard for kb-http and kb-cli
         run: ./node_modules/.bin/tsx --test tests/kb-cli.test.ts tests/kb-http.test.ts
       - name: Run KB eval policy verification

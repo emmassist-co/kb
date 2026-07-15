@@ -106,6 +106,48 @@ export function loadGbrainWorldCorpus(
   };
 }
 
+export function loadRelationParaphraseCorpus(rootDir: string): EvalCorpus {
+  return loadRelationGuardrailCorpus(rootDir, 'relation-paraphrase.json');
+}
+
+export function loadRelationTransferCorpus(rootDir: string): EvalCorpus {
+  return loadRelationGuardrailCorpus(rootDir, 'relation-transfer.json');
+}
+
+function loadRelationGuardrailCorpus(rootDir: string, manifestFile: string): EvalCorpus {
+  const raw = JSON.parse(readFileSync(path.join(rootDir, manifestFile), 'utf8')) as AdminWorldManifest;
+  const familyCounts = Object.fromEntries(
+    raw.queries.reduce((map, query) => {
+      const family = query.family ?? 'unknown';
+      map.set(family, (map.get(family) ?? 0) + 1);
+      return map;
+    }, new Map<string, number>())
+  );
+  const ambiguityRate = raw.queries.length
+    ? raw.queries.filter((query) => query.intentionallyAmbiguous).length / raw.queries.length
+    : 0;
+  const wrongTypeDistractorRate = raw.queries.length
+    ? raw.queries.filter((query) => (query.distractorGroups?.wrongType?.length ?? 0) > 0).length / raw.queries.length
+    : 0;
+  return {
+    corpusName: raw.corpusName,
+    provenance: raw.provenance,
+    pages: raw.pages,
+    queries: raw.queries,
+    metadata: {
+      ...raw.metadata,
+      benchmarkTier: raw.metadata?.benchmarkTier ?? 'regression-guardrail',
+      familyCounts,
+      benchmarkFamilies: [...new Set(raw.queries.map((query) => query.family ?? 'unknown'))],
+      corpusSize: raw.pages.length,
+      queryCount: raw.queries.length,
+      ambiguityRate,
+      wrongTypeDistractorRate,
+      coverage: raw.coverage ?? raw.metadata?.coverage
+    }
+  };
+}
+
 export function loadAdminWorldCorpus(rootDir: string, split: 'all' | 'dev' | 'holdout' = 'all'): EvalCorpus {
   const manifestPath = path.join(rootDir, 'admin-world.json');
   const raw = JSON.parse(readFileSync(manifestPath, 'utf8')) as AdminWorldManifest;
