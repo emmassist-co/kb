@@ -39,10 +39,10 @@ Use this file as the merged-work ledger for `kb/`.
 - Commit / PR: PR #9, merge `43aa354`
 - Feature summary: added README decision guidance for agents evaluating KB as shared memory, documented the human-plus-multi-agent operating loop, trust/recovery boundaries, local-to-remote lifecycle, and a storage adapter guide covering the `KnowledgeStore` seam plus S3-style adapter requirements.
 - Customer-visible impact: agents and operators can decide when to use KB, understand how to use it safely with humans and other agents, and see what is required to add another storage backend.
-- Deployment status: not required
+- Deployment status: released
 - Deployment date: 2026-07-15
-- Deployment environment: repository docs
-- Deployment evidence: merged PR #9 to `main`; release version bump prepared for `@emmassist-co/kb-core@0.4.3`, `@emmassist-co/kb-cli@1.6.0`, `@emmassist-co/kb-mcp@0.1.2`, `@emmassist-co/kb-storage-file@0.2.2`, and `@emmassist-co/kb-storage-cloudflare@0.2.2`
+- Deployment environment: GitHub Packages
+- Deployment evidence: merged PR #9 to `main`; published `@emmassist-co/kb-core@0.4.3`, `@emmassist-co/kb-cli@1.6.0`, `@emmassist-co/kb-mcp@0.1.2`, `@emmassist-co/kb-storage-file@0.2.2`, and `@emmassist-co/kb-storage-cloudflare@0.2.2`
 - Human testing status: pending
 - Human tester:
 - Human test date:
