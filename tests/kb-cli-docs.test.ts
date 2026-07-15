@@ -27,6 +27,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Cloudflare Durable Object/);
   assert.match(repoReadme, /Cloudflare R2/);
   assert.match(repoReadme, /does \*\*not\*\* claim to own every chat bridge or agent runtime/);
+  assert.doesNotMatch(repoReadme, /\btenant\b/i);
   assert.match(repoReadme, /## Benchmark Standard/);
   assert.match(repoReadme, /admin-world-v3/);
   assert.match(repoReadme, /gbrain-evals-upstream/);
@@ -80,7 +81,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   const setupSkill = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-local-setup/SKILL.md'), 'utf8');
   assert.doesNotMatch(setupSkill, /GITHUB_PACKAGES_TOKEN/);
   assert.match(setupSkill, /KB_ROOT_DIR/);
-  assert.match(setupSkill, /KB_TENANT_ID/);
+  assert.match(setupSkill, /KB_WORKSPACE_ID/);
   assert.match(setupSkill, /npx kb-local inspect/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-local-setup/agents/openai.yaml')));
 
@@ -120,7 +121,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   const quickstart = readFileSync(path.resolve(process.cwd(), 'docs/consumer-quickstart.md'), 'utf8');
   assert.match(quickstart, /public npm registry/);
   assert.match(quickstart, /cloudflare-agent-setup\.md/);
-  assert.match(quickstart, /KB_TENANT_ID/);
+  assert.match(quickstart, /KB_WORKSPACE_ID/);
   assert.match(quickstart, /KB_ROOT_DIR/);
   assert.match(quickstart, /npm install @emmassist-co\/kb-cli/);
   assert.match(quickstart, /npx kb-local sync status/);
@@ -157,6 +158,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(deploymentModel, /Remote\/serverless agent/);
   assert.match(deploymentModel, /deployed Worker `\/mcp`/);
   assert.match(deploymentModel, /does not claim to own every chat bridge/);
+  assert.doesNotMatch(deploymentModel, /\btenant\b/i);
 
   const cloudflareGuide = readFileSync(path.resolve(process.cwd(), 'docs/cloudflare-agent-setup.md'), 'utf8');
   assert.match(cloudflareGuide, /canonical KB surface on Cloudflare/);

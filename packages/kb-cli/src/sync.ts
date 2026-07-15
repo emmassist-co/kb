@@ -103,7 +103,7 @@ export function parseKnowledgeBaseSyncArgs(
     throw new Error(`Usage: ${renderKnowledgeBaseSyncHelp()}`);
   }
   const flags = parseFlags(rest);
-  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  const tenantId = env.KB_WORKSPACE_ID ?? env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
   const configuredRoot = readNonEmptyString(env.KB_CANONICAL_ROOT_DIR) ?? '.kb';
   return {
     command: commandToken,

@@ -13,7 +13,7 @@ Before writing commands, ask the user for:
 
 - deploy workspace path
 - Worker name
-- `KB_TENANT_ID`
+- `KB_WORKSPACE_ID`
 - `KB_ROOT_DIR`
 - R2 bucket name
 - route or custom domain, if they want one now
@@ -21,14 +21,14 @@ Before writing commands, ask the user for:
 - which agent or repo should connect to the deployed KB after setup
 
 If the user does not care about `KB_ROOT_DIR`, default to `.kb`.
-If the user does not care about the worker name, default to `<tenant>-kb`.
+If the user does not care about the worker name, default to `<workspace>-kb`.
 
 ## Goal
 
 Do not stop at "the Worker deployed." The setup is only complete when:
 
 - the Worker is reachable
-- `GET /v1/capabilities` reports the expected tenant
+- `GET /v1/capabilities` reports the expected workspace namespace
 - `backend` is `cloudflare`
 - `canonical` is `true`
 - `workspaceRole` is `canonical-production`
@@ -61,7 +61,7 @@ npm install -D typescript wrangler
 3. Prefer the CLI bootstrap command from the guide:
 
 ```bash
-npx kb-local cloudflare deploy --tenant-id <tenant-id> --workspace <deploy-workspace>
+npx kb-local cloudflare deploy --workspace-id <workspace-id> --workspace <deploy-workspace>
 ```
 
 If the operator does not want the CLI to write files, fall back to the manual Worker wrapper and `wrangler.jsonc` path from the guide.
@@ -82,7 +82,7 @@ export KB_API_TOKEN=replace-me-with-a-secret
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/capabilities" | jq
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/inspect" | jq
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/doctor" | jq
-npx kb-local cloudflare verify --tenant-id <tenant-id>
+npx kb-local cloudflare verify --workspace-id <workspace-id>
 ```
 
 6. Connect the agent over HTTP:

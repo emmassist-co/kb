@@ -13,7 +13,7 @@ For the canonical Cloudflare production path, use [docs/cloudflare-agent-setup.m
 
 Before setup, choose:
 
-- `KB_TENANT_ID`: stable namespace for this agent or workspace
+- `KB_WORKSPACE_ID`: optional stable namespace for this agent or workspace
 - `KB_ROOT_DIR`: local directory for the file-backed KB
 - mode:
   - `in-process` for the simplest local CLI use
@@ -22,7 +22,7 @@ Before setup, choose:
 
 Recommended defaults:
 
-- `KB_TENANT_ID`: repo name or agent name
+- workspace namespace: repo name or agent name
 - `KB_ROOT_DIR`: `$PWD/.kb`
 
 ## 1. Install The CLI
@@ -46,8 +46,8 @@ The adapter no longer depends on legacy Flue subpath exports, so the same packag
 ## 2. Local In-Process Mode
 
 ```bash
-export KB_TENANT_ID=my-agent
 export KB_ROOT_DIR="$PWD/.kb"
+# Optional: export KB_WORKSPACE_ID=my-workspace
 
 npx kb-local inspect
 npx kb-local help
@@ -59,8 +59,8 @@ npx kb-local schema record
 Start the server:
 
 ```bash
-export KB_TENANT_ID=my-agent
 export KB_ROOT_DIR="$PWD/.kb"
+# Optional: export KB_WORKSPACE_ID=my-workspace
 
 npx kb-local serve --port 3001
 ```
@@ -79,8 +79,8 @@ Use this when you want a local inspection or support workspace that mirrors cano
 
 ```bash
 export KB_BACKEND=r2-mirror
-export KB_TENANT_ID=my-agent
 export KB_R2_MIRROR_ROOT="$PWD/.kb-sync"
+# Optional: export KB_WORKSPACE_ID=my-workspace
 
 npx kb-local sync status
 npx kb-local sync pull
@@ -90,7 +90,7 @@ npx kb-local health
 
 This is a support and debugging path, not a second production architecture. Canonical production writes still belong on the Cloudflare-hosted KB surface.
 
-If humans want to edit the tenant mirror directly in Obsidian while canonical writes still go through KB semantics, use the semantic authoring workflow in `docs/operations/kb-obsidian-semantic-sync.md`. In that mode, `entities/*.md` and `sources/*.md` are the only supported authoring targets and the daemon translates those edits onto the canonical Cloudflare KB surface. Run `npx kb-local validate-mirror` before applying edits and `npx kb-local health --stats` when an agent or operator needs one readiness envelope across sync, daemon, validation, and conflict state.
+If humans want to edit the workspace mirror directly in Obsidian while canonical writes still go through KB semantics, use the semantic authoring workflow in `docs/operations/kb-obsidian-semantic-sync.md`. In that mode, `entities/*.md` and `sources/*.md` are the only supported authoring targets and the daemon translates those edits onto the canonical Cloudflare KB surface. Run `npx kb-local validate-mirror` before applying edits and `npx kb-local health --stats` when an agent or operator needs one readiness envelope across sync, daemon, validation, and conflict state.
 
 ## 5. Install Skills For Agents
 
@@ -126,13 +126,13 @@ export KB_API_TOKEN=replace-me-with-a-secret
 If you want the CLI to scaffold and deploy the Cloudflare workspace directly:
 
 ```bash
-npx kb-local cloudflare deploy --tenant-id my-agent --workspace ./kb-cloudflare
+npx kb-local cloudflare deploy --workspace-id my-workspace --workspace ./kb-cloudflare
 ```
 
 If the host already exists and you just want to recheck it:
 
 ```bash
-npx kb-local cloudflare verify --tenant-id my-agent
+npx kb-local cloudflare verify --workspace-id my-workspace
 ```
 
 If you want an external MCP client to connect to that deployed KB, use the same base host and API key on `/mcp`:
@@ -168,5 +168,5 @@ If you cloned the KB repo itself, you can also run:
 ```bash
 npm run build:public
 ./node_modules/.bin/tsx scripts/kb-verify.ts --mode all
-npm run smoke:kb-mcp -- --tenant-id my-agent
+npm run smoke:kb-mcp -- --workspace-id my-workspace
 ```

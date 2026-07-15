@@ -50,7 +50,7 @@ kb-local validate annotate --json @payload.json
 
 Treat these as the default agent verbs. Do not use low-level event, draft, source-capture, or relation-repair commands unless you are explicitly doing KB repair or operator cleanup.
 
-In a deployed runtime, `kb help runtime` should be the compact contract for current tenant, backend, canonicality, and write discipline.
+In a deployed runtime, `kb help runtime` should be the compact contract for current workspace namespace, backend, canonicality, and write discipline.
 
 ## Minimal Patterns
 

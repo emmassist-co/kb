@@ -515,7 +515,7 @@ function resolveTransport(options: KnowledgeBaseCliOptions): KnowledgeBaseCliTra
     };
   }
   const backend = readCliBackend(env.KB_BACKEND);
-  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  const tenantId = env.KB_WORKSPACE_ID ?? env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
   if (backend === 'cloudflare' || backend === 'r2' || backend === 'http') {
     throw new Error(
       `KB_BACKEND=${backend} is not a direct local CLI workspace. Use KB_BASE_URL to target the canonical deployed kb-http surface, or use KB_BACKEND=file|r2-mirror for support workspaces.`
@@ -828,8 +828,8 @@ function renderHelp(topic?: string): string {
     '  kb daemon <start|stop|restart|status|logs|once>',
     '  kb validate-mirror',
     '  kb health',
-    '  kb cloudflare deploy --tenant-id TENANT_ID [--workspace PATH] [--worker-name NAME] [--bucket NAME] [--host-url URL] [--secret VALUE]',
-    '  kb cloudflare verify [--host-url URL] [--token VALUE] [--tenant-id ID]',
+    '  kb cloudflare deploy --workspace-id WORKSPACE_ID [--workspace PATH] [--worker-name NAME] [--bucket NAME] [--host-url URL] [--secret VALUE]',
+    '  kb cloudflare verify [--host-url URL] [--token VALUE] [--workspace-id ID]',
     '  kb help operator',
     '',
     'Notes:',
@@ -839,7 +839,7 @@ function renderHelp(topic?: string): string {
     '  - Do not use `kb annotate` for relation edges; it is only for timeline/provenance updates.',
     '  - Use `kb remember` for facts, sources, corrections, and narrative evidence capture.',
     '  - Use `kb query-relations` for relation-shaped questions; `kb search` is lexical/hybrid retrieval.',
-    '  - `kb inspect` must tell you tenant, backend, canonicality, and whether you are on a production or support surface before writes.',
+    '  - `kb inspect` must tell you workspace namespace, backend, canonicality, and whether you are on a production or support surface before writes.',
     '  - Use `KB_BASE_URL` to target a deployed KB and `KB_API_TOKEN` for protected remote hosts. `KB_BEARER_TOKEN` is accepted as a compatibility alias.',
     '  - Use `kb cloudflare deploy` to scaffold a protected Cloudflare KB host and verify both `/v1` and `/mcp`.',
     '  - Use `kb cloudflare verify` to recheck an existing protected Cloudflare KB host without redeploying it.',

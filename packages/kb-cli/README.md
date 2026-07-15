@@ -16,8 +16,8 @@ npm install @emmassist-co/kb-cli
 Then run:
 
 ```bash
-export KB_TENANT_ID=my-agent
 export KB_ROOT_DIR="$PWD/.kb"
+# Optional: export KB_WORKSPACE_ID=my-workspace
 
 npx kb-local inspect
 ```
@@ -30,7 +30,7 @@ npx kb-local inspect
 - remote HTTP mode
 - Cloudflare deploy/bootstrap mode for protected remote hosts
 
-`kb inspect` should always tell the caller which tenant they are targeting, which backend is active, whether the surface is canonical, and whether the current workspace is production or support-only.
+`kb inspect` should always tell the caller which workspace namespace they are targeting, which backend is active, whether the surface is canonical, and whether the current workspace is production or support-only.
 
 ## Binary
 
@@ -55,14 +55,13 @@ npx skills add https://github.com/emmassist-co/kb/tree/main/packages/kb-cli/skil
 In-process local:
 
 ```bash
-KB_TENANT_ID=workspace-template KB_ROOT_DIR=/tmp/kb npx kb-local inspect
+KB_ROOT_DIR=/tmp/kb npx kb-local inspect
 ```
 
 R2 mirror local:
 
 ```bash
 KB_BACKEND=r2-mirror \
-KB_TENANT_ID=workspace-template \
 KB_R2_MIRROR_ROOT=/tmp/kb-mirror \
 npx kb-local search --json '{"query":"billing"}'
 ```
@@ -83,7 +82,7 @@ KB_BACKEND=r2-mirror npx kb-local health --stats
 Daemon:
 
 ```bash
-KB_TENANT_ID=workspace-template KB_ROOT_DIR=/tmp/kb npx kb-local serve --port 3001
+KB_ROOT_DIR=/tmp/kb npx kb-local serve --port 3001
 ```
 
 HTTP mode:
@@ -103,7 +102,7 @@ npx kb-local inspect
 Cloudflare deploy/bootstrap:
 
 ```bash
-npx kb-local cloudflare deploy --tenant-id acme --workspace ./kb-cloudflare
+npx kb-local cloudflare deploy --workspace-id acme-workspace --workspace ./kb-cloudflare
 ```
 
 Cloudflare host re-verification:
@@ -111,7 +110,7 @@ Cloudflare host re-verification:
 ```bash
 KB_BASE_URL=https://kb.example.com \
 KB_API_TOKEN=replace-me \
-npx kb-local cloudflare verify --tenant-id acme
+npx kb-local cloudflare verify --workspace-id acme-workspace
 ```
 
 Operator-only repair surfaces:
@@ -130,4 +129,4 @@ npx kb-local conflicts resolve --path entities/vendor-acme.md --from file --file
 ## Verification
 
 - local CLI + daemon smoke: `npm run verify:kb -- --mode all`
-- deployed Cloudflare host recheck: `KB_BASE_URL=... KB_API_TOKEN=... npx kb-local cloudflare verify --tenant-id ...`
+- deployed Cloudflare host recheck: `KB_BASE_URL=... KB_API_TOKEN=... npx kb-local cloudflare verify --workspace-id ...`

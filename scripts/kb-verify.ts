@@ -26,7 +26,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
-    if (arg === '--tenant-id') {
+    if (arg === '--workspace-id' || arg === '--tenant-id') {
       parsed.tenantId = argv[index + 1];
       index += 1;
       continue;

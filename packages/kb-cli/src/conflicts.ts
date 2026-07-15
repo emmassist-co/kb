@@ -40,7 +40,7 @@ export async function executeKnowledgeBaseConflictsCommand(
   const flags = parseFlags(argv.slice(1));
   const env = options.env ?? process.env;
   assertR2MirrorBackend(env);
-  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  const tenantId = env.KB_WORKSPACE_ID ?? env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
   const mirrorRoot = resolveMirrorRoot(options.cwd ?? process.cwd(), env, tenantId);
   const conflictRoot = path.join(mirrorRoot, '.kb-sync-conflicts');
 

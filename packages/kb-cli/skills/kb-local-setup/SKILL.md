@@ -1,6 +1,6 @@
 ---
 name: kb-local-setup
-description: Use when a user wants a local agent or local repo to install and configure the KB CLI, especially when the agent should ask for required paths, tenant ids, package auth, or local versus daemon mode.
+description: Use when a user wants a local agent or local repo to install and configure the KB CLI, especially when the agent should ask for required paths, workspace namespaces, package auth, or local versus daemon mode.
 ---
 
 # KB Local Setup
@@ -13,11 +13,11 @@ Before writing commands, ask the user for:
 
 - install directory: the local repo or workspace where the CLI should be installed
 - `KB_ROOT_DIR`: where the file-backed KB should live
-- `KB_TENANT_ID`: the tenant or namespace to use for this agent
+- `KB_WORKSPACE_ID`: optional stable namespace for this agent
 - mode: `in-process` or `daemon`
 - if `daemon`, the port to bind, usually `3001`
 
-If the user does not care about the tenant, default to a stable short id like the repo name.
+If the user does not care about the workspace namespace, omit it and let the CLI default apply.
 If the user does not care about the root dir, default to `.kb` inside the current workspace.
 
 ## Install Pattern
@@ -33,8 +33,8 @@ npm install @emmassist-co/kb-cli
 Use this for the simplest local setup:
 
 ```bash
-export KB_TENANT_ID=my-agent
 export KB_ROOT_DIR="$PWD/.kb"
+# Optional: export KB_WORKSPACE_ID=my-workspace
 
 npx kb-local inspect
 ```
@@ -44,8 +44,8 @@ npx kb-local inspect
 Use this when other tools or agents should talk to KB over HTTP:
 
 ```bash
-export KB_TENANT_ID=my-agent
 export KB_ROOT_DIR="$PWD/.kb"
+# Optional: export KB_WORKSPACE_ID=my-workspace
 
 npx kb-local serve --port 3001
 ```

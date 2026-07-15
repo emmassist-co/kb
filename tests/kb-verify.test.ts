@@ -6,7 +6,7 @@ test('kb verify parses local mode arguments', () => {
   const parsed = parseArgs([
     '--mode',
     'local',
-    '--tenant-id',
+    '--workspace-id',
     'kb-smoke'
   ]);
 

@@ -18,7 +18,7 @@ export async function executeKnowledgeBaseHealthCommand(
   const flags = parseFlags(argv);
   const env = options.env ?? process.env;
   assertR2MirrorBackend(env);
-  const tenantId = env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
+  const tenantId = env.KB_WORKSPACE_ID ?? env.KB_TENANT_ID ?? env.WORKSPACE_TENANT_ID ?? 'default';
   const syncRaw = await executeKnowledgeBaseSyncCommand(['status'], options);
   const sync = summarizeKnowledgeBaseSyncResult(syncRaw, { changes: true, conflicts: true, stats: flags.stats || flags.verbose });
   const validation = await executeKnowledgeBaseMirrorValidationCommand([
