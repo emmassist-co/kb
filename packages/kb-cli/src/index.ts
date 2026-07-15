@@ -129,6 +129,7 @@ interface KnowledgeBaseCliExecutor {
   doctor(): Promise<unknown>;
   export(): Promise<unknown>;
   serve(input: JsonObject): Promise<unknown>;
+  dashboard?(input: JsonObject): Promise<unknown>;
 }
 
 export type { KnowledgeBaseCliExecutor };
@@ -361,7 +362,8 @@ export async function createExecutor(options: KnowledgeBaseCliOptions): Promise<
     doctor: () => service.doctor(),
     export: () => service.export()
     ,
-    serve: (input) => startServe(input, transport.tenantId, options, config)
+    serve: (input) => startServe(input, transport.tenantId, options, config),
+    dashboard: (input) => startDashboard(input, transport.tenantId, options, config)
   };
 }
 
@@ -426,6 +428,9 @@ function createHttpExecutor(
     ,
     serve: async () => {
       throw new Error('Serve is only supported in local mode');
+    },
+    dashboard: async () => {
+      throw new Error('Dashboard is only supported in local mode');
     }
   };
 }
@@ -498,6 +503,9 @@ async function executeCommand(
       return executor.export();
     case 'serve':
       return executor.serve(buildServePayload(parsed));
+    case 'dashboard':
+      if (!executor.dashboard) throw new Error('Dashboard is only supported in local mode');
+      return executor.dashboard(buildDashboardPayload(parsed));
     default:
       throw new Error(`Unknown kb command: ${command}`);
   }
@@ -748,6 +756,14 @@ function buildServePayload(parsed: ParsedArgs): JsonObject {
   };
 }
 
+function buildDashboardPayload(parsed: ParsedArgs): JsonObject {
+  return {
+    ...buildServePayload(parsed),
+    readOnly: readBoolean(parsed.flags['read-only']) ?? readBoolean(parsed.flags.readOnly),
+    assetsDir: readString(parsed.flags['assets-dir']) ?? readString(parsed.flags.assetsDir)
+  };
+}
+
 function readId(parsed: ParsedArgs): string {
   if (typeof parsed.flags.id === 'string' && parsed.flags.id) return parsed.flags.id;
   const positional = parsed.positionals[1];
@@ -857,6 +873,7 @@ function renderHelp(topic?: string): string {
     '  kb doctor',
     '  kb export',
     '  kb serve [--host 127.0.0.1] [--port 3001]',
+    '  kb dashboard [--host 127.0.0.1] [--port 3001] [--read-only]',
     '  kb sync <pull|status|push>',
     '  kb daemon <start|stop|restart|status|logs|once>',
     '  kb validate-mirror',
@@ -1254,6 +1271,46 @@ function readCliBackend(value: string | undefined): 'file' | 'r2-mirror' | 'clou
     default:
       return 'file';
   }
+}
+
+
+async function startDashboard(
+  input: JsonObject,
+  tenantId: string,
+  options: KnowledgeBaseCliOptions,
+  config: KnowledgeBaseConfig
+): Promise<unknown> {
+  const host = readString(input.host);
+  const readOnly = input.readOnly === true;
+  if (host && host !== '127.0.0.1' && host !== 'localhost' && host !== '::1') {
+    throw new Error('Refusing to start dashboard on a non-loopback host because the local /v1 API is writable. Bind to 127.0.0.1.');
+  }
+  const server = await startKnowledgeBaseCliDaemon({
+    tenantId,
+    cwd: options.cwd,
+    rootDir: options.env?.KB_ROOT_DIR,
+    config,
+    host,
+    port: readNumber(input.port),
+    dashboard: {
+      enabled: true,
+      readOnly,
+      assetsDir: readString(input.assetsDir)
+    }
+  });
+  const close = async () => {
+    await server.close();
+    process.exitCode = 0;
+  };
+  process.once('SIGINT', () => void close());
+  process.once('SIGTERM', () => void close());
+  return {
+    ok: true,
+    host: server.host,
+    port: server.port,
+    url: server.url,
+    dashboardUrl: server.dashboardUrl
+  };
 }
 
 async function startServe(

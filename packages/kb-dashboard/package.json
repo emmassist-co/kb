@@ -1,40 +1,41 @@
 {
-  "name": "@emmassist-co/kb-storage-file",
-  "version": "0.2.4",
+  "name": "@emmassist-co/kb-dashboard",
+  "version": "0.1.0",
   "private": false,
-  "description": "Local filesystem storage adapter for the Cloudflare-first KB stack.",
+  "description": "Static local browser dashboard for the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/emmassist-co/kb.git",
-    "directory": "packages/kb-storage-file"
+    "directory": "packages/kb-dashboard"
   },
-  "homepage": "https://github.com/emmassist-co/kb/tree/main/packages/kb-storage-file#readme",
+  "homepage": "https://github.com/emmassist-co/kb/tree/main/packages/kb-dashboard#readme",
   "bugs": {
     "url": "https://github.com/emmassist-co/kb/issues"
   },
   "keywords": [
     "knowledge-base",
-    "storage",
-    "filesystem",
+    "dashboard",
+    "vite",
     "agents"
   ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
-  },
-  "dependencies": {
-    "@emmassist-co/kb-core": "^0.5.0"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "dependencies": {
+    "d3": "^7.9.0"
   }
 }

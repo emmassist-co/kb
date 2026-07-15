@@ -11,6 +11,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /@emmassist-co\/kb-storage-cloudflare/);
   assert.match(repoReadme, /@emmassist-co\/kb-http/);
   assert.match(repoReadme, /@emmassist-co\/kb-mcp/);
+  assert.match(repoReadme, /@emmassist-co\/kb-dashboard/);
   assert.match(repoReadme, /@emmassist-co\/kb-cli/);
   assert.match(repoReadme, /Not yet in the staged public package set/);
   assert.match(repoReadme, /@emmassist-co\/kb-flue-adapter/);
@@ -44,6 +45,10 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /Cloudflare R2/);
   assert.match(repoReadme, /does \*\*not\*\* claim to own every chat bridge or agent runtime/);
   assert.match(repoReadme, /## Setup And Lifecycle Paths/);
+  assert.match(repoReadme, /Local browser dashboard/);
+  assert.match(repoReadme, /npx kb-local dashboard --port 3001/);
+  assert.match(repoReadme, /CLI-only installs can omit the dashboard package/);
+  assert.match(repoReadme, /without Obsidian/);
   assert.match(repoReadme, /Local-to-remote migration is intentionally boring/);
   assert.match(repoReadme, /## Multi-Writer And Recovery Boundaries/);
   assert.match(repoReadme, /replaceLinksForOrigin|replaced by origin/);
@@ -121,9 +126,11 @@ test('kb docs describe the staged public package set and current consumer entry 
     bin?: Record<string, string>;
     version: string;
     files: string[];
+    dependencies?: Record<string, string>;
   };
   assert.equal(kbCliPackage.bin?.kb, './bin/kb-local.mjs');
   assert.equal(kbCliPackage.bin?.['kb-local'], './bin/kb-local.mjs');
+  assert.equal(kbCliPackage.dependencies?.['@emmassist-co/kb-dashboard'], undefined);
 
   const agentImprovementDoc = readFileSync(path.resolve(process.cwd(), 'docs/product/kb-agent-improvement-support.md'), 'utf8');
   assert.match(agentImprovementDoc, /Agents think\. KB stores, validates, retrieves, relates, and exposes evidence\./);
@@ -144,10 +151,15 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(readme, /KB_API_TOKEN/);
   assert.match(readme, /kb cloudflare deploy/);
   assert.match(readme, /kb cloudflare verify/);
+  assert.match(readme, /@emmassist-co\/kb-dashboard/);
+  assert.match(readme, /kb dashboard --port 3001/);
+  assert.match(readme, /CLI-only installs do not need the dashboard package/);
+  assert.match(readme, /local operator surface/);
   assert.match(readme, /kb validate-mirror --changes/);
   assert.match(readme, /kb health --stats/);
   assert.match(readme, /kb conflicts list/);
   assert.match(readme, /node_modules\/@emmassist-co\/kb-cli\/skills\/kb-write/);
+
   assert.match(readme, /npm\.pkg\.github\.com/);
 
   const mcpReadme = readFileSync(path.resolve(process.cwd(), 'packages/kb-mcp/README.md'), 'utf8');
@@ -266,7 +278,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(packageSkill, /kb validate record/);
   assert.match(packageSkill, /query-relations/);
 
-  assert.equal(kbCliPackage.version, '1.8.0');
+  assert.equal(kbCliPackage.version, '1.9.0');
   assert.ok(kbCliPackage.files.includes('skills'));
   assert.ok(kbCliPackage.files.includes('recipes'));
 

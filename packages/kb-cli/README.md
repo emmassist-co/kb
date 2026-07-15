@@ -109,6 +109,15 @@ Daemon:
 KB_ROOT_DIR=/tmp/kb npx kb serve --port 3001
 ```
 
+Local browser dashboard, when the optional dashboard package is installed:
+
+```bash
+npm install @emmassist-co/kb-dashboard --@emmassist-co:registry=https://npm.pkg.github.com
+KB_ROOT_DIR=/tmp/kb npx kb-local dashboard --port 3001
+```
+
+The dashboard is a local operator surface for browsing entities, sources, graph links, recent events, and supported entity/source markdown edits. It serves on loopback by default and is separate from the hosted Cloudflare runtime surface. CLI-only installs do not need the dashboard package; hosts can also pass `--assets-dir` to serve custom built assets.
+
 HTTP mode:
 
 ```bash

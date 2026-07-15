@@ -3,7 +3,9 @@ import type {
   KnowledgeMutationResult,
   KnowledgeWorkspaceCapabilities,
   KnowledgeLexicalBackend,
-  KnowledgeSearchMode
+  KnowledgeSearchMode,
+  KnowledgeDocumentKind,
+  KnowledgeDocumentSaveInput
 } from '@emmassist-co/kb-core';
 
 export type KnowledgeBaseSourceRecordInput = {
@@ -28,6 +30,8 @@ export type KnowledgeBaseSourceRecordInput = {
 
 export interface KnowledgeBaseSemanticWriteService extends KnowledgeBaseService {
   recordSource(input: KnowledgeBaseSourceRecordInput): Promise<KnowledgeMutationResult>;
+  getDocument(input: { kind: KnowledgeDocumentKind; id: string }): ReturnType<KnowledgeBaseService['getDocument']>;
+  saveDocument(input: KnowledgeDocumentSaveInput): ReturnType<KnowledgeBaseService['saveDocument']>;
 }
 
 export type KnowledgeBaseAccessScope = 'kb.read' | 'kb.write' | 'kb.operator';
@@ -36,6 +40,11 @@ export interface KnowledgeBaseHttpAuthToken {
   token: string;
   scopes: KnowledgeBaseAccessScope[];
   subject?: string;
+}
+
+export interface KnowledgeBaseHttpDashboardConfig {
+  token?: string;
+  allowedOrigin?: string;
 }
 
 export interface KnowledgeBaseHttpAuthConfig {
@@ -69,6 +78,7 @@ export interface KnowledgeBaseHttpContext {
   capabilities?: KnowledgeWorkspaceCapabilities;
   rebuild?: () => Promise<unknown>;
   auth?: KnowledgeBaseHttpAuthConfig;
+  dashboard?: KnowledgeBaseHttpDashboardConfig;
 }
 
 export interface KnowledgeBaseHttpRequest {

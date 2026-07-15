@@ -49,6 +49,12 @@ const publicPackages = [
     forbiddenEntries: ['package/src/']
   },
   {
+    name: '@emmassist-co/kb-dashboard',
+    workspace: '@emmassist-co/kb-dashboard',
+    expectedEntries: ['package/dist/index.js', 'package/dist/index.d.ts', 'package/dist/client/index.html'],
+    forbiddenEntries: ['package/src/']
+  },
+  {
     name: '@emmassist-co/kb-cli',
     workspace: '@emmassist-co/kb-cli',
     expectedEntries: ['package/bin/kb-local.mjs', 'package/dist/index.js', 'package/dist/main.js', 'package/dist/r2-sync-lib.js'],
@@ -112,12 +118,14 @@ try {
       [
         "const core = await import('@emmassist-co/kb-core');",
         "const http = await import('@emmassist-co/kb-http');",
+        "const dashboard = await import('@emmassist-co/kb-dashboard');",
         "const mcp = await import('@emmassist-co/kb-mcp');",
         "const storage = await import('@emmassist-co/kb-storage-file');",
         "const cloudflare = await import('@emmassist-co/kb-storage-cloudflare');",
         "const flueAdapter = await import('@emmassist-co/kb-flue-adapter');",
         "if (typeof core.KnowledgeBaseService !== 'function') throw new Error('kb-core export missing');",
         "if (typeof http.startKnowledgeBaseNodeServer !== 'function') throw new Error('kb-http export missing');",
+        "if (typeof dashboard.resolveKnowledgeBaseDashboardAssetsDir !== 'function') throw new Error('kb-dashboard export missing');",
         "if (typeof mcp.createKnowledgeBaseMcpServer !== 'function') throw new Error('kb-mcp export missing');",
         "if (typeof storage.FileKnowledgeStore !== 'function') throw new Error('kb-storage-file export missing');",
         "if (typeof cloudflare.R2CanonicalKbStore !== 'function') throw new Error('kb-storage-cloudflare export missing');",

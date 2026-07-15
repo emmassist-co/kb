@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-15 - Add Local Browser Dashboard
+
+- Area: CLI command, HTTP surface, package
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added a local `kb dashboard` browser UI served by the KB CLI, introduced `@emmassist-co/kb-dashboard` as the separate Vite TypeScript dashboard package, exposed safe entity/source markdown document endpoints with stale-write validation, and added optional dashboard static serving to the local Node host.
+- Customer-visible impact: operators who install the optional dashboard package can browse local KB inventory, records, graph relations, recent events, and supported markdown/frontmatter edits from a browser without Obsidian; CLI-only consumers are not forced to install dashboard assets.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: run `kb dashboard --port 3001` against a local file-backed workspace, inspect inventory/records/graph/recents, edit an entity markdown document, and verify stale-write protection by saving from two browser tabs.
+- Automated coverage: `npm run verify:public-packages`; `npm run typecheck`; `npm test`
+- Needs iteration: no
+- Follow-up: consider remote read-only dashboard support and richer graph diff playback after local operator flows are exercised manually.
+
 ## 2026-07-15 - Stop Persisting Noisy Mention Links
 
 - Area: kb-core, cli

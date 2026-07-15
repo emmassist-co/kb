@@ -24,6 +24,7 @@ type RelateInput = Parameters<KnowledgeBaseService['relate']>[0];
 type RememberInput = Parameters<KnowledgeBaseService['remember']>[0];
 type AnnotateInput = Parameters<KnowledgeBaseService['annotate']>[0];
 type TraverseInput = Parameters<KnowledgeBaseService['traverse']>[0];
+type SaveDocumentInput = Parameters<KnowledgeBaseService['saveDocument']>[0];
 
 export async function handleKnowledgeBaseHttpRequest(
   ctx: KnowledgeBaseHttpContext,
@@ -148,6 +149,28 @@ export async function handleKnowledgeBaseHttpRequest(
       data: await service.clearRelations({
         kind: readRequiredSearchParam(request, 'originKind') as ClearRelationsInput['kind'],
         id: readRequiredSearchParam(request, 'originId')
+      })
+    });
+  }
+
+
+  if (request.method === 'GET' && request.pathname.startsWith('/v1/documents/')) {
+    const { kind, id } = readDocumentPath(request.pathname);
+    return ok({
+      ok: true,
+      data: await service.getDocument({ kind, id })
+    });
+  }
+
+  if (request.method === 'PUT' && request.pathname.startsWith('/v1/documents/')) {
+    requireDashboardWriteSafety(ctx, request);
+    const { kind, id } = readDocumentPath(request.pathname);
+    return ok({
+      ok: true,
+      data: await service.saveDocument({
+        ...expectBody<Omit<SaveDocumentInput, 'kind' | 'id'>>(request.body),
+        kind,
+        id
       })
     });
   }
@@ -308,6 +331,32 @@ function expectBody<T>(value: unknown): T {
     throw new Error('Expected JSON object request body');
   }
   return value as T;
+}
+
+
+function readDocumentPath(pathname: string): { kind: 'entity' | 'source'; id: string } {
+  const suffix = pathname.slice('/v1/documents/'.length);
+  const [kind, ...idParts] = suffix.split('/');
+  const id = decodeURIComponent(idParts.join('/'));
+  if (kind !== 'entity' && kind !== 'source') {
+    throw new Error('Document kind must be entity or source');
+  }
+  if (!id) {
+    throw new Error('Document id is required');
+  }
+  return { kind, id };
+}
+
+function requireDashboardWriteSafety(ctx: KnowledgeBaseHttpContext, request: KnowledgeBaseHttpRequest): void {
+  if (!ctx.dashboard?.token) return;
+  const token = request.headers?.['x-kb-dashboard-token'];
+  if (token !== ctx.dashboard.token) {
+    throw new Error('Dashboard write token is missing or invalid');
+  }
+  const origin = request.headers?.origin;
+  if (ctx.dashboard.allowedOrigin && origin && origin !== ctx.dashboard.allowedOrigin) {
+    throw new Error(`Dashboard write origin is not allowed: ${origin}`);
+  }
 }
 
 function readRelationsFilter(request: KnowledgeBaseHttpRequest): ListRelationsInput {
