@@ -35,14 +35,14 @@ Use this file as the merged-work ledger for `kb/`.
 ## 2026-07-15 - Fix GitHub Packages Install Examples
 
 - Area: docs, package
-- Merged to `main`: no
-- Commit / PR: pending
+- Merged to `main`: yes
+- Commit / PR: `8f2c449`
 - Feature summary: corrected install examples to use a scoped `@emmassist-co` GitHub Packages registry override so public npm dependencies continue resolving from the default npm registry, and prepared a `@emmassist-co/kb-cli` patch release with the corrected README and skills.
 - Customer-visible impact: first-time operators can install `@emmassist-co/kb-cli` into a clean local folder without the registry override breaking public dependencies like `@aws-sdk/client-s3`.
-- Deployment status: pending
-- Deployment date:
-- Deployment environment:
-- Deployment evidence:
+- Deployment status: released
+- Deployment date: 2026-07-15
+- Deployment environment: GitHub Packages
+- Deployment evidence: published `@emmassist-co/kb-cli@1.6.1`; clean temp-folder install smoke passed with `@emmassist-co/kb-cli@1.6.1`
 - Human testing status: pending
 - Human tester:
 - Human test date:
