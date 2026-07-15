@@ -2,6 +2,8 @@
 
 ## Production Contract
 
+`kb` is agent-first: the durable memory contract is designed for coding agents, remote workers, MCP clients, and supervised operator workflows to share the same tenant-scoped knowledge base instead of each agent carrying its own transcript-local memory.
+
 `kb` owns one production deployment story:
 
 - one tenant-scoped deployment boundary
@@ -32,6 +34,18 @@ Production should bias toward:
 - agent and operator writes going through the same HTTP contract
 - shared auth and scope enforcement across `/v1` and `/mcp`
 - verification against the deployed contract, not just local file mode
+
+## Agent Connection Map
+
+| Agent shape | Supported connection | Canonicality |
+| --- | --- | --- |
+| Plain local Codex / Claude / Pi / Cursor / shell agent | `kb-local` in-process against `KB_ROOT_DIR` | `local-development` |
+| Multiple local tools or agents | local `kb-local serve` Node daemon plus `KB_BASE_URL=http://127.0.0.1:<port>` | `local-development` |
+| Remote/serverless agent | deployed Worker `/v1` with `KB_BASE_URL` and `KB_API_TOKEN` | `canonical-production` |
+| MCP-aware client | deployed Worker `/mcp` with the same bearer token | `canonical-production` |
+| Human-edited support mirror | `r2-mirror` plus semantic sync for `entities/*.md` and `sources/*.md` | `mirror-support` until synced |
+
+This repo owns the durable memory contract and the CLI/HTTP/MCP package surfaces. It does not claim to own every chat bridge, IDE extension, OAuth callback app, or customer-specific webhook flow unless that surface is explicitly moved into this repo.
 
 ## Support Surfaces
 
