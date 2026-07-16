@@ -39,16 +39,16 @@ Use this file as the merged-work ledger for `kb/`.
 - Commit / PR: pending
 - Feature summary: republished the dashboard release package set with `@emmassist-co/kb-core` exported from compiled `dist` artifacts instead of source TypeScript, and updated dependent package ranges to the compiled patch versions.
 - Customer-visible impact: fresh installs of `@emmassist-co/kb-cli` can run under Node without attempting to strip TypeScript from `node_modules`.
-- Deployment status: pending
-- Deployment date:
-- Deployment environment:
-- Deployment evidence:
+- Deployment status: deployed
+- Deployment date: 2026-07-16
+- Deployment environment: GitHub Packages
+- Deployment evidence: published `@emmassist-co/kb-core@0.5.1`, `@emmassist-co/kb-http@0.5.1`, `@emmassist-co/kb-storage-file@0.2.5`, `@emmassist-co/kb-storage-cloudflare@0.2.5`, `@emmassist-co/kb-mcp@0.1.6`, `@emmassist-co/kb-cli@1.9.1`, and `@emmassist-co/kb-flue-adapter@0.6.3`; fresh install smoke passed for `@emmassist-co/kb-cli@1.9.1` with `@emmassist-co/kb-dashboard@0.1.0`.
 - Human testing status: pending
 - Human tester:
 - Human test date:
 - Human test environment:
 - Human test flow: install `@emmassist-co/kb-cli` and `@emmassist-co/kb-dashboard` into a fresh temp project from GitHub Packages, run `kb dashboard`, and verify the UI and `/v1/capabilities` load.
-- Automated coverage: pending
+- Automated coverage: GitHub Actions `verify`; `npm run verify:public-packages`; `npm run typecheck`; `npm test`; fresh published-package smoke install
 - Needs iteration: no
 - Follow-up: none
 
@@ -62,7 +62,7 @@ Use this file as the merged-work ledger for `kb/`.
 - Deployment status: deployed
 - Deployment date: 2026-07-16
 - Deployment environment: GitHub Packages
-- Deployment evidence: published `@emmassist-co/kb-dashboard@0.1.0`, `@emmassist-co/kb-http@0.5.0`, `@emmassist-co/kb-cli@1.9.0`, and dependent package versions to GitHub Packages.
+- Deployment evidence: published `@emmassist-co/kb-dashboard@0.1.0`, followed by compiled patch package set `@emmassist-co/kb-core@0.5.1`, `@emmassist-co/kb-http@0.5.1`, `@emmassist-co/kb-cli@1.9.1`, and dependent package versions to GitHub Packages.
 - Human testing status: pending
 - Human tester:
 - Human test date:
