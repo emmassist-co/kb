@@ -128,6 +128,43 @@ test('kb flue adapter logs runtime telemetry for recall bundles', async () => {
   assert.deepEqual(event.resultIds, ['vendor-stripe']);
 });
 
+test('kb flue adapter inspect advertises trust substrate capabilities to Flue runtimes', async () => {
+  const command = createKbCommand(
+    {
+      async readFileBuffer() {
+        throw new Error('readFileBuffer should not be used in this test');
+      }
+    },
+    {
+      WORKSPACE_TENANT_ID: 'acme',
+      KB_BACKEND: 'cloudflare'
+    },
+    {
+      runtime: {
+        async getService() {
+          return {
+            async list() {
+              return { mode: 'basic', entities: [], sources: [], links: [] };
+            }
+          } as Pick<KnowledgeBaseService, 'list'> as KnowledgeBaseService;
+        },
+        async flush() {
+          return null;
+        },
+        async rebuild() {
+          return null;
+        }
+      }
+    }
+  );
+
+  const result = await command.execute(['inspect']);
+  assert.equal(result.exitCode, 0);
+  const payload = JSON.parse(result.stdout) as { data: { trustSubstrate?: { version?: string; recallMutatesState?: boolean } } };
+  assert.equal(payload.data.trustSubstrate?.version, '2026-07-16.trust-substrate');
+  assert.equal(payload.data.trustSubstrate?.recallMutatesState, false);
+});
+
 test('kb flue adapter logs runtime telemetry for relation queries', async () => {
   const events: unknown[] = [];
   const command = createKbCommand(
@@ -216,6 +253,10 @@ test('kb flue adapter help exposes runtime context and operator-only repair topi
   const help = await command.execute(['help']);
   assert.equal(help.exitCode, 0);
   assert.match(help.stdout, /Default runtime surface:/);
+  assert.match(help.stdout, /kb recall --json/);
+  assert.match(help.stdout, /kb evidence --id ENTITY_ID/);
+  assert.match(help.stdout, /kb submit-proposal --json @payload\.json/);
+  assert.match(help.stdout, /kb debt/);
   assert.match(help.stdout, /kb help runtime/);
   assert.match(help.stdout, /kb help operator/);
   assert.doesNotMatch(help.stdout, /kb capture-source --json/);
@@ -227,12 +268,18 @@ test('kb flue adapter help exposes runtime context and operator-only repair topi
   assert.match(runtime.stdout, /backend: cloudflare/);
   assert.match(runtime.stdout, /canonical: yes/);
   assert.match(runtime.stdout, /workspace role: canonical-production/);
+  assert.match(runtime.stdout, /trust substrate: 2026-07-16\.trust-substrate/);
   assert.match(runtime.stdout, /Use `kb search` before answering tenant-specific factual questions/);
+  assert.match(runtime.stdout, /Use `kb evidence --id ENTITY_ID` before asserting/);
+  assert.match(runtime.stdout, /Recall is read-only/);
 
   const operator = await command.execute(['help', 'operator']);
   assert.equal(operator.exitCode, 0);
   assert.match(operator.stdout, /kb operator surface/);
   assert.match(operator.stdout, /kb capture-source --json @payload\.json/);
+  assert.match(operator.stdout, /kb review-proposal --id PROPOSAL_ID --json @payload\.json/);
+  assert.match(operator.stdout, /kb apply-proposal --id PROPOSAL_ID/);
+  assert.match(operator.stdout, /kb debt/);
   assert.match(operator.stdout, /Use these only for direct KB repair, cleanup, or inspection\./);
 });
 

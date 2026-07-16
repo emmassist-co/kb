@@ -74,4 +74,4 @@ A KB recipe is an agent playbook, not a KB workflow engine. Each recipe should n
 - verification commands
 - non-goals and safety boundaries
 
-Recipes may describe how an agent can produce a proposal for human review. They must not imply KB will execute the proposal, detect issues by itself, or maintain state between runs.
+Recipes may describe how an agent can submit a reviewable proposal and how an authorized operator can apply it. They must not imply KB will author the proposal, approve it, detect issues by itself, or maintain recipe state between runs.

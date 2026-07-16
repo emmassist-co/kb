@@ -36,8 +36,8 @@ Use this file as the merged-work ledger for `kb/`.
 
 - Area: kb-core, kb-http, kb-mcp, kb-cli, storage adapters, flue adapter, docs
 - Merged to `main`: yes
-- Commit / PR: PR #16, merge commit `e1a76eb`; direct release patch commit for `kb-core@0.6.1`
-- Feature summary: added trust/currentness metadata to retrieval, entity evidence and decision views, promotion proposal/review/application workflows, memory debt summaries, read-only recall bundles, persisted proposal/review state in file/R2-backed stores, HTTP/MCP/CLI surfaces, and package version bumps (`kb-core` 0.6.1, `kb-http` 0.6.0, `kb-mcp` 0.2.0, storage adapters 0.3.0, `kb-cli` 1.10.0, `kb-flue-adapter` 0.7.0).
+- Commit / PR: PR #16, merge commit `e1a76eb`; direct release patch commit for `kb-core@0.6.1`; follow-up PR #17 for Flue/skill readiness
+- Feature summary: added trust/currentness metadata to retrieval, entity evidence and decision views, promotion proposal/review/application workflows, memory debt summaries, read-only recall bundles, persisted proposal/review state in file/R2-backed stores, HTTP/MCP/CLI surfaces, packaged agent skill/recipe guidance, Flue runtime contract help, and package version bumps (`kb-core` 0.6.1, `kb-http` 0.6.0, `kb-mcp` 0.2.0, storage adapters 0.3.0, `kb-cli` 1.10.0, `kb-flue-adapter` 0.7.0).
 - Customer-visible impact: agents and operators can inspect source support and caveats before trusting KB results, route ambiguous raw evidence through explicit review before canonical writes, see memory debt, and request caller-triggered recall context without KB owning autonomous memory orchestration.
 - Deployment status: released
 - Deployment date: 2026-07-16

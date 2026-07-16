@@ -32,6 +32,7 @@ Do not stop at "the Worker deployed." The setup is only complete when:
 - `backend` is `cloudflare`
 - `canonical` is `true`
 - `workspaceRole` is `canonical-production`
+- `trustSubstrate.version` is present and `recallMutatesState` is `false`
 - the target agent can connect with `KB_BASE_URL` and `KB_API_TOKEN`
 - the same secret can reach `/mcp`
 
@@ -79,8 +80,8 @@ npx wrangler deploy
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
 
-curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/capabilities" | jq
-curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/inspect" | jq
+curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/capabilities" | jq '.trustSubstrate'
+curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/inspect" | jq '{workspaceRole, trustSubstrate}'
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/doctor" | jq
 npx kb cloudflare verify --workspace-id <workspace-id>
 ```
@@ -106,7 +107,8 @@ For remote agent use, prefer the existing HTTP mode rather than inventing a seco
 ```bash
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
-npx kb search --json '{"query":"billing"}'
+npx kb search --json '{"query":"billing","temporalFocus":"current"}'
+npx kb recall --json '{"query":"billing","purpose":"pre-answer context"}'
 ```
 
 That gives the agent one stable contract regardless of whether the backing store is local or canonical Cloudflare.

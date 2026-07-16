@@ -2,7 +2,7 @@
 
 Agents think. KB stores, validates, retrieves, relates, and exposes evidence.
 
-These recipes are markdown playbooks for external agents. They do not define a scheduler, run state, machine-readable manifest, proposal executor, or KB-side reasoning workflow. The agent or runtime chooses when to run a recipe, reads any external inputs, makes the judgment call, prepares normal KB payloads, validates them, and applies only authorized writes.
+These recipes are markdown playbooks for external agents. They do not define a scheduler, run state, machine-readable manifest, KB-side reasoning workflow, or autonomous proposal author/approver. The agent or runtime chooses when to run a recipe, reads any external inputs, makes the judgment call, prepares normal KB payloads or proposal records, validates them, and applies only authorized writes.
 
 ## Choose A Recipe
 
@@ -13,7 +13,7 @@ These recipes are markdown playbooks for external agents. They do not define a s
 | Propagate a user correction | [`agent-correction-sweep.md`](./agent-correction-sweep.md) | correction capture, canonical updates, relation writes, verification reads | interpreting the correction and affected records |
 | Curate explicit graph edges | [`agent-relation-curation.md`](./agent-relation-curation.md) | relation validation/storage and graph traversal | inferring whether the relationship is true and supported |
 | Review current truth against newer evidence | [`agent-stale-knowledge-review.md`](./agent-stale-knowledge-review.md) | current records, timelines, sources, events, and validation | deciding whether knowledge is stale and what update is warranted |
-| Hand off proposed writes for approval | [`proposal-format.md`](./proposal-format.md) | existing per-command validation | proposal construction and approval routing |
+| Hand off proposed writes for approval | [`proposal-format.md`](./proposal-format.md) | proposal storage, review status, authorized apply, existing per-command validation | proposal construction, evidence selection, and approval routing |
 
 ## Manual Smoke-Test Checklist
 
@@ -38,30 +38,40 @@ Use this checklist when a human wants to clear the changelog's human-testing fie
    ./node_modules/@emmassist-co/kb-cli/recipes/agent-correction-sweep.md
    ```
 
-4. Prepare one disposable proposed write from the recipe, such as a `remember` correction payload.
+4. Prepare one disposable proposed write from the recipe, such as a `remember` correction payload or a `submit-proposal` wrapper around it.
 
-5. Validate the payload before any mutation.
+5. Validate the inner payload before any mutation.
 
    ```bash
-   kb-local validate remember --json @payload.json
+   kb validate remember --json @payload.json
    ```
 
-6. If using a disposable local KB and authorized to mutate, apply the payload and verify it through reads.
+6. If using a disposable local KB and authorized to mutate, submit or apply the payload and verify it through trust-aware reads.
 
    ```bash
    export KB_ROOT_DIR="$PWD/.kb-smoke"
-   kb-local remember --json @payload.json
-   kb-local search --json '{"query":"correction"}'
-   kb-local doctor
+   kb remember --json @payload.json
+   kb search --json '{"query":"correction","temporalFocus":"current"}'
+   kb evidence --id <entity-id>
+   kb debt
+   kb doctor
    ```
 
-7. Report the exact package version, skill path, recipe path, validation command, optional write command, and verification command back into `CHANGELOG.md` before marking human testing passed.
+7. If exercising the review flow, submit, review, apply, and verify a disposable proposal.
+
+   ```bash
+   kb submit-proposal --json @proposal.json
+   kb review-proposal --id proposal_smoke --json '{"status":"approved","reviewer":"operator"}'
+   kb apply-proposal --id proposal_smoke --applied-by operator
+   ```
+
+8. Report the exact package version, skill path, recipe path, validation command, optional write/proposal command, and verification command back into `CHANGELOG.md` before marking human testing passed.
 
 ## Non-Goals
 
 - No machine-readable recipe manifest.
 - No recipe state or checkpoints in KB.
 - No KB-owned scheduler or background run.
-- No proposal executor or generic apply command.
+- No KB-authored proposals, KB-owned approval policy, or autonomous proposal arbitration.
 - No KB-side document ingestion, contradiction detection, duplicate detection, stale detection, relation suggestion, or truth regeneration.
 - No MCP tools or runtime-skill copies.
