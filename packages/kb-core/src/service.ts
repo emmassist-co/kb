@@ -20,6 +20,7 @@ import {
   buildConsolidatedEntity,
   buildId,
   buildSearchGraphBoostResults,
+  buildTrustEnvelope,
   compactExcerpt,
   computeProfileQueryBias,
   computeIdentityQueryBias,
@@ -68,14 +69,27 @@ import type {
   KnowledgeLink,
   KnowledgeLinkRule,
   KnowledgeDoctorIssueDetail,
+  KnowledgeDecisionView,
+  KnowledgeMemoryDebtItem,
+  KnowledgeEntityEvidenceView,
+  KnowledgeEvidenceSourceSummary,
   KnowledgeRelationQueryInput,
   KnowledgeRelationQueryResult,
   KnowledgeMutationResult,
+  KnowledgePromotionOperation,
+  KnowledgePromotionProposal,
+  KnowledgePromotionStatus,
+  KnowledgeRecallBundle,
+  KnowledgeRecallClaim,
+  KnowledgeRecallInput,
   KnowledgeReplayRecord,
   KnowledgeReplaySummary,
   KnowledgeSearchExplanation,
   KnowledgeSearchInput,
   KnowledgeSearchResult,
+  KnowledgeTrustCaveat,
+  KnowledgeReviewItem,
+  KnowledgeReviewItemStatus,
   SourceDocument
 } from './types.js';
 
@@ -405,6 +419,219 @@ export class KnowledgeBaseService {
     if (!draft) throw new Error(`Knowledge draft not found: ${entityId}`);
     await this.store.deleteDraft(entityId);
     return { entityId, deleted: true };
+  }
+
+  async listPromotionProposals(): Promise<KnowledgePromotionProposal[]> {
+    return this.requireProposalStore().listPromotionProposals();
+  }
+
+  async getPromotionProposal(proposalId: string): Promise<KnowledgePromotionProposal> {
+    const proposal = await this.requireProposalStore().getPromotionProposal(proposalId);
+    if (!proposal) throw new Error(`Promotion proposal not found: ${proposalId}`);
+    return proposal;
+  }
+
+  async submitPromotionProposal(input: {
+    id?: string;
+    operation: KnowledgePromotionOperation;
+    payload: Record<string, unknown>;
+    title?: string;
+    summary?: string;
+    targetEntityIds?: string[];
+    sourceIds?: string[];
+    submittedBy?: string;
+    warnings?: string[];
+  }): Promise<KnowledgePromotionProposal> {
+    const now = new Date().toISOString();
+    const proposal: KnowledgePromotionProposal = {
+      id: input.id ?? buildId('proposal'),
+      tenantId: this.tenantId,
+      status: 'review_pending',
+      operation: input.operation,
+      payload: { ...input.payload },
+      title: input.title,
+      summary: input.summary,
+      targetEntityIds: uniqueStrings(input.targetEntityIds ?? inferProposalTargetEntityIds(input.operation, input.payload)),
+      sourceIds: uniqueStrings(input.sourceIds ?? inferProposalSourceIds(input.operation, input.payload)),
+      warnings: uniqueStrings(input.warnings ?? []),
+      submittedBy: input.submittedBy,
+      createdAt: now,
+      updatedAt: now
+    };
+    await this.requireProposalStore().putPromotionProposal(proposal);
+    await this.createReviewItem({
+      id: `review_${proposal.id}`,
+      type: 'promotion',
+      status: 'open',
+      severity: proposal.warnings.length > 0 ? 'warning' : 'info',
+      title: proposal.title ?? `Review proposal ${proposal.id}`,
+      summary: proposal.summary ?? `Review ${proposal.operation} proposal ${proposal.id}.`,
+      targetIds: proposal.targetEntityIds,
+      sourceIds: proposal.sourceIds,
+      proposalId: proposal.id,
+      nextAction: 'review_promotion_proposal'
+    });
+    return proposal;
+  }
+
+  async reviewPromotionProposal(input: {
+    proposalId: string;
+    status: Extract<KnowledgePromotionStatus, 'approved' | 'rejected' | 'needs_more_evidence' | 'archived'>;
+    reviewer?: string;
+    notes?: string;
+  }): Promise<KnowledgePromotionProposal> {
+    const store = this.requireProposalStore();
+    const proposal = await this.getPromotionProposal(input.proposalId);
+    const now = new Date().toISOString();
+    const next: KnowledgePromotionProposal = {
+      ...proposal,
+      status: input.status,
+      reviewedBy: input.reviewer,
+      reviewNotes: input.notes,
+      reviewedAt: now,
+      updatedAt: now
+    };
+    await store.putPromotionProposal(next);
+    await this.updateReviewItem({
+      itemId: `review_${proposal.id}`,
+      status: input.status === 'approved' ? 'approved' : input.status === 'rejected' ? 'rejected' : input.status === 'archived' ? 'resolved' : 'blocked',
+      reviewer: input.reviewer,
+      notes: input.notes
+    });
+    return next;
+  }
+
+  async applyPromotionProposal(input: { proposalId: string; appliedBy?: string }): Promise<{ proposal: KnowledgePromotionProposal; mutation: KnowledgeMutationResult }> {
+    const store = this.requireProposalStore();
+    const proposal = await this.getPromotionProposal(input.proposalId);
+    if (proposal.status !== 'approved') {
+      throw new Error(`Promotion proposal ${proposal.id} must be approved before apply; current status is ${proposal.status}`);
+    }
+    const mutation = await this.applyProposalOperation(proposal.operation, proposal.payload);
+    const now = new Date().toISOString();
+    const next: KnowledgePromotionProposal = {
+      ...proposal,
+      status: 'applied',
+      appliedMutation: mutation,
+      appliedAt: now,
+      updatedAt: now,
+      reviewNotes: proposal.reviewNotes ?? (input.appliedBy ? `Applied by ${input.appliedBy}.` : undefined)
+    };
+    await store.putPromotionProposal(next);
+    await this.updateReviewItem({
+      itemId: `review_${proposal.id}`,
+      status: 'applied',
+      reviewer: input.appliedBy,
+      notes: 'Promotion applied.'
+    });
+    return { proposal: next, mutation };
+  }
+
+  async listReviewItems(): Promise<KnowledgeReviewItem[]> {
+    return this.requireReviewStore().listReviewItems();
+  }
+
+  async createReviewItem(input: {
+    id?: string;
+    type: KnowledgeReviewItem['type'];
+    status?: KnowledgeReviewItemStatus;
+    severity?: KnowledgeReviewItem['severity'];
+    title: string;
+    summary: string;
+    targetIds?: string[];
+    sourceIds?: string[];
+    relatedIds?: string[];
+    proposalId?: string;
+    assignedTo?: string;
+    reviewer?: string;
+    notes?: string;
+    nextAction?: string;
+  }): Promise<KnowledgeReviewItem> {
+    const now = new Date().toISOString();
+    const item: KnowledgeReviewItem = {
+      id: input.id ?? buildId('review'),
+      tenantId: this.tenantId,
+      type: input.type,
+      status: input.status ?? 'open',
+      severity: input.severity ?? 'info',
+      title: input.title,
+      summary: input.summary,
+      targetIds: uniqueStrings(input.targetIds ?? []),
+      sourceIds: uniqueStrings(input.sourceIds ?? []),
+      relatedIds: uniqueStrings(input.relatedIds ?? []),
+      proposalId: input.proposalId,
+      assignedTo: input.assignedTo,
+      reviewer: input.reviewer,
+      notes: input.notes,
+      nextAction: input.nextAction,
+      createdAt: now,
+      updatedAt: now
+    };
+    await this.requireReviewStore().putReviewItem(item);
+    return item;
+  }
+
+  async updateReviewItem(input: {
+    itemId: string;
+    status: KnowledgeReviewItemStatus;
+    assignedTo?: string;
+    reviewer?: string;
+    notes?: string;
+  }): Promise<KnowledgeReviewItem> {
+    const store = this.requireReviewStore();
+    const current = await store.getReviewItem(input.itemId);
+    if (!current) throw new Error(`Review item not found: ${input.itemId}`);
+    const resolvedStatuses: KnowledgeReviewItemStatus[] = ['applied', 'resolved', 'rejected', 'duplicate', 'invalidated'];
+    const now = new Date().toISOString();
+    const next: KnowledgeReviewItem = {
+      ...current,
+      status: input.status,
+      assignedTo: input.assignedTo ?? current.assignedTo,
+      reviewer: input.reviewer ?? current.reviewer,
+      notes: input.notes ?? current.notes,
+      updatedAt: now,
+      resolvedAt: resolvedStatuses.includes(input.status) ? now : current.resolvedAt
+    };
+    await store.putReviewItem(next);
+    return next;
+  }
+
+  async memoryDebt(): Promise<{ ok: boolean; items: KnowledgeMemoryDebtItem[]; reviewItems: KnowledgeReviewItem[] }> {
+    const doctor = await this.doctor();
+    const reviewItems = await this.safeListReviewItems();
+    const linkedTargets = new Map<string, KnowledgeReviewItem>();
+    for (const item of reviewItems) {
+      for (const targetId of [...item.targetIds, ...item.sourceIds, ...item.relatedIds]) {
+        linkedTargets.set(`${item.type}:${targetId}`, item);
+      }
+    }
+    const items: KnowledgeMemoryDebtItem[] = doctor.details.map((detail) => {
+      const type = debtTypeFromDoctorCode(detail.code);
+      const targetIds = uniqueStrings([detail.entityId, detail.linkId, detail.eventId].filter((value): value is string => Boolean(value)));
+      const sourceIds = uniqueStrings([detail.sourceId].filter((value): value is string => Boolean(value)));
+      const relatedIds = uniqueStrings(detail.relatedIds ?? []);
+      const linkKey = [...targetIds, ...sourceIds, ...relatedIds].map((id) => `${type}:${id}`).find((key) => linkedTargets.has(key));
+      const reviewItem = linkKey ? linkedTargets.get(linkKey) : undefined;
+      return {
+        id: `debt_${detail.code}_${[...targetIds, ...sourceIds, ...relatedIds].join('_') || 'workspace'}`,
+        tenantId: this.tenantId,
+        type,
+        status: reviewItem ? 'linked_to_review' : 'open',
+        severity: detail.severity === 'error' ? 'error' : 'warning',
+        title: detail.code,
+        summary: detail.message,
+        targetIds,
+        sourceIds,
+        relatedIds,
+        reviewItemId: reviewItem?.id,
+        nextAction: detail.nextAction
+      };
+    });
+    return {
+      ok: items.length === 0,
+      items,
+      reviewItems
+    };
   }
 
   async listRelations(input: {
@@ -840,7 +1067,7 @@ export class KnowledgeBaseService {
         query: effectiveQuery,
         assistedQuery: undefined,
         mode,
-        results: relation.results
+        results: this.applySearchIntent(await this.hydrateSearchResultTrust(relation.results), input)
       };
       if (input.captureReplay !== false) {
         await this.captureReplay({
@@ -849,7 +1076,7 @@ export class KnowledgeBaseService {
           lexicalBackend,
           limit: input.limit ?? 10,
           durationMs: Date.now() - startedAt,
-          resultIds: relation.results.map((result) => result.id),
+          resultIds: response.results.map((result) => result.id),
           relationType: relation.classification.relationType,
           anchorId: relation.classification.anchorId
         });
@@ -866,7 +1093,7 @@ export class KnowledgeBaseService {
       query: effectiveQuery,
       assistedQuery: lexical.assistedQuery,
       mode,
-      results: lexical.results
+      results: this.applySearchIntent(await this.hydrateSearchResultTrust(lexical.results), input)
     };
     if (input.captureReplay !== false) {
       await this.captureReplay({
@@ -875,7 +1102,7 @@ export class KnowledgeBaseService {
         lexicalBackend,
         limit: input.limit ?? 10,
         durationMs: Date.now() - startedAt,
-        resultIds: lexical.results.map((result) => result.id),
+        resultIds: response.results.map((result) => result.id),
         relationType: relationClassificationOrNull(effectiveQuery),
         anchorId: null
       });
@@ -937,7 +1164,7 @@ export class KnowledgeBaseService {
           candidateRelationTypes: classification.candidateRelationTypes ?? [],
           intent
         },
-        results: degradedResults,
+        results: await this.hydrateSearchResultTrust(degradedResults),
         traversedLinks: [] as KnowledgeLink[]
       };
       if (input.captureReplay !== false) {
@@ -966,7 +1193,7 @@ export class KnowledgeBaseService {
           candidateRelationTypes: classification.candidateRelationTypes ?? [],
           intent
         },
-        results: graphResults.map((result) => ({ ...result, retrievalMode: 'graph-only' as const })),
+        results: await this.hydrateSearchResultTrust(graphResults.map((result) => ({ ...result, retrievalMode: 'graph-only' as const }))),
         traversedLinks
       };
       if (input.captureReplay !== false) {
@@ -1004,7 +1231,7 @@ export class KnowledgeBaseService {
         candidateRelationTypes: classification.candidateRelationTypes ?? [],
         intent
       },
-      results: graphHybridResults,
+      results: await this.hydrateSearchResultTrust(graphHybridResults),
       traversedLinks
     };
     if (input.captureReplay !== false) {
@@ -1028,6 +1255,175 @@ export class KnowledgeBaseService {
       id,
       outgoing: links.filter((link) => link.fromId === id),
       incoming: links.filter((link) => link.toId === id)
+    };
+  }
+
+  async recall(input: KnowledgeRecallInput): Promise<KnowledgeRecallBundle> {
+    const maxTokens = Math.max(64, input.maxTokens ?? 1200);
+    const temporalFocus = input.temporalFocus ?? 'current';
+    const resultIds = new Set<string>(input.entityIds ?? []);
+    if (input.query) {
+      const search = await this.search({ query: input.query, limit: input.limit ?? 5, mode: 'graph-first-hybrid' });
+      for (const result of search.results) {
+        if (result.kind === 'entity') resultIds.add(result.id);
+      }
+    }
+    const views: KnowledgeEntityEvidenceView[] = [];
+    for (const entityId of resultIds) {
+      try {
+        views.push(await this.evidence(entityId));
+      } catch {
+        // Recall bundles are best-effort; missing entity IDs are reported as omitted below.
+      }
+    }
+    const rawClaims = views.flatMap((view) => view.currentTruth.claims.map((claim) => ({ view, claim })));
+    const claims: KnowledgeRecallClaim[] = [];
+    const omitted: KnowledgeRecallBundle['omitted'] = [];
+    for (const entry of rawClaims) {
+      if (temporalFocus === 'current' && ['historical', 'superseded', 'raw'].includes(entry.claim.trust.currentness)) {
+        omitted.push({ id: entry.claim.id, reason: `excluded_by_temporal_focus:${entry.claim.trust.currentness}` });
+        continue;
+      }
+      const next: KnowledgeRecallClaim = {
+        id: entry.claim.id,
+        entityId: entry.view.id,
+        text: entry.claim.text,
+        sourceIds: entry.claim.sourceIds,
+        trust: entry.claim.trust
+      };
+      claims.push(next);
+    }
+    const buildExtras = () => {
+      const includedEntityIds = new Set(claims.map((claim) => claim.entityId));
+      const includedSourceIds = new Set(claims.flatMap((claim) => claim.sourceIds));
+      const decisions = views
+        .filter((view) => includedEntityIds.has(view.id))
+        .map((view) => view.decision)
+        .filter((decision): decision is NonNullable<typeof decision> => Boolean(decision));
+      const citations = uniqueEvidenceSources(
+        views
+          .filter((view) => includedEntityIds.has(view.id))
+          .flatMap((view) => [...view.sources, ...view.rawEvidence])
+          .filter((source) => includedSourceIds.has(source.id))
+      );
+      const caveats = uniqueTrustCaveats([
+        ...views.filter((view) => includedEntityIds.has(view.id)).flatMap((view) => view.caveats),
+        ...claims.flatMap((claim) => claim.trust.caveats)
+      ]);
+      const estimatedTokens = estimateTokens(JSON.stringify({ claims, decisions, caveats, citations }));
+      return { decisions, citations, caveats, estimatedTokens };
+    };
+    let extras = buildExtras();
+    while (extras.estimatedTokens > maxTokens && claims.length > 0) {
+      const removed = claims.pop();
+      if (removed) omitted.push({ id: removed.id, reason: 'max_tokens' });
+      extras = buildExtras();
+    }
+    const { decisions, citations, caveats, estimatedTokens } = extras;
+    for (const entityId of resultIds) {
+      if (!views.some((view) => view.id === entityId)) omitted.push({ id: entityId, reason: 'entity_not_found' });
+    }
+    return {
+      purpose: input.purpose,
+      query: input.query,
+      temporalFocus,
+      generatedAt: new Date().toISOString(),
+      maxTokens,
+      estimatedTokens,
+      claims,
+      decisions,
+      caveats,
+      citations,
+      omitted
+    };
+  }
+
+  async evidence(entityId: string): Promise<KnowledgeEntityEvidenceView> {
+    const markdown = await this.store.getEntityMarkdown(entityId);
+    if (!markdown) throw new Error(`Entity not found: ${entityId}`);
+    const entity = parseEntityDocument(markdown);
+    const [entities, sources, events, links] = await Promise.all([
+      this.loadEntities(),
+      this.loadSources(),
+      this.loadEvents(),
+      this.store.listLinks()
+    ]);
+    const relations = links
+      .filter((link) => link.fromId === entityId || link.toId === entityId)
+      .sort((left, right) => left.type.localeCompare(right.type) || left.id.localeCompare(right.id));
+    const relatedEvents = events.filter((event) => event.entityIds.includes(entityId));
+    const supportingSourceIds = uniqueStrings([
+      ...entity.sources,
+      ...entity.meta.sources,
+      ...relations.flatMap((link) => link.sourceIds),
+      ...relatedEvents.flatMap((event) => event.sourceIds)
+    ]);
+    const trust = buildTrustEnvelope({
+      result: this.entityTrustResult(entity, supportingSourceIds, relations),
+      entities,
+      sources,
+      links
+    });
+    const sourceSummaries = sources
+      .filter((source) => supportingSourceIds.includes(source.meta.id))
+      .map((source) => this.sourceEvidenceSummary(source, entities, sources, links));
+    const rawEvidence = sources
+      .filter((source) => Boolean(source.meta.rawSourceRef) && (source.meta.linkedEntities.includes(entityId) || supportingSourceIds.includes(source.meta.id)))
+      .map((source) => this.sourceEvidenceSummary(source, entities, sources, links));
+    const claimTexts = splitEvidenceClaims(entity.currentTruth);
+    const claims = claimTexts.map((text, index) => {
+      const support = findClaimSupport(text, {
+        sources: sources.filter((source) => supportingSourceIds.includes(source.meta.id)),
+        events: relatedEvents,
+        links: relations
+      });
+      const isSingleClaimFallback = claimTexts.length === 1 && supportingSourceIds.length > 0;
+      const sourceIds = support.sourceIds.length > 0 ? support.sourceIds : (isSingleClaimFallback ? supportingSourceIds : []);
+      const eventIds = support.eventIds.length > 0 ? support.eventIds : (isSingleClaimFallback ? relatedEvents.map((event) => event.id) : []);
+      const linkIds = support.linkIds.length > 0 ? support.linkIds : (isSingleClaimFallback ? relations.map((link) => link.id) : []);
+      const hasClaimSupport = sourceIds.length > 0 || eventIds.length > 0 || linkIds.length > 0;
+      const claimTrust = hasClaimSupport
+        ? trust
+        : {
+            ...trust,
+            caveats: uniqueTrustCaveats([
+              ...trust.caveats,
+              {
+                code: 'unsupported_current_truth' as const,
+                severity: 'warning' as const,
+                message: 'Current-truth claim has no linked source evidence.'
+              }
+            ])
+          };
+      return {
+        id: `${entity.meta.id}:claim:${index + 1}`,
+        text,
+        sourceIds,
+        eventIds,
+        linkIds,
+        trust: claimTrust
+      };
+    });
+    const decision = entity.meta.kind === 'decision'
+      ? this.buildDecisionView(entity, trust, supportingSourceIds, relatedEvents)
+      : undefined;
+    return {
+      id: entity.meta.id,
+      entity,
+      trust,
+      currentTruth: {
+        text: entity.currentTruth,
+        claims
+      },
+      sources: sourceSummaries,
+      events: relatedEvents,
+      relations,
+      rawEvidence,
+      supersedes: entity.meta.supersedes ?? [],
+      supersededBy: trust.supersededBy,
+      openQuestions: entity.openQuestions,
+      decision,
+      caveats: trust.caveats
     };
   }
 
@@ -1349,7 +1745,9 @@ export class KnowledgeBaseService {
       sources: await this.loadSources(),
       events: await this.loadEvents(),
       drafts: await this.listDrafts(),
-      links: await this.store.listLinks()
+      links: await this.store.listLinks(),
+      proposals: this.store.listPromotionProposals ? await this.store.listPromotionProposals() : [],
+      reviewItems: this.store.listReviewItems ? await this.store.listReviewItems() : []
     };
   }
 
@@ -1477,6 +1875,49 @@ export class KnowledgeBaseService {
     };
   }
 
+  private requireProposalStore(): Required<Pick<KnowledgeStore, 'getPromotionProposal' | 'putPromotionProposal' | 'listPromotionProposals' | 'deletePromotionProposal'>> {
+    const store = this.store;
+    if (!store.getPromotionProposal || !store.putPromotionProposal || !store.listPromotionProposals || !store.deletePromotionProposal) {
+      throw new Error('Promotion proposals are not supported by this knowledge store');
+    }
+    return {
+      getPromotionProposal: store.getPromotionProposal.bind(store),
+      putPromotionProposal: store.putPromotionProposal.bind(store),
+      listPromotionProposals: store.listPromotionProposals.bind(store),
+      deletePromotionProposal: store.deletePromotionProposal.bind(store)
+    };
+  }
+
+  private requireReviewStore(): Required<Pick<KnowledgeStore, 'getReviewItem' | 'putReviewItem' | 'listReviewItems' | 'deleteReviewItem'>> {
+    const store = this.store;
+    if (!store.getReviewItem || !store.putReviewItem || !store.listReviewItems || !store.deleteReviewItem) {
+      throw new Error('Review items are not supported by this knowledge store');
+    }
+    return {
+      getReviewItem: store.getReviewItem.bind(store),
+      putReviewItem: store.putReviewItem.bind(store),
+      listReviewItems: store.listReviewItems.bind(store),
+      deleteReviewItem: store.deleteReviewItem.bind(store)
+    };
+  }
+
+  private async safeListReviewItems(): Promise<KnowledgeReviewItem[]> {
+    return this.store.listReviewItems ? this.store.listReviewItems() : [];
+  }
+
+  private async applyProposalOperation(operation: KnowledgePromotionOperation, payload: Record<string, unknown>): Promise<KnowledgeMutationResult> {
+    switch (operation) {
+      case 'record':
+        return this.record(payload as Parameters<KnowledgeBaseService['record']>[0]);
+      case 'remember':
+        return this.remember(payload as Parameters<KnowledgeBaseService['remember']>[0]);
+      case 'relate':
+        return this.relate(payload as Parameters<KnowledgeBaseService['relate']>[0]);
+      case 'annotate':
+        return this.annotate(payload as Parameters<KnowledgeBaseService['annotate']>[0]);
+    }
+  }
+
   private async loadEntities(): Promise<EntityDocument[]> {
     const docs = await this.store.listEntityMarkdown();
     return docs.map((entry) => parseEntityDocument(entry.markdown));
@@ -1500,6 +1941,106 @@ export class KnowledgeBaseService {
       const created = left.createdAt.localeCompare(right.createdAt);
       return created !== 0 ? created : left.id.localeCompare(right.id);
     });
+  }
+
+  private async hydrateSearchResultTrust(results: KnowledgeSearchResult[]): Promise<KnowledgeSearchResult[]> {
+    if (results.length === 0) return results;
+    const [entities, sources, links] = await Promise.all([
+      this.loadEntities(),
+      this.loadSources(),
+      this.store.listLinks()
+    ]);
+    return results.map((result) => ({
+      ...result,
+      trust: buildTrustEnvelope({ result, entities, sources, links })
+    }));
+  }
+
+  private applySearchIntent(results: KnowledgeSearchResult[], input: Pick<KnowledgeSearchInput, 'temporalFocus' | 'evidenceOnly'>): KnowledgeSearchResult[] {
+    return results.filter((result) => {
+      const trust = result.trust;
+      if (!trust) return true;
+      if (input.evidenceOnly && !['supporting_evidence', 'raw_evidence', 'timeline_evidence', 'relation_evidence'].includes(trust.evidenceRole)) {
+        return false;
+      }
+      if (input.temporalFocus === 'current') {
+        return !['historical', 'superseded', 'raw'].includes(trust.currentness);
+      }
+      if (input.temporalFocus === 'historical') {
+        return ['historical', 'superseded'].includes(trust.currentness);
+      }
+      return true;
+    });
+  }
+
+  private entityTrustResult(entity: EntityDocument, sourceIds: string[], relations: KnowledgeLink[]): KnowledgeSearchResult {
+    return {
+      id: entity.meta.id,
+      kind: 'entity',
+      entityKind: entity.meta.kind,
+      title: entity.meta.title,
+      score: 0,
+      reason: ['entity-evidence-view'],
+      matchedFields: ['entity'],
+      sourceIds: uniqueStrings(sourceIds),
+      confidence: entity.meta.confidence,
+      ambiguous: false,
+      excerpt: compactExcerpt(entity.currentTruth || entity.timeline[0] || entity.meta.title),
+      relationTypes: uniqueStrings(relations.map((link) => link.type))
+    };
+  }
+
+  private sourceEvidenceSummary(
+    source: SourceDocument,
+    entities: EntityDocument[],
+    sources: SourceDocument[],
+    links: KnowledgeLink[]
+  ): KnowledgeEvidenceSourceSummary {
+    const result: KnowledgeSearchResult = {
+      id: source.meta.id,
+      kind: 'source',
+      title: source.meta.title,
+      score: 0,
+      reason: ['source-evidence-view'],
+      matchedFields: ['source'],
+      sourceIds: [source.meta.id],
+      confidence: 'medium',
+      ambiguous: false,
+      excerpt: compactExcerpt(source.summary || source.content || source.meta.title)
+    };
+    return {
+      id: source.meta.id,
+      kind: source.meta.kind,
+      title: source.meta.title,
+      summary: source.summary,
+      rawSourceRef: source.meta.rawSourceRef,
+      freshnessStatus: source.meta.freshnessStatus,
+      lastReviewedAt: source.meta.lastReviewedAt,
+      trust: buildTrustEnvelope({ result, entities, sources, links })
+    };
+  }
+
+  private buildDecisionView(
+    entity: EntityDocument,
+    trust: NonNullable<KnowledgeSearchResult['trust']>,
+    sourceIds: string[],
+    events: KnowledgeEvent[]
+  ): KnowledgeDecisionView {
+    const fields = parseDecisionFields(entity.currentTruth);
+    return {
+      id: entity.meta.id,
+      title: entity.meta.title,
+      status: entity.meta.status ?? fields.status ?? 'accepted',
+      decidedAt: fields.decidedAt ?? events[0]?.createdAt,
+      effectiveAt: fields.effectiveAt,
+      owner: fields.owner ?? entity.meta.owners[0],
+      rationale: fields.rationale,
+      alternatives: fields.alternatives,
+      sourceIds: uniqueStrings(sourceIds),
+      supersedes: entity.meta.supersedes ?? [],
+      supersededBy: trust.supersededBy,
+      trust
+    };
   }
 
   private async filterRelations(input: {
@@ -2326,6 +2867,157 @@ function computeConnectedAnchorBias(input: {
     scoreAdjustment: Math.min(6, 3 + anchorMatches.length * 1.5),
     reason: anchorMatches.map((entity) => `connected-anchor:${entity.meta.id}`)
   };
+}
+
+function inferProposalTargetEntityIds(operation: KnowledgePromotionOperation, payload: Record<string, unknown>): string[] {
+  if (operation === 'record') {
+    const entity = readObject(payload.entity);
+    return uniqueStrings([
+      readStringValue(entity?.id),
+      ...readArrayObjects(payload.relatedEntities).map((entry) => readStringValue(entry.id)).filter((value): value is string => Boolean(value))
+    ].filter((value): value is string => Boolean(value)));
+  }
+  if (operation === 'remember') {
+    return uniqueStrings(readArrayObjects(payload.entities).map((entry) => readStringValue(entry.id)).filter((value): value is string => Boolean(value)));
+  }
+  if (operation === 'relate') {
+    return uniqueStrings([readStringValue(payload.fromId), readStringValue(payload.toId)].filter((value): value is string => Boolean(value)));
+  }
+  if (operation === 'annotate') {
+    return uniqueStrings(readStringArrayValue(payload.entityIds ?? payload.entity_ids));
+  }
+  return [];
+}
+
+function inferProposalSourceIds(operation: KnowledgePromotionOperation, payload: Record<string, unknown>): string[] {
+  if (operation === 'record') {
+    return uniqueStrings(readArrayObjects(payload.sources).map((entry) => readStringValue(entry.id)).filter((value): value is string => Boolean(value)));
+  }
+  if (operation === 'remember') {
+    const source = readObject(payload.source);
+    return uniqueStrings([readStringValue(source?.id)].filter((value): value is string => Boolean(value)));
+  }
+  if (operation === 'relate') return uniqueStrings(readStringArrayValue(payload.sourceIds ?? payload.source_ids));
+  if (operation === 'annotate') return uniqueStrings(readStringArrayValue(payload.sourceIds ?? payload.source_ids));
+  return [];
+}
+
+function debtTypeFromDoctorCode(code: string): KnowledgeReviewItem['type'] {
+  if (/duplicate/.test(code)) return 'duplicate';
+  if (/contradict|conflict/.test(code)) return 'conflict';
+  if (/freshness|stale/.test(code)) return 'stale';
+  if (/source|provenance/.test(code)) return 'provenance';
+  if (/missing|dangling|link/.test(code)) return 'dangling';
+  return 'other';
+}
+
+function readObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function readArrayObjects(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value) ? value.map(readObject).filter((entry): entry is Record<string, unknown> => Boolean(entry)) : [];
+}
+
+function readStringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readStringArrayValue(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(readStringValue).filter((entry): entry is string => Boolean(entry)) : [];
+}
+
+function estimateTokens(text: string): number {
+  return Math.ceil(Buffer.byteLength(text, 'utf8') / 4);
+}
+
+function uniqueEvidenceSources(sources: KnowledgeEvidenceSourceSummary[]): KnowledgeEvidenceSourceSummary[] {
+  const seen = new Set<string>();
+  const unique: KnowledgeEvidenceSourceSummary[] = [];
+  for (const source of sources) {
+    if (seen.has(source.id)) continue;
+    seen.add(source.id);
+    unique.push(source);
+  }
+  return unique;
+}
+
+function splitEvidenceClaims(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.replace(/^[-*]\s+/, '').trim())
+    .filter(Boolean);
+}
+
+function findClaimSupport(claim: string, input: {
+  sources: SourceDocument[];
+  events: KnowledgeEvent[];
+  links: KnowledgeLink[];
+}): { sourceIds: string[]; eventIds: string[]; linkIds: string[] } {
+  const sourceIds = input.sources
+    .filter((source) => textSupportsClaim(claim, [source.meta.title, source.summary, source.content].join(' ')))
+    .map((source) => source.meta.id);
+  const eventIds = input.events
+    .filter((event) => textSupportsClaim(claim, [event.summary, event.provenance ?? '', event.sourceIds.join(' ')].join(' ')))
+    .map((event) => event.id);
+  const linkIds = input.links
+    .filter((link) => textSupportsClaim(claim, [link.type, link.evidenceText ?? '', link.fromId, link.toId, link.sourceIds.join(' ')].join(' ')))
+    .map((link) => link.id);
+  return {
+    sourceIds: uniqueStrings(sourceIds),
+    eventIds: uniqueStrings(eventIds),
+    linkIds: uniqueStrings(linkIds)
+  };
+}
+
+function textSupportsClaim(claim: string, evidence: string): boolean {
+  const normalizedClaim = normalizeResolverText(claim);
+  const normalizedEvidence = normalizeResolverText(evidence);
+  if (!normalizedClaim || !normalizedEvidence) return false;
+  if (normalizedEvidence.includes(normalizedClaim)) return true;
+  const claimTokens = tokenizeLexicalQuery(claim).filter((token) => token.length > 2);
+  if (claimTokens.length === 0) return false;
+  const matched = claimTokens.filter((token) => normalizedEvidence.includes(token));
+  const required = claimTokens.length <= 2 ? claimTokens.length : Math.max(2, Math.ceil(claimTokens.length * 0.5));
+  return matched.length >= required;
+}
+
+function uniqueTrustCaveats(caveats: KnowledgeTrustCaveat[]): KnowledgeTrustCaveat[] {
+  const seen = new Set<string>();
+  const unique: KnowledgeTrustCaveat[] = [];
+  for (const caveat of caveats) {
+    const key = `${caveat.code}:${caveat.message}:${(caveat.relatedIds ?? []).join(',')}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(caveat);
+  }
+  return unique;
+}
+
+function parseDecisionFields(text: string): {
+  status?: string;
+  decidedAt?: string;
+  effectiveAt?: string;
+  owner?: string;
+  rationale?: string;
+  alternatives: string[];
+} {
+  const fields: ReturnType<typeof parseDecisionFields> = { alternatives: [] };
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.replace(/^[-*]\s+/, '').trim();
+    const separator = line.indexOf(':');
+    if (separator < 0) continue;
+    const label = line.slice(0, separator).trim().toLowerCase().replace(/\s+/g, '_');
+    const value = line.slice(separator + 1).trim();
+    if (!value) continue;
+    if (label === 'status') fields.status = value;
+    else if (label === 'decided_at' || label === 'decided') fields.decidedAt = value;
+    else if (label === 'effective_at' || label === 'effective') fields.effectiveAt = value;
+    else if (label === 'owner' || label === 'approver') fields.owner = value;
+    else if (label === 'rationale' || label === 'why') fields.rationale = value;
+    else if (label === 'alternative' || label === 'alternatives' || label === 'rejected_alternative') fields.alternatives.push(value);
+  }
+  return fields;
 }
 
 function applyCandidateRetrievalPlan(

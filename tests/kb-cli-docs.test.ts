@@ -278,7 +278,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(packageSkill, /kb validate record/);
   assert.match(packageSkill, /query-relations/);
 
-  assert.equal(kbCliPackage.version, '1.9.1');
+  assert.equal(kbCliPackage.version, '1.10.0');
   assert.ok(kbCliPackage.files.includes('skills'));
   assert.ok(kbCliPackage.files.includes('recipes'));
 

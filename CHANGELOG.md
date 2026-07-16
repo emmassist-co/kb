@@ -32,6 +32,26 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
+## 2026-07-16 - Add KB Trust Substrate
+
+- Area: kb-core, kb-http, kb-mcp, kb-cli, storage adapters, flue adapter, docs
+- Merged to `main`: no
+- Commit / PR: pending
+- Feature summary: added trust/currentness metadata to retrieval, entity evidence and decision views, promotion proposal/review/application workflows, memory debt summaries, read-only recall bundles, persisted proposal/review state in file/R2-backed stores, HTTP/MCP/CLI surfaces, and package version bumps (`kb-core` 0.6.0, `kb-http` 0.6.0, `kb-mcp` 0.2.0, storage adapters 0.3.0, `kb-cli` 1.10.0, `kb-flue-adapter` 0.7.0).
+- Customer-visible impact: agents and operators can inspect source support and caveats before trusting KB results, route ambiguous raw evidence through explicit review before canonical writes, see memory debt, and request caller-triggered recall context without KB owning autonomous memory orchestration.
+- Deployment status: pending
+- Deployment date:
+- Deployment environment:
+- Deployment evidence:
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
+- Human test flow: manually run a local KB workspace through `record`, `search`, `evidence`, `submit-proposal`, `review-proposal`, `apply-proposal`, `debt`, and `recall`, then verify the same read-only recall/evidence paths through HTTP or MCP.
+- Automated coverage: `node --import tsx/esm --test tests/kb-metadata.test.ts tests/kb-http.test.ts tests/kb-cli.test.ts tests/kb-mcp.test.ts tests/kb-flue-adapter.test.ts`; `node --import tsx/esm --test tests/kb-benchmark.test.ts tests/kb-cli-docs.test.ts`; `npm run typecheck`; `npm test`; `npm run verify:public-packages`; `npm run verify:kb:evals`; `npm run eval:kb:all -- --json`; `npm run eval:kb:admin-world -- --split dev --json`; `npm run eval:kb:admin-world -- --split holdout --json`; `npm run eval:kb:gbrain-evals-upstream`; `npm run eval:kb:gbrain-evals-upstream:kb`; `npm run eval:kb:gbrain-world -- --json`; `npm run smoke:kb-mcp -- --tenant-id trust-substrate-smoke`; `npm run smoke:kb-mcp -- --transport stdio --tenant-id trust-substrate-smoke-stdio`.
+- Needs iteration: no
+- Follow-up: none
+
 ## 2026-07-16 - Publish Compiled KB Core Patch
 
 - Area: package
@@ -43,35 +63,6 @@ Use this file as the merged-work ledger for `kb/`.
 - Deployment date: 2026-07-16
 - Deployment environment: GitHub Packages
 - Deployment evidence: published `@emmassist-co/kb-core@0.5.1`, `@emmassist-co/kb-http@0.5.1`, `@emmassist-co/kb-storage-file@0.2.5`, `@emmassist-co/kb-storage-cloudflare@0.2.5`, `@emmassist-co/kb-mcp@0.1.6`, `@emmassist-co/kb-cli@1.9.1`, and `@emmassist-co/kb-flue-adapter@0.6.3`; fresh install smoke passed for `@emmassist-co/kb-cli@1.9.1` with `@emmassist-co/kb-dashboard@0.1.0`.
-- Human testing status: pending
-- Human tester:
-- Human test date:
-- Human test environment:
-- Human test flow: install `@emmassist-co/kb-cli` and `@emmassist-co/kb-dashboard` into a fresh temp project from GitHub Packages, run `kb dashboard`, and verify the UI and `/v1/capabilities` load.
-- Automated coverage: GitHub Actions `verify`; `npm run verify:public-packages`; `npm run typecheck`; `npm test`; fresh published-package smoke install
-- Needs iteration: no
-- Follow-up: none
-
-## 2026-07-15 - Add Local Browser Dashboard
-
-- Area: CLI command, HTTP surface, package
-- Merged to `main`: yes
-- Commit / PR: PR #13, merge commit `f9bbdf0`
-- Feature summary: added a local `kb dashboard` browser UI served by the KB CLI, introduced `@emmassist-co/kb-dashboard` as the separate Vite TypeScript dashboard package, exposed safe entity/source markdown document endpoints with stale-write validation, and added optional dashboard static serving to the local Node host.
-- Customer-visible impact: operators who install the optional dashboard package can browse local KB inventory, records, graph relations, recent events, and supported markdown/frontmatter edits from a browser without Obsidian; CLI-only consumers are not forced to install dashboard assets.
-- Deployment status: deployed
-- Deployment date: 2026-07-16
-- Deployment environment: GitHub Packages
-- Deployment evidence: published `@emmassist-co/kb-dashboard@0.1.0`, followed by compiled patch package set `@emmassist-co/kb-core@0.5.1`, `@emmassist-co/kb-http@0.5.1`, `@emmassist-co/kb-cli@1.9.1`, and dependent package versions to GitHub Packages.
-- Human testing status: pending
-- Human tester:
-- Human test date:
-- Human test environment:
-- Human test flow: run `kb dashboard --port 3001` against a local file-backed workspace, inspect inventory/records/graph/recents, edit an entity markdown document, and verify stale-write protection by saving from two browser tabs.
-- Automated coverage: GitHub Actions `verify`; `npm run verify:public-packages`; `npm run typecheck`; `npm test`
-- Needs iteration: no
-- Follow-up: consider remote read-only dashboard support and richer graph diff playback after local operator flows are exercised manually.
-
 ## 2026-07-15 - Stop Persisting Noisy Mention Links
 
 - Area: kb-core, cli

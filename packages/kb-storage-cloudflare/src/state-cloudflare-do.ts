@@ -280,6 +280,8 @@ function countsFromSnapshot(snapshot: PersistedKnowledgeState) {
     events: snapshot.events.length,
     links: snapshot.links.length,
     drafts: Object.keys(snapshot.drafts).length,
+    proposals: Object.keys(snapshot.proposals ?? {}).length,
+    reviewItems: Object.keys(snapshot.reviewItems ?? {}).length,
     registry: Object.keys(snapshot.registry).length
   };
 }

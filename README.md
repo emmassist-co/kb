@@ -138,9 +138,12 @@ KB earns trust by keeping memory explicit:
 
 - **Durable state:** entities, sources, events, drafts, and links persist outside the agent transcript.
 - **Evidence-first writes:** agents can capture sources and cite source IDs instead of writing unsupported claims.
+- **Trust-aware retrieval:** search and relation results carry additive trust metadata for freshness, currentness, supersession, evidence role, caveats, and source lineage; callers can request current, historical, mixed, or evidence-only search views, and `/v1/capabilities` advertises the `trustSubstrate` contract version.
+- **Evidence views:** `evidence` reads separate current-truth claims, supporting sources, raw evidence, events, relations, decision details, and open questions.
 - **Human correction path:** humans can edit supported mirror files or ask agents to record corrections; stale facts can be superseded instead of silently overwritten.
+- **Reviewable promotion:** ambiguous raw captures can become proposals, then be reviewed and explicitly applied before changing canonical truth.
 - **Graph edges are explicit:** agents can use `relate` for deliberate edges, while extraction-derived links remain evidence-bearing and replaceable by origin.
-- **Inspectable health:** `inspect`, `doctor`, `health`, validation, and conflict commands expose state before agents rely on it.
+- **Inspectable health:** `inspect`, `doctor`, `debt`, `health`, validation, and conflict commands expose state before agents rely on it.
 - **Recovery boundaries:** local folders are portable, remote hosts can be reverified, and mirror-support workflows can repair divergence, but KB does not pretend bad writes are impossible.
 
 ### Human + Multi-Agent Workflow
@@ -161,12 +164,15 @@ Agents using KB should follow these rules:
 - Search KB before answering factual questions about the workspace.
 - Use `remember` for facts, corrections, sources, and narrative evidence capture.
 - Use `record` for structured entity profiles and durable current truth.
+- Use `evidence` when an answer needs canonical context plus source support and caveats.
+- Use `recall` only when a runtime explicitly requests a read-only trust-aware context bundle; the runtime decides whether to inject it.
 - Use `relate` for explicit edges between existing entities.
 - Use `annotate` for timeline/provenance notes, not relation edges.
 - Capture external sources when a claim depends on outside evidence.
 - Avoid dumping raw chat logs; summarize the durable fact, decision, or correction.
 - Ask the human before rewriting canonical truth when the change is ambiguous or destructive.
-- Run `inspect` or `doctor` when the active backend or workspace role is unclear.
+- Use proposals and review commands when raw evidence needs approval before becoming canonical truth.
+- Run `inspect`, `doctor`, or `debt` when the active backend, workspace role, or trust posture is unclear.
 - Use the `kb-agent-improvement` skill and recipe pack when an external agent is explicitly asked to review or improve KB state; KB itself does not own the review, schedule, or run state.
 
 ## Agent-First Architecture Map

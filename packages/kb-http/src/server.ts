@@ -1,7 +1,8 @@
-import type {
-  KnowledgeBaseService,
-  KnowledgeRelationQueryInput,
-  KnowledgeSearchInput
+import {
+  hydrateTrustSubstrateCapabilities,
+  type KnowledgeBaseService,
+  type KnowledgeRelationQueryInput,
+  type KnowledgeSearchInput
 } from '@emmassist-co/kb-core';
 import type {
   KnowledgeBaseHttpContext,
@@ -25,6 +26,12 @@ type RememberInput = Parameters<KnowledgeBaseService['remember']>[0];
 type AnnotateInput = Parameters<KnowledgeBaseService['annotate']>[0];
 type TraverseInput = Parameters<KnowledgeBaseService['traverse']>[0];
 type SaveDocumentInput = Parameters<KnowledgeBaseService['saveDocument']>[0];
+type RecallInput = Parameters<KnowledgeBaseService['recall']>[0];
+type SubmitPromotionInput = Parameters<KnowledgeBaseService['submitPromotionProposal']>[0];
+type ReviewPromotionInput = Omit<Parameters<KnowledgeBaseService['reviewPromotionProposal']>[0], 'proposalId'>;
+type ApplyPromotionInput = Omit<Parameters<KnowledgeBaseService['applyPromotionProposal']>[0], 'proposalId'>;
+type CreateReviewItemInput = Parameters<KnowledgeBaseService['createReviewItem']>[0];
+type UpdateReviewItemInput = Omit<Parameters<KnowledgeBaseService['updateReviewItem']>[0], 'itemId'>;
 
 export async function handleKnowledgeBaseHttpRequest(
   ctx: KnowledgeBaseHttpContext,
@@ -50,7 +57,7 @@ export async function handleKnowledgeBaseHttpRequest(
   if (request.method === 'GET' && request.pathname === '/v1/capabilities') {
     return ok({
       ok: true,
-      capabilities: ctx.capabilities ?? {}
+      capabilities: hydrateTrustSubstrateCapabilities(ctx.capabilities ?? {})
     });
   }
 
@@ -59,7 +66,7 @@ export async function handleKnowledgeBaseHttpRequest(
     return ok({
       ok: true,
       data: {
-        ...(ctx.capabilities ?? {}),
+        ...hydrateTrustSubstrateCapabilities(ctx.capabilities ?? {}),
         summary
       }
     });
@@ -182,6 +189,82 @@ export async function handleKnowledgeBaseHttpRequest(
     });
   }
 
+  if (request.method === 'GET' && request.pathname === '/v1/debt') {
+    return ok({
+      ok: true,
+      data: await service.memoryDebt()
+    });
+  }
+
+  if (request.method === 'GET' && request.pathname === '/v1/proposals') {
+    return ok({
+      ok: true,
+      data: await service.listPromotionProposals()
+    });
+  }
+
+  if (request.method === 'POST' && request.pathname === '/v1/proposals') {
+    return ok({
+      ok: true,
+      data: await service.submitPromotionProposal(expectBody<SubmitPromotionInput>(request.body))
+    });
+  }
+
+  if (request.method === 'GET' && request.pathname.startsWith('/v1/proposals/')) {
+    const proposalId = decodeURIComponent(request.pathname.slice('/v1/proposals/'.length));
+    return ok({
+      ok: true,
+      data: await service.getPromotionProposal(proposalId)
+    });
+  }
+
+  if (request.method === 'PUT' && request.pathname.startsWith('/v1/proposals/') && request.pathname.endsWith('/review')) {
+    const proposalId = decodeURIComponent(request.pathname.slice('/v1/proposals/'.length, -'/review'.length));
+    return ok({
+      ok: true,
+      data: await service.reviewPromotionProposal({
+        ...expectBody<ReviewPromotionInput>(request.body),
+        proposalId
+      })
+    });
+  }
+
+  if (request.method === 'POST' && request.pathname.startsWith('/v1/proposals/') && request.pathname.endsWith('/apply')) {
+    const proposalId = decodeURIComponent(request.pathname.slice('/v1/proposals/'.length, -'/apply'.length));
+    return ok({
+      ok: true,
+      data: await service.applyPromotionProposal({
+        ...((request.body && typeof request.body === 'object' && !Array.isArray(request.body)) ? expectBody<ApplyPromotionInput>(request.body) : {}),
+        proposalId
+      })
+    });
+  }
+
+  if (request.method === 'GET' && request.pathname === '/v1/reviews') {
+    return ok({
+      ok: true,
+      data: await service.listReviewItems()
+    });
+  }
+
+  if (request.method === 'POST' && request.pathname === '/v1/reviews') {
+    return ok({
+      ok: true,
+      data: await service.createReviewItem(expectBody<CreateReviewItemInput>(request.body))
+    });
+  }
+
+  if (request.method === 'PUT' && request.pathname.startsWith('/v1/reviews/')) {
+    const itemId = decodeURIComponent(request.pathname.slice('/v1/reviews/'.length));
+    return ok({
+      ok: true,
+      data: await service.updateReviewItem({
+        ...expectBody<UpdateReviewItemInput>(request.body),
+        itemId
+      })
+    });
+  }
+
   if (request.method === 'GET' && request.pathname === '/v1/entities') {
     return ok({
       ok: true,
@@ -191,6 +274,13 @@ export async function handleKnowledgeBaseHttpRequest(
 
   if (request.method === 'GET' && request.pathname.startsWith('/v1/entities/')) {
     const suffix = request.pathname.slice('/v1/entities/'.length);
+    if (suffix.endsWith('/evidence')) {
+      const entityId = decodeURIComponent(suffix.slice(0, -'/evidence'.length));
+      return ok({
+        ok: true,
+        data: await service.evidence(entityId)
+      });
+    }
     if (suffix.endsWith('/related')) {
       const entityId = decodeURIComponent(suffix.slice(0, -'/related'.length));
       return ok({
@@ -231,6 +321,13 @@ export async function handleKnowledgeBaseHttpRequest(
     return ok({
       ok: true,
       data: await service.search(expectBody<KnowledgeSearchInput>(request.body))
+    });
+  }
+
+  if (request.method === 'POST' && request.pathname === '/v1/recall') {
+    return ok({
+      ok: true,
+      data: await service.recall(expectBody<RecallInput>(request.body))
     });
   }
 

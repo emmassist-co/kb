@@ -28,7 +28,7 @@ export interface CreateKbCommandOptions {
 
 export interface KbRuntimeTelemetryEvent {
   type: 'kb_runtime_query';
-  operation: 'search' | 'query-relations';
+  operation: 'search' | 'query-relations' | 'recall';
   query: string;
   mode: string;
   resultCount: number;
@@ -120,7 +120,17 @@ function shouldUsePackageCli(commandName: string): boolean {
     'relations',
     'replace-relations',
     'clear-relations',
+    'proposals',
+    'get-proposal',
+    'submit-proposal',
+    'review-proposal',
+    'apply-proposal',
+    'reviews',
+    'create-review',
+    'update-review',
+    'debt',
     'search',
+    'recall',
     'query-relations',
     'remember',
     'record',
@@ -132,6 +142,7 @@ function shouldUsePackageCli(commandName: string): boolean {
     'validate',
     'related',
     'links',
+    'evidence',
     'traverse',
     'rebuild',
     'doctor',
@@ -173,6 +184,15 @@ async function createRuntimeExecutor(
     putDraft: async (input) => (await getService()).updateEntityDraft(input as Parameters<KnowledgeBaseService['updateEntityDraft']>[0]),
     deleteDraft: async (entityId) => (await getService()).deleteDraft(entityId),
     listRelations: async (input) => (await getService()).listRelations(input as Parameters<KnowledgeBaseService['listRelations']>[0]),
+    listPromotionProposals: async () => (await getService()).listPromotionProposals(),
+    getPromotionProposal: async (proposalId) => (await getService()).getPromotionProposal(proposalId),
+    submitPromotionProposal: async (input) => (await getService()).submitPromotionProposal(input as Parameters<KnowledgeBaseService['submitPromotionProposal']>[0]),
+    reviewPromotionProposal: async (input) => (await getService()).reviewPromotionProposal(input as Parameters<KnowledgeBaseService['reviewPromotionProposal']>[0]),
+    applyPromotionProposal: async (input) => (await getService()).applyPromotionProposal(input as Parameters<KnowledgeBaseService['applyPromotionProposal']>[0]),
+    listReviewItems: async () => (await getService()).listReviewItems(),
+    createReviewItem: async (input) => (await getService()).createReviewItem(input as Parameters<KnowledgeBaseService['createReviewItem']>[0]),
+    updateReviewItem: async (input) => (await getService()).updateReviewItem(input as Parameters<KnowledgeBaseService['updateReviewItem']>[0]),
+    memoryDebt: async () => (await getService()).memoryDebt(),
     replaceRelations: async (input) => (await getService()).replaceRelations(input as Parameters<KnowledgeBaseService['replaceRelations']>[0]),
     clearRelations: async (input) => (await getService()).clearRelations(input as unknown as Parameters<KnowledgeBaseService['clearRelations']>[0]),
     search: async (input) => {
@@ -186,6 +206,24 @@ async function createRuntimeExecutor(
           mode: result.mode,
           resultCount: result.results.length,
           resultIds: result.results.map((entry) => entry.id)
+        },
+        result,
+        startedAt
+      );
+      return result;
+    },
+    recall: async (input) => {
+      const startedAt = Date.now();
+      const typedInput = input as unknown as Parameters<KnowledgeBaseService['recall']>[0];
+      const result = await (await getService()).recall(typedInput);
+      emitQueryTelemetry(
+        telemetry,
+        {
+          operation: 'recall',
+          query: result.query ?? typedInput.entityIds?.join(',') ?? '',
+          mode: result.temporalFocus,
+          resultCount: result.claims.length,
+          resultIds: result.claims.map((entry) => entry.entityId ?? entry.id)
         },
         result,
         startedAt
@@ -219,6 +257,7 @@ async function createRuntimeExecutor(
     annotate: async (input) => (await getService()).annotate(input as Parameters<KnowledgeBaseService['annotate']>[0]),
     related: async (id) => (await getService()).related(id),
     links: async (id) => (await getService()).links(id),
+    evidence: async (id) => (await getService()).evidence(id),
     traverse: async (input) => (await getService()).traverse(input as Parameters<KnowledgeBaseService['traverse']>[0]),
     rebuild: () => runtime.rebuild(),
     doctor: async () => (await getService()).doctor(),

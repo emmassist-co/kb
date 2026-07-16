@@ -34,6 +34,8 @@ Read-scoped tools:
 - `doctor`
 - `search`
 - `query_relations`
+- `evidence`
+- `recall`
 
 Write-scoped tools:
 
@@ -101,6 +103,8 @@ Use CLI skills for command-running agents that can execute `kb` commands. Use `/
 
 ## Notes
 
+- `evidence` returns an entity current-truth view with supporting sources, relations, events, caveats, and decision details when present.
+- `recall` returns a read-only trust-aware context bundle for a caller-supplied query or entity set. The MCP client or runtime decides whether to inject that bundle; KB does not orchestrate ambient memory.
 - `kb-http` remains the canonical deployed JSON contract.
 - `kb-mcp` is an additional client surface over the same workspace-scoped runtime.
 - The first release is designed for shared-secret bearer auth and keeps fuller OAuth flows deferred.

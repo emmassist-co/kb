@@ -2,7 +2,7 @@
   "suite": "kb:core-six",
   "corpus": "kb-core-six",
   "provenance": "deterministic-synthetic-fixtures",
-  "generatedAt": "2026-07-15T09:46:42.438Z",
+  "generatedAt": "2026-07-16T09:41:34.652Z",
   "policy": {
     "optimizeOn": [
       "admin-world-v3 dev"

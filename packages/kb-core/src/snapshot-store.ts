@@ -4,7 +4,9 @@ import type {
   KnowledgeEntityRegistryEntry,
   KnowledgeEvent,
   KnowledgeLink,
-  KnowledgeLock
+  KnowledgeLock,
+  KnowledgePromotionProposal,
+  KnowledgeReviewItem
 } from './types.js';
 import type { KnowledgeLinkOrigin, KnowledgeStore } from './store.js';
 
@@ -16,6 +18,8 @@ export interface PersistedKnowledgeState {
   events: KnowledgeEvent[];
   links: KnowledgeLink[];
   drafts: Record<string, EntityDraft>;
+  proposals?: Record<string, KnowledgePromotionProposal>;
+  reviewItems?: Record<string, KnowledgeReviewItem>;
 }
 
 export interface PersistedKnowledgeStateDelta {
@@ -25,6 +29,10 @@ export interface PersistedKnowledgeStateDelta {
   appendedEventIds: string[];
   upsertedDraftIds: string[];
   deletedDraftIds: string[];
+  upsertedProposalIds: string[];
+  deletedProposalIds: string[];
+  upsertedReviewItemIds: string[];
+  deletedReviewItemIds: string[];
   replacedLinkOrigins: KnowledgeLinkOrigin[];
   requiresFullRebuild: boolean;
   requiresFullReset: boolean;
@@ -34,10 +42,19 @@ export class SnapshotKnowledgeStore implements KnowledgeStore {
   private readonly locks = new Map<string, KnowledgeLock>();
   private dirty = false;
   private readonly delta = createEmptyPersistedKnowledgeStateDelta();
+  private readonly state: PersistedKnowledgeState & {
+    proposals: Record<string, KnowledgePromotionProposal>;
+    reviewItems: Record<string, KnowledgeReviewItem>;
+  };
 
-  constructor(
-    private readonly state: PersistedKnowledgeState
-  ) {}
+  constructor(state: PersistedKnowledgeState) {
+    state.proposals ??= {};
+    state.reviewItems ??= {};
+    this.state = state as PersistedKnowledgeState & {
+      proposals: Record<string, KnowledgePromotionProposal>;
+      reviewItems: Record<string, KnowledgeReviewItem>;
+    };
+  }
 
   async mode(): Promise<KnowledgeBaseMode> {
     return this.state.mode;
@@ -154,6 +171,56 @@ export class SnapshotKnowledgeStore implements KnowledgeStore {
     return Object.values(this.state.drafts).map(cloneDraft);
   }
 
+  async getPromotionProposal(proposalId: string): Promise<KnowledgePromotionProposal | null> {
+    return this.state.proposals[proposalId] ? clonePromotionProposal(this.state.proposals[proposalId]) : null;
+  }
+
+  async putPromotionProposal(proposal: KnowledgePromotionProposal): Promise<void> {
+    const next = clonePromotionProposal(proposal);
+    if (JSON.stringify(this.state.proposals[proposal.id]) === JSON.stringify(next)) return;
+    this.state.proposals[proposal.id] = next;
+    this.markDirty();
+    this.delta.upsertedProposalIds = pushUniqueString(this.delta.upsertedProposalIds, proposal.id);
+    this.delta.deletedProposalIds = this.delta.deletedProposalIds.filter((entry) => entry !== proposal.id);
+  }
+
+  async deletePromotionProposal(proposalId: string): Promise<void> {
+    if (!(proposalId in this.state.proposals)) return;
+    delete this.state.proposals[proposalId];
+    this.markDirty();
+    this.delta.deletedProposalIds = pushUniqueString(this.delta.deletedProposalIds, proposalId);
+    this.delta.upsertedProposalIds = this.delta.upsertedProposalIds.filter((entry) => entry !== proposalId);
+  }
+
+  async listPromotionProposals(): Promise<KnowledgePromotionProposal[]> {
+    return Object.values(this.state.proposals).map(clonePromotionProposal).sort((left, right) => left.id.localeCompare(right.id));
+  }
+
+  async getReviewItem(itemId: string): Promise<KnowledgeReviewItem | null> {
+    return this.state.reviewItems[itemId] ? cloneReviewItem(this.state.reviewItems[itemId]) : null;
+  }
+
+  async putReviewItem(item: KnowledgeReviewItem): Promise<void> {
+    const next = cloneReviewItem(item);
+    if (JSON.stringify(this.state.reviewItems[item.id]) === JSON.stringify(next)) return;
+    this.state.reviewItems[item.id] = next;
+    this.markDirty();
+    this.delta.upsertedReviewItemIds = pushUniqueString(this.delta.upsertedReviewItemIds, item.id);
+    this.delta.deletedReviewItemIds = this.delta.deletedReviewItemIds.filter((entry) => entry !== item.id);
+  }
+
+  async deleteReviewItem(itemId: string): Promise<void> {
+    if (!(itemId in this.state.reviewItems)) return;
+    delete this.state.reviewItems[itemId];
+    this.markDirty();
+    this.delta.deletedReviewItemIds = pushUniqueString(this.delta.deletedReviewItemIds, itemId);
+    this.delta.upsertedReviewItemIds = this.delta.upsertedReviewItemIds.filter((entry) => entry !== itemId);
+  }
+
+  async listReviewItems(): Promise<KnowledgeReviewItem[]> {
+    return Object.values(this.state.reviewItems).map(cloneReviewItem).sort((left, right) => left.id.localeCompare(right.id));
+  }
+
   async listLinks(): Promise<KnowledgeLink[]> {
     return this.state.links.map(cloneLink);
   }
@@ -223,7 +290,9 @@ export function createEmptyPersistedKnowledgeState(mode: KnowledgeBaseMode): Per
     sources: {},
     events: [],
     links: [],
-    drafts: {}
+    drafts: {},
+    proposals: {},
+    reviewItems: {}
   };
 }
 
@@ -235,7 +304,9 @@ export function clonePersistedKnowledgeState(state: PersistedKnowledgeState): Pe
     sources: { ...state.sources },
     events: state.events.map(cloneEvent),
     links: state.links.map(cloneLink),
-    drafts: Object.fromEntries(Object.entries(state.drafts).map(([id, draft]) => [id, cloneDraft(draft)]))
+    drafts: Object.fromEntries(Object.entries(state.drafts ?? {}).map(([id, draft]) => [id, cloneDraft(draft)])),
+    proposals: Object.fromEntries(Object.entries(state.proposals ?? {}).map(([id, proposal]) => [id, clonePromotionProposal(proposal)])),
+    reviewItems: Object.fromEntries(Object.entries(state.reviewItems ?? {}).map(([id, item]) => [id, cloneReviewItem(item)]))
   };
 }
 
@@ -247,6 +318,10 @@ export function createEmptyPersistedKnowledgeStateDelta(): PersistedKnowledgeSta
     appendedEventIds: [],
     upsertedDraftIds: [],
     deletedDraftIds: [],
+    upsertedProposalIds: [],
+    deletedProposalIds: [],
+    upsertedReviewItemIds: [],
+    deletedReviewItemIds: [],
     replacedLinkOrigins: [],
     requiresFullRebuild: false,
     requiresFullReset: false
@@ -261,6 +336,10 @@ export function clonePersistedKnowledgeStateDelta(delta: PersistedKnowledgeState
     appendedEventIds: [...delta.appendedEventIds],
     upsertedDraftIds: [...delta.upsertedDraftIds],
     deletedDraftIds: [...delta.deletedDraftIds],
+    upsertedProposalIds: [...delta.upsertedProposalIds],
+    deletedProposalIds: [...delta.deletedProposalIds],
+    upsertedReviewItemIds: [...delta.upsertedReviewItemIds],
+    deletedReviewItemIds: [...delta.deletedReviewItemIds],
     replacedLinkOrigins: delta.replacedLinkOrigins.map((origin) => ({ ...origin })),
     requiresFullRebuild: delta.requiresFullRebuild,
     requiresFullReset: delta.requiresFullReset
@@ -294,11 +373,49 @@ export function cloneDraft(draft: EntityDraft): EntityDraft {
   };
 }
 
+export function clonePromotionProposal(proposal: KnowledgePromotionProposal): KnowledgePromotionProposal {
+  return {
+    ...proposal,
+    payload: cloneJsonObject(proposal.payload),
+    targetEntityIds: [...proposal.targetEntityIds],
+    sourceIds: [...proposal.sourceIds],
+    warnings: [...proposal.warnings],
+    appliedMutation: proposal.appliedMutation
+      ? {
+          ...proposal.appliedMutation,
+          entityIds: [...proposal.appliedMutation.entityIds],
+          sourceIds: [...proposal.appliedMutation.sourceIds],
+          eventIds: [...proposal.appliedMutation.eventIds],
+          warnings: [...proposal.appliedMutation.warnings],
+          hydrated: {
+            entities: proposal.appliedMutation.hydrated.entities.map((entity) => ({ ...entity, meta: { ...entity.meta } })),
+            sources: proposal.appliedMutation.hydrated.sources.map((source) => ({ ...source, meta: { ...source.meta } })),
+            events: proposal.appliedMutation.hydrated.events.map(cloneEvent),
+            links: proposal.appliedMutation.hydrated.links.map(cloneLink)
+          }
+        }
+      : undefined
+  };
+}
+
+export function cloneReviewItem(item: KnowledgeReviewItem): KnowledgeReviewItem {
+  return {
+    ...item,
+    targetIds: [...item.targetIds],
+    sourceIds: [...item.sourceIds],
+    relatedIds: [...item.relatedIds]
+  };
+}
+
 export function cloneLink(link: KnowledgeLink): KnowledgeLink {
   return {
     ...link,
     sourceIds: [...link.sourceIds]
   };
+}
+
+function cloneJsonObject(value: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
 
 function equalRegistryEntry(

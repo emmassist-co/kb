@@ -1,11 +1,13 @@
 import * as z from 'zod/v4';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type {
-  KnowledgeBaseService,
-  KnowledgeWorkspaceCapabilities,
-  KnowledgeMutationResult,
-  KnowledgeRelationQueryInput,
-  KnowledgeSearchInput
+import {
+  hydrateTrustSubstrateCapabilities,
+  type KnowledgeBaseService,
+  type KnowledgeWorkspaceCapabilities,
+  type KnowledgeMutationResult,
+  type KnowledgeRecallInput,
+  type KnowledgeRelationQueryInput,
+  type KnowledgeSearchInput
 } from '@emmassist-co/kb-core';
 import type { KnowledgeBaseAccessScope } from '@emmassist-co/kb-http/types';
 
@@ -48,7 +50,7 @@ function getKnowledgeBaseMcpToolDescriptors(): KnowledgeBaseMcpToolDescriptor[] 
       register(server, options) {
         server.registerTool('capabilities', {
           description: 'Inspect the deployed KB capability envelope.'
-        }, async () => jsonToolResult(options.capabilities ?? {}));
+        }, async () => jsonToolResult(hydrateTrustSubstrateCapabilities(options.capabilities ?? {})));
       }
     },
     {
@@ -58,7 +60,7 @@ function getKnowledgeBaseMcpToolDescriptors(): KnowledgeBaseMcpToolDescriptor[] 
         server.registerTool('inspect', {
           description: 'Return KB capabilities plus a compact workspace summary.'
         }, async () => jsonToolResult({
-          ...(options.capabilities ?? {}),
+          ...hydrateTrustSubstrateCapabilities(options.capabilities ?? {}),
           summary: await options.service.list()
         }));
       }
@@ -84,7 +86,9 @@ function getKnowledgeBaseMcpToolDescriptors(): KnowledgeBaseMcpToolDescriptor[] 
             kind: z.string().optional(),
             assistQuery: z.boolean().optional(),
             mode: z.string().optional(),
-            lexicalBackend: z.string().optional()
+            lexicalBackend: z.string().optional(),
+            temporalFocus: z.string().optional(),
+            evidenceOnly: z.boolean().optional()
           }
         }, async (input) => jsonToolResult(await options.service.search(input as KnowledgeSearchInput)));
       }
@@ -104,6 +108,35 @@ function getKnowledgeBaseMcpToolDescriptors(): KnowledgeBaseMcpToolDescriptor[] 
             asOf: z.string().optional()
           }
         }, async (input) => jsonToolResult(await options.service.queryRelations(input as KnowledgeRelationQueryInput)));
+      }
+    },
+    {
+      name: 'evidence',
+      scope: 'kb.read',
+      register(server, options) {
+        server.registerTool('evidence', {
+          description: 'Return the current-truth evidence view for a KB entity.',
+          inputSchema: {
+            entityId: z.string()
+          }
+        }, async ({ entityId }) => jsonToolResult(await options.service.evidence(entityId)));
+      }
+    },
+    {
+      name: 'recall',
+      scope: 'kb.read',
+      register(server, options) {
+        server.registerTool('recall', {
+          description: 'Build a read-only trust-aware recall bundle for a query or entity set.',
+          inputSchema: {
+            query: z.string().optional(),
+            purpose: z.string().optional(),
+            entityIds: z.array(z.string()).optional(),
+            limit: z.number().optional(),
+            maxTokens: z.number().optional(),
+            temporalFocus: z.string().optional()
+          }
+        }, async (input) => jsonToolResult(await options.service.recall(input as KnowledgeRecallInput)));
       }
     },
     {

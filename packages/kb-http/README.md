@@ -12,17 +12,20 @@ Canonical HTTP/JSON contract for the KB.
 ## Main routes
 
 - `GET /v1/capabilities`
-  Returns tenant, backend, canonicality, transport, and workspace role so callers can verify whether they are on the canonical production surface or a support-only workspace.
+  Returns tenant, backend, canonicality, transport, workspace role, and `trustSubstrate.version` so callers can verify whether they are on the canonical production surface or a support-only workspace and feature-detect trust-aware retrieval/evidence/recall support.
 - `GET /v1/inspect`
   Returns the same workspace metadata plus a compact KB summary with current entity, source, and link counts/listings.
 - `GET /v1/doctor`
 - `GET /v1/entities`
 - `GET /v1/entities/:id`
+- `GET /v1/entities/:id/evidence`
 - `GET /v1/entities/:id/related`
 - `GET /v1/entities/:id/links`
 - `GET /v1/entities/:id/relations`
 - `DELETE /v1/entities/:id`
 - `POST /v1/search`
+  Accepts optional `temporalFocus` (`current`, `historical`, `mixed`) and `evidenceOnly` for explicit retrieval views; defaults remain backward-compatible mixed relevance with additive trust labels.
+- `POST /v1/recall`
 - `POST /v1/query-relations`
 - `POST /v1/record`
 - `POST /v1/remember`
@@ -37,6 +40,15 @@ Canonical HTTP/JSON contract for the KB.
 - `GET /v1/drafts/:entityId`
 - `PUT /v1/drafts/:entityId`
 - `DELETE /v1/drafts/:entityId`
+- `GET /v1/proposals`
+- `POST /v1/proposals`
+- `GET /v1/proposals/:proposalId`
+- `PUT /v1/proposals/:proposalId/review`
+- `POST /v1/proposals/:proposalId/apply`
+- `GET /v1/reviews`
+- `POST /v1/reviews`
+- `PUT /v1/reviews/:reviewId`
+- `GET /v1/debt`
 - `GET /v1/relations`
 - `PUT /v1/relations`
 - `DELETE /v1/relations?originKind=...&originId=...`
@@ -52,6 +64,8 @@ Canonical HTTP/JSON contract for the KB.
 ## Auth
 
 - deployed hosts can enforce one bearer-token model across read, write, and operator scopes
+- `POST /v1/recall` is read-scoped and performs no mutations
+- proposal approval/application and direct review mutations require operator scope
 - route checks are centralized instead of duplicated per caller
 - `kb-mcp` reuses this auth substrate rather than defining a second deployment contract
 

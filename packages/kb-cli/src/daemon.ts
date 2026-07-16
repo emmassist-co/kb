@@ -1,4 +1,4 @@
-import { KnowledgeBaseService, type KnowledgeBaseConfig } from '@emmassist-co/kb-core';
+import { KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION, KnowledgeBaseService, type KnowledgeBaseConfig, type KnowledgeWorkspaceCapabilities } from '@emmassist-co/kb-core';
 import { startKnowledgeBaseNodeServer, type KnowledgeBaseNodeServerHandle } from '@emmassist-co/kb-http';
 import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
 import { randomBytes } from 'node:crypto';
@@ -20,6 +20,19 @@ export interface KnowledgeBaseCliDaemonOptions {
   host?: string;
   port?: number;
   dashboard?: KnowledgeBaseCliDashboardOptions;
+}
+
+function buildTrustSubstrateCapabilities(): KnowledgeWorkspaceCapabilities['trustSubstrate'] {
+  return {
+    version: KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION,
+    trustAwareRetrieval: true,
+    evidenceViews: true,
+    promotionReview: true,
+    memoryDebt: true,
+    decisionViews: true,
+    recallBundles: true,
+    recallMutatesState: false
+  };
 }
 
 const DEFAULT_CONFIG: KnowledgeBaseConfig = {
@@ -66,7 +79,8 @@ export async function startKnowledgeBaseCliDaemon(
         dashboard: options.dashboard?.enabled ? {
           readOnly: options.dashboard.readOnly ?? false,
           basePath: options.dashboard.basePath ?? '/dashboard'
-        } : undefined
+        } : undefined,
+        trustSubstrate: buildTrustSubstrateCapabilities()
       },
       dashboard: dashboardToken ? {
         token: dashboardToken

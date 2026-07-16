@@ -122,7 +122,16 @@ HTTP mode:
 
 ```bash
 KB_BASE_URL=http://127.0.0.1:3001 npx kb search --json '{"query":"billing"}'
+KB_BASE_URL=http://127.0.0.1:3001 npx kb evidence --id vendor-stripe
+KB_BASE_URL=http://127.0.0.1:3001 npx kb recall --json '{"query":"billing","purpose":"pre-answer context"}'
 ```
+
+Trust-substrate read surfaces:
+
+- `kb search` and `kb query-relations` return additive trust metadata on results; search accepts optional `temporalFocus` (`current`, `historical`, `mixed`) and `evidenceOnly` when callers want an explicit retrieval view.
+- `kb evidence --id ENTITY_ID` shows current-truth claims, source evidence, raw evidence, events, relations, open questions, and decision details where present.
+- `kb recall --json ...` builds a read-only trust-aware context bundle for callers that explicitly want one; KB does not decide when an agent should inject it.
+- `kb debt` lists derived memory debt from health/doctor findings plus linked review items.
 
 Protected remote HTTP mode:
 
@@ -154,6 +163,12 @@ npx kb capture-source --json @source.json
 npx kb events
 npx kb drafts
 npx kb relations --entity-id vendor-stripe
+npx kb proposals
+npx kb submit-proposal --json @proposal.json
+npx kb review-proposal --id proposal_123 --json '{"status":"approved","reviewer":"operator"}'
+npx kb apply-proposal --id proposal_123
+npx kb reviews
+npx kb debt
 npx kb conflicts list
 npx kb conflicts show --path entities/vendor-acme.md --contents
 npx kb conflicts resolve --path entities/vendor-acme.md --from file --file ./resolved.md

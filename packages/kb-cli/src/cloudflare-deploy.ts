@@ -29,6 +29,16 @@ export interface KnowledgeBaseCloudflareCapabilities {
   backend?: string;
   canonical?: boolean;
   workspaceRole?: string;
+  trustSubstrate?: {
+    version?: string;
+    trustAwareRetrieval?: boolean;
+    evidenceViews?: boolean;
+    promotionReview?: boolean;
+    memoryDebt?: boolean;
+    decisionViews?: boolean;
+    recallBundles?: boolean;
+    recallMutatesState?: boolean;
+  };
 }
 
 export interface KnowledgeBaseCloudflareMcpVerification {
@@ -366,7 +376,17 @@ export default {
       mode: config.mode,
       canonical: true,
       workspaceRole: 'canonical-production' as const,
-      rootDir: config.persistence.rootDir
+      rootDir: config.persistence.rootDir,
+      trustSubstrate: {
+        version: '2026-07-16.trust-substrate' as const,
+        trustAwareRetrieval: true as const,
+        evidenceViews: true as const,
+        promotionReview: true as const,
+        memoryDebt: true as const,
+        decisionViews: true as const,
+        recallBundles: true as const,
+        recallMutatesState: false as const
+      }
     };
     const rebuild = () => stub.rebuildSnapshot({ tenantId, config });
     const url = new URL(request.url);

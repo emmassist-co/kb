@@ -55,6 +55,49 @@ export type KnowledgeLinkSourceSurface =
   | 'event-summary'
   | 'structured';
 
+export type KnowledgeTrustCurrentness = 'current' | 'historical' | 'superseded' | 'raw' | 'unknown';
+export type KnowledgeTrustEvidenceRole =
+  | 'canonical_truth'
+  | 'supporting_evidence'
+  | 'raw_evidence'
+  | 'timeline_evidence'
+  | 'relation_evidence'
+  | 'review_state'
+  | 'debt_signal';
+export type KnowledgeTrustCaveatSeverity = 'info' | 'warning' | 'error';
+export type KnowledgeTrustCaveatCode =
+  | 'freshness_stale'
+  | 'freshness_needs_review'
+  | 'freshness_unknown'
+  | 'superseded_record'
+  | 'historical_record'
+  | 'raw_unpromoted_evidence'
+  | 'unsupported_current_truth'
+  | 'missing_source_reference'
+  | 'ambiguous_result'
+  | 'low_confidence'
+  | 'conflicting_evidence'
+  | 'review_pending';
+
+export interface KnowledgeTrustCaveat {
+  code: KnowledgeTrustCaveatCode;
+  severity: KnowledgeTrustCaveatSeverity;
+  message: string;
+  relatedIds?: string[];
+}
+
+export interface KnowledgeTrustEnvelope {
+  currentness: KnowledgeTrustCurrentness;
+  evidenceRole: KnowledgeTrustEvidenceRole;
+  freshnessStatus?: KnowledgeFreshnessStatus;
+  lastReviewedAt?: string;
+  confidence: KnowledgeConfidence;
+  sourceIds: string[];
+  supersedes: string[];
+  supersededBy: string[];
+  caveats: KnowledgeTrustCaveat[];
+}
+
 export interface KnowledgeQueryIntent {
   rawQuery: string;
   relationType: string | null;
@@ -264,6 +307,88 @@ export interface EntityDraft {
   updatedAt: string;
 }
 
+export type KnowledgePromotionOperation = 'record' | 'remember' | 'relate' | 'annotate';
+export type KnowledgePromotionStatus =
+  | 'proposed'
+  | 'review_pending'
+  | 'approved'
+  | 'applied'
+  | 'rejected'
+  | 'needs_more_evidence'
+  | 'archived';
+
+export interface KnowledgePromotionProposal {
+  id: string;
+  tenantId: string;
+  status: KnowledgePromotionStatus;
+  operation: KnowledgePromotionOperation;
+  payload: Record<string, unknown>;
+  title?: string;
+  summary?: string;
+  targetEntityIds: string[];
+  sourceIds: string[];
+  warnings: string[];
+  submittedBy?: string;
+  reviewedBy?: string;
+  reviewNotes?: string;
+  appliedMutation?: KnowledgeMutationResult;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt?: string;
+  appliedAt?: string;
+}
+
+export type KnowledgeReviewItemStatus =
+  | 'open'
+  | 'assigned'
+  | 'in_review'
+  | 'approved'
+  | 'applied'
+  | 'resolved'
+  | 'rejected'
+  | 'snoozed'
+  | 'duplicate'
+  | 'blocked'
+  | 'invalidated'
+  | 'reopened';
+export type KnowledgeReviewItemType = 'promotion' | 'stale' | 'conflict' | 'duplicate' | 'unsupported' | 'provenance' | 'dangling' | 'other';
+
+export interface KnowledgeReviewItem {
+  id: string;
+  tenantId: string;
+  type: KnowledgeReviewItemType;
+  status: KnowledgeReviewItemStatus;
+  severity: 'info' | 'warning' | 'error';
+  title: string;
+  summary: string;
+  targetIds: string[];
+  sourceIds: string[];
+  relatedIds: string[];
+  proposalId?: string;
+  assignedTo?: string;
+  reviewer?: string;
+  notes?: string;
+  nextAction?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+}
+
+export interface KnowledgeMemoryDebtItem {
+  id: string;
+  tenantId: string;
+  type: KnowledgeReviewItemType;
+  status: 'open' | 'linked_to_review' | 'resolved' | 'invalidated';
+  severity: 'info' | 'warning' | 'error';
+  title: string;
+  summary: string;
+  targetIds: string[];
+  sourceIds: string[];
+  relatedIds: string[];
+  reviewItemId?: string;
+  nextAction?: string;
+}
+
 export interface KnowledgeLock {
   key: string;
   token: string;
@@ -277,6 +402,8 @@ export interface KnowledgeSearchInput {
   assistQuery?: boolean;
   mode?: KnowledgeSearchMode;
   lexicalBackend?: KnowledgeLexicalBackend;
+  temporalFocus?: KnowledgeQueryTemporalFocus;
+  evidenceOnly?: boolean;
   captureReplay?: boolean;
 }
 
@@ -294,6 +421,7 @@ export interface KnowledgeSearchResult {
   excerpt: string;
   retrievalMode?: KnowledgeSearchMode;
   relationTypes?: string[];
+  trust?: KnowledgeTrustEnvelope;
 }
 
 export interface KnowledgeExportSnapshot {
@@ -304,6 +432,21 @@ export interface KnowledgeExportSnapshot {
   events: KnowledgeEvent[];
   drafts: EntityDraft[];
   links: KnowledgeLink[];
+  proposals?: KnowledgePromotionProposal[];
+  reviewItems?: KnowledgeReviewItem[];
+}
+
+export const KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION = '2026-07-16.trust-substrate' as const;
+
+export interface KnowledgeTrustSubstrateCapabilities {
+  version: typeof KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION;
+  trustAwareRetrieval: true;
+  evidenceViews: true;
+  promotionReview: true;
+  memoryDebt: true;
+  decisionViews: true;
+  recallBundles: true;
+  recallMutatesState: false;
 }
 
 export interface KnowledgeWorkspaceCapabilities {
@@ -319,6 +462,7 @@ export interface KnowledgeWorkspaceCapabilities {
     readOnly: boolean;
     basePath: string;
   };
+  trustSubstrate?: KnowledgeTrustSubstrateCapabilities;
 }
 
 export interface KnowledgeRelationQueryInput {
@@ -358,6 +502,91 @@ export interface KnowledgeMutationResult {
   eventIds: string[];
   warnings: string[];
   hydrated: KnowledgeMutationHydratedState;
+}
+
+export interface KnowledgeEvidenceSourceSummary {
+  id: string;
+  kind: KnowledgeSourceKind;
+  title: string;
+  summary: string;
+  rawSourceRef?: string;
+  freshnessStatus?: KnowledgeFreshnessStatus;
+  lastReviewedAt?: string;
+  trust: KnowledgeTrustEnvelope;
+}
+
+export interface KnowledgeEvidenceClaim {
+  id: string;
+  text: string;
+  sourceIds: string[];
+  eventIds: string[];
+  linkIds: string[];
+  trust: KnowledgeTrustEnvelope;
+}
+
+export interface KnowledgeDecisionView {
+  id: string;
+  title: string;
+  status: string;
+  decidedAt?: string;
+  effectiveAt?: string;
+  owner?: string;
+  rationale?: string;
+  alternatives: string[];
+  sourceIds: string[];
+  supersedes: string[];
+  supersededBy: string[];
+  trust: KnowledgeTrustEnvelope;
+}
+
+export interface KnowledgeEntityEvidenceView {
+  id: string;
+  entity: EntityDocument;
+  trust: KnowledgeTrustEnvelope;
+  currentTruth: {
+    text: string;
+    claims: KnowledgeEvidenceClaim[];
+  };
+  sources: KnowledgeEvidenceSourceSummary[];
+  events: KnowledgeEvent[];
+  relations: KnowledgeLink[];
+  rawEvidence: KnowledgeEvidenceSourceSummary[];
+  supersedes: string[];
+  supersededBy: string[];
+  openQuestions: string[];
+  decision?: KnowledgeDecisionView;
+  caveats: KnowledgeTrustCaveat[];
+}
+
+export interface KnowledgeRecallInput {
+  query?: string;
+  purpose?: string;
+  entityIds?: string[];
+  limit?: number;
+  maxTokens?: number;
+  temporalFocus?: KnowledgeQueryTemporalFocus;
+}
+
+export interface KnowledgeRecallClaim {
+  id: string;
+  entityId?: string;
+  text: string;
+  sourceIds: string[];
+  trust: KnowledgeTrustEnvelope;
+}
+
+export interface KnowledgeRecallBundle {
+  purpose?: string;
+  query?: string;
+  temporalFocus: KnowledgeQueryTemporalFocus;
+  generatedAt: string;
+  maxTokens: number;
+  estimatedTokens: number;
+  claims: KnowledgeRecallClaim[];
+  decisions: KnowledgeDecisionView[];
+  caveats: KnowledgeTrustCaveat[];
+  citations: KnowledgeEvidenceSourceSummary[];
+  omitted: Array<{ id: string; reason: string }>;
 }
 
 export interface KnowledgeSearchExplanation {
