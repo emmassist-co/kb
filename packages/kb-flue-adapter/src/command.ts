@@ -10,7 +10,7 @@ export interface FlueCommandLike {
   execute(args: string[]): Promise<FlueCommandResult>;
 }
 import { runKnowledgeBaseCli, type KnowledgeBaseCliExecutor } from '@emmassist-co/kb-cli';
-import type { KnowledgeBaseService } from '@emmassist-co/kb-core';
+import { buildTrustSubstrateCapabilities, type KnowledgeBaseService } from '@emmassist-co/kb-core';
 import { createKbRuntimeContext, renderKbRuntimeContract } from './runtime-contract.js';
 
 export interface KnowledgeBaseRuntimeLike {
@@ -170,6 +170,7 @@ async function createRuntimeExecutor(
       workspaceRole: String(env.KB_BACKEND ?? '').trim().toLowerCase() === 'cloudflare'
         ? 'canonical-production'
         : 'runtime-support',
+      trustSubstrate: buildTrustSubstrateCapabilities(),
       summary: await (await getService()).list()
     }),
     list: async () => (await getService()).list(),
@@ -341,12 +342,21 @@ function renderLocalHelp(commandName: string | undefined, env: Record<string, un
         '  kb get-draft --id ENTITY_ID',
         '  kb put-draft --json @payload.json',
         '  kb delete-draft --id ENTITY_ID',
+        '  kb proposals',
+        '  kb get-proposal --id PROPOSAL_ID',
+        '  kb submit-proposal --json @payload.json',
+        '  kb review-proposal --id PROPOSAL_ID --json @payload.json',
+        '  kb apply-proposal --id PROPOSAL_ID',
+        '  kb reviews',
+        '  kb create-review --json @payload.json',
+        '  kb update-review --id REVIEW_ID --json @payload.json',
+        '  kb debt',
         '  kb relations [--entity-id ENTITY_ID] [--origin-kind entity|source|event|seed] [--origin-id ORIGIN_ID] [--type RELATION]',
         '  kb replace-relations --json @payload.json',
         '  kb clear-relations --origin-kind entity|source|event|seed --origin-id ORIGIN_ID',
         '',
         'Use these only for direct KB repair, cleanup, or inspection.',
-        'Default agent work should stay on `search`, `query-relations`, `remember`, `record`, `relate`, and `annotate`.'
+        'Default agent work should stay on `search`, `query-relations`, `evidence`, `recall`, `remember`, `submit-proposal`, `record`, `relate`, and `annotate`.'
       ].join('\n') + '\n',
       stderr: '',
       exitCode: 0
@@ -385,14 +395,18 @@ function renderLocalHelp(commandName: string | undefined, env: Record<string, un
       '  kb inspect',
       '  kb list',
       '  kb get <id>',
-      '  kb search --json \'{"query":"...","mode":"search-only|graph-only|graph-first-hybrid","lexicalBackend":"legacy-lexical|bm25-lexical"}\' [--assist-query]',
+      '  kb search --json \'{"query":"...","mode":"search-only|graph-only|graph-first-hybrid","lexicalBackend":"legacy-lexical|bm25-lexical","temporalFocus":"current|historical|mixed","evidenceOnly":false}\' [--assist-query]',
       '  kb query-relations --json \'{"query":"...","mode":"graph-only|graph-first-hybrid","lexicalBackend":"legacy-lexical|bm25-lexical"}\'',
+      '  kb recall --json \'{"query":"...","purpose":"pre-answer context"}\'',
+      '  kb evidence --id ENTITY_ID',
       '  kb remember --json @payload.json',
+      '  kb submit-proposal --json @payload.json',
       '  kb record --json @payload.json',
       '  kb relate --json @payload.json',
       '  kb annotate --json @payload.json',
       '  kb related --id ENTITY_ID',
       '  kb links --id ENTITY_ID',
+      '  kb debt',
       '  kb traverse --id ENTITY_ID [--type RELATION] [--direction in|out|both] [--depth 1]',
       '  kb rebuild',
       '  kb doctor',
@@ -401,11 +415,15 @@ function renderLocalHelp(commandName: string | undefined, env: Record<string, un
       '  kb help operator',
       '',
       'Notes:',
-      '  - Search first when the fact might already exist.',
-      '  - Use `kb remember` for new facts, corrections, and evidence capture.',
+      '  - Search first when the fact might already exist; use returned `trust` caveats instead of treating every hit as equally current.',
+      '  - Use `kb evidence --id` when source support, unsupported current truth, decisions, or supersession matter.',
+      '  - Use `kb recall` only for caller-triggered read-only context bundles; KB does not decide prompt injection.',
+      '  - Use `kb remember` for new facts, corrections, and raw evidence capture.',
+      '  - Use `kb submit-proposal` when evidence suggests a canonical change but review is required.',
       '  - Use `kb record` only when you already have an explicit structured KB record.',
       '  - Use `kb relate` for explicit relation edges between existing entities.',
       '  - Use `kb query-relations` for owner/founder/approver-style questions before falling back to broad search.',
+      '  - Use `kb debt`, `kb reviews`, `kb review-proposal`, and `kb apply-proposal` only for explicit operator/review workflows.',
       '  - Run `kb help runtime` for the current tenant/backend/canonicality contract.',
       '  - Run `kb help operator` only when you need direct KB repair or inspection.',
       '  - Prefer `--json -` or `--json @file.json` for write payload transport.'

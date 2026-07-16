@@ -67,6 +67,13 @@ npx kb inspect
 npx kb schema record
 ```
 
+`inspect` should include the trust-substrate capability block. After adding a disposable test record, verify the read surfaces the agent will use:
+
+```bash
+npx kb search --json '{"query":"test","temporalFocus":"current"}'
+npx kb recall --json '{"query":"test","purpose":"setup smoke"}'
+```
+
 ## Install This Skill
 
 After installing `@emmassist-co/kb-cli`, prefer the package-local skill path:

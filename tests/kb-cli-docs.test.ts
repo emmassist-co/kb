@@ -277,6 +277,10 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(packageSkill, /kb annotate --json -/);
   assert.match(packageSkill, /kb validate record/);
   assert.match(packageSkill, /query-relations/);
+  assert.match(packageSkill, /kb evidence --id/);
+  assert.match(packageSkill, /kb recall --json/);
+  assert.match(packageSkill, /kb submit-proposal --json @proposal\.json/);
+  assert.match(packageSkill, /kb debt/);
 
   assert.equal(kbCliPackage.version, '1.10.0');
   assert.ok(kbCliPackage.files.includes('skills'));
@@ -315,11 +319,14 @@ test('kb docs describe the staged public package set and current consumer entry 
   }
 
   const proposalFormat = readFileSync(path.resolve(process.cwd(), 'packages/kb-cli/recipes/proposal-format.md'), 'utf8');
-  assert.match(proposalFormat, /kb-local validate remember/);
-  assert.match(proposalFormat, /kb-local validate record/);
-  assert.match(proposalFormat, /kb-local validate relate/);
-  assert.match(proposalFormat, /kb-local validate annotate/);
-  assert.match(proposalFormat, /KB does not execute proposal objects/);
+  assert.match(proposalFormat, /kb validate remember/);
+  assert.match(proposalFormat, /kb validate record/);
+  assert.match(proposalFormat, /kb validate relate/);
+  assert.match(proposalFormat, /kb validate annotate/);
+  assert.match(proposalFormat, /kb submit-proposal --json @proposal\.json/);
+  assert.match(proposalFormat, /kb review-proposal --id/);
+  assert.match(proposalFormat, /kb apply-proposal --id/);
+  assert.match(proposalFormat, /does not author proposals, decide truth, schedule review, or arbitrate disagreements by itself/);
 
   const migrationStatus = readFileSync(path.resolve(process.cwd(), 'docs/migration-status.md'), 'utf8');
   assert.match(migrationStatus, /## Staged Public Package Set/);

@@ -1,7 +1,7 @@
 ---
 name: kb-write
-version: 2.0.0
-description: "Safe KB write workflow for remember, record, relate, annotate, validate, and cleanup without fragile inline JSON."
+version: 2.1.0
+description: "Safe trust-aware KB workflow for evidence reads, recall, proposals, remember, record, relate, annotate, validate, and cleanup without fragile inline JSON."
 metadata:
   openclaw:
     category: "company"
@@ -10,7 +10,7 @@ metadata:
 
 # KB Write
 
-Use this when the task is to store, correct, structure, or clean up durable company knowledge through `kb`.
+Use this when the task is to store, correct, structure, review, or clean up durable company knowledge through `kb` in a Flue runtime.
 
 ## Fast Path
 
@@ -18,11 +18,26 @@ Use this when the task is to store, correct, structure, or clean up durable comp
 kb help
 kb help runtime
 kb help operator
+kb schema search
+kb schema query-relations
 kb schema remember
 kb schema record
 kb schema relate
 kb schema annotate
 ```
+
+## Trust-Aware Read Before Write
+
+```bash
+kb inspect
+kb search --json '{"query":"billing owner","temporalFocus":"current"}'
+kb query-relations --json '{"query":"owner of Stripe","mode":"graph-first-hybrid"}'
+kb evidence --id vendor-stripe
+kb recall --json '{"query":"billing owner","purpose":"pre-answer context"}'
+kb debt
+```
+
+Search and relation results include `trust` envelopes. Treat caveats, unsupported current truth, stale/superseded status, and raw-evidence labels as part of the answer. `recall` is read-only; the Flue runtime decides if and when to inject it.
 
 ## Preferred Write Pattern
 
@@ -33,6 +48,7 @@ printf '%s\n' '{"intent":"fact_update","summary":"..."}' | kb remember --json -
 kb record --json @payload.json
 kb relate --json @payload.json
 kb annotate --json @payload.json
+kb submit-proposal --json @proposal.json
 ```
 
 For larger writes, validate before mutating:
@@ -48,16 +64,37 @@ Avoid large fragile inline JSON blobs when a file is practical.
 
 ## When To Use Which Command
 
-- Use `kb remember` for facts, sources, corrections, and narrative evidence capture.
-- Use `kb record` for canonical structured entities.
+- Use `kb search` before answering tenant-specific factual questions; inspect returned `trust` caveats.
+- Use `kb query-relations` for relation-shaped questions.
+- Use `kb evidence --id` when source support, decisions, supersession, or caveats matter.
+- Use `kb recall` only for caller-triggered read-only trust-aware context bundles.
+- Use `kb remember` for facts, sources, corrections, and raw/narrative evidence capture.
+- Use `kb submit-proposal` when evidence suggests canonical truth should change but review is required.
+- Use `kb record` for canonical structured entities when evidence and authorization are enough.
 - Use `kb relate` for explicit relation edges between existing entities.
 - Use `kb annotate` for timeline or provenance updates on existing entities.
-- Use `kb query-relations` for relation-shaped questions.
 - Use `kb delete --id ...` to clean up bad test entities or accidental writes.
 
-Treat these as the default agent verbs. Do not use low-level event, draft, source-capture, or relation-repair commands unless you are explicitly doing KB repair or operator cleanup.
+Treat these as the default agent verbs. Do not use low-level event, draft, source-capture, relation-repair, review approval, proposal apply, or conflict commands unless you are explicitly doing KB repair or operator cleanup.
 
-Use `kb help runtime` as the compact contract for the current tenant, backend, canonicality, and write discipline.
+Use `kb help runtime` as the compact contract for the current tenant, backend, canonicality, trust substrate version, and write discipline.
+
+## Proposal Discipline
+
+Raw notes and proposals are not canonical truth. If the agent lacks authority or evidence is ambiguous:
+
+```bash
+kb submit-proposal --json @proposal.json
+kb proposals
+kb get-proposal --id proposal_123
+```
+
+Only an explicit operator/review flow should approve and apply:
+
+```bash
+kb review-proposal --id proposal_123 --json '{"status":"approved","reviewer":"operator"}'
+kb apply-proposal --id proposal_123 --applied-by operator
+```
 
 ## Minimal Patterns
 
@@ -118,7 +155,9 @@ printf '%s\n' '{"entity_ids":["company-acme"],"summary":"2026-05-09: Confirmed f
 ## Verification And Cleanup
 
 - Run `kb validate ...` before a write when the payload is non-trivial.
+- Run `kb evidence --id ENTITY_ID` to verify source support and current-truth caveats.
 - Run `kb links --id ENTITY_ID` or `kb traverse --id ENTITY_ID --explicit-only` to verify explicit edges.
+- Run `kb debt` or `kb doctor` to inspect unsupported, stale, dangling, or review-needed state.
 - Default to `kb relate` for explicit edges. Only use `record.relations[]` when you are already creating or rewriting the entity in the same payload.
 - Do not use `kb annotate` to create relation edges.
 - Use `kb delete --id ENTITY_ID` for cleanup of test entities.
@@ -126,8 +165,9 @@ printf '%s\n' '{"entity_ids":["company-acme"],"summary":"2026-05-09: Confirmed f
 
 ## Working Pattern
 
-1. Search or inspect first if the fact may already exist.
-2. Use `kb schema <command>` if the payload shape is unclear.
-3. Validate before writing when using files, batches, or nested arrays.
-4. Prefer `record` for structured entities and `remember` for evidence or corrections.
-5. Verify explicit edges after writing instead of assuming they surfaced correctly.
+1. Inspect/search/read first if the fact may already exist.
+2. Use `kb evidence` when current truth needs source support.
+3. Use `kb schema <command>` if the payload shape is unclear.
+4. Validate before writing when using files, batches, or nested arrays.
+5. Prefer `remember` for evidence/corrections, `submit-proposal` for review-needed changes, and `record` only for authorized canonical structure.
+6. Verify explicit edges and trust caveats after writing instead of assuming they surfaced correctly.
