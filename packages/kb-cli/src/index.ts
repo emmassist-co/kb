@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION,
   KnowledgeBaseService,
   type KnowledgeBaseConfig,
   type KnowledgeEntityKind,
@@ -112,10 +113,20 @@ interface KnowledgeBaseCliExecutor {
   getDraft(entityId: string): Promise<unknown>;
   putDraft(input: JsonObject): Promise<unknown>;
   deleteDraft(entityId: string): Promise<unknown>;
+  listPromotionProposals(): Promise<unknown>;
+  getPromotionProposal(proposalId: string): Promise<unknown>;
+  submitPromotionProposal(input: JsonObject): Promise<unknown>;
+  reviewPromotionProposal(input: JsonObject): Promise<unknown>;
+  applyPromotionProposal(input: JsonObject): Promise<unknown>;
+  listReviewItems(): Promise<unknown>;
+  createReviewItem(input: JsonObject): Promise<unknown>;
+  updateReviewItem(input: JsonObject): Promise<unknown>;
+  memoryDebt(): Promise<unknown>;
   listRelations(input: JsonObject): Promise<unknown>;
   replaceRelations(input: JsonObject): Promise<unknown>;
   clearRelations(input: JsonObject): Promise<unknown>;
   search(input: JsonObject): Promise<unknown>;
+  recall(input: JsonObject): Promise<unknown>;
   queryRelations(input: JsonObject): Promise<unknown>;
   remember(input: JsonObject): Promise<unknown>;
   record(input: JsonObject): Promise<unknown>;
@@ -124,6 +135,7 @@ interface KnowledgeBaseCliExecutor {
   annotate(input: JsonObject): Promise<unknown>;
   related(id: string): Promise<unknown>;
   links(id: string): Promise<unknown>;
+  evidence(id: string): Promise<unknown>;
   traverse(input: JsonObject): Promise<unknown>;
   rebuild(): Promise<unknown>;
   doctor(): Promise<unknown>;
@@ -330,10 +342,20 @@ export async function createExecutor(options: KnowledgeBaseCliOptions): Promise<
     getDraft: (entityId) => service.getDraft(entityId),
     putDraft: (input) => service.updateEntityDraft(coerceDraftInput(input)),
     deleteDraft: (entityId) => service.deleteDraft(entityId),
+    listPromotionProposals: () => service.listPromotionProposals(),
+    getPromotionProposal: (proposalId) => service.getPromotionProposal(proposalId),
+    submitPromotionProposal: (input) => service.submitPromotionProposal(coerceSubmitPromotionInput(input)),
+    reviewPromotionProposal: (input) => service.reviewPromotionProposal(coerceReviewPromotionInput(input)),
+    applyPromotionProposal: (input) => service.applyPromotionProposal(coerceApplyPromotionInput(input)),
+    listReviewItems: () => service.listReviewItems(),
+    createReviewItem: (input) => service.createReviewItem(coerceCreateReviewItemInput(input)),
+    updateReviewItem: (input) => service.updateReviewItem(coerceUpdateReviewItemInput(input)),
+    memoryDebt: () => service.memoryDebt(),
     listRelations: (input) => service.listRelations(coerceRelationsFilterInput(input)),
     replaceRelations: (input) => service.replaceRelations(coerceReplaceRelationsInput(input)),
     clearRelations: (input) => service.clearRelations(coerceOriginInput(input)),
     search: (input) => service.search(coerceSearchInput(input)),
+    recall: (input) => service.recall(coerceRecallInput(input)),
     queryRelations: (input) => service.queryRelations(coerceRelationInput(input)),
     remember: (input) => service.remember(input as Parameters<KnowledgeBaseService['remember']>[0]),
     record: (input) => service.record(input as Parameters<KnowledgeBaseService['record']>[0]),
@@ -342,6 +364,7 @@ export async function createExecutor(options: KnowledgeBaseCliOptions): Promise<
     annotate: (input) => service.annotate(input as Parameters<KnowledgeBaseService['annotate']>[0]),
     related: (id) => service.related(id),
     links: (id) => service.links(id),
+    evidence: (id) => service.evidence(id),
     traverse: (input) => service.traverse(input as Parameters<KnowledgeBaseService['traverse']>[0]),
     rebuild: async () => {
       const exported = await service.export();
@@ -355,6 +378,8 @@ export async function createExecutor(options: KnowledgeBaseCliOptions): Promise<
           events: exported.events.length,
           links: exported.links.length,
           drafts: exported.drafts.length,
+          proposals: exported.proposals?.length ?? 0,
+          reviewItems: exported.reviewItems?.length ?? 0,
           registry: exported.entities.length
         }
       };
@@ -409,10 +434,29 @@ function createHttpExecutor(
       return request(`/v1/drafts/${encodeURIComponent(payload.entityId)}`, { method: 'PUT', body: payload });
     },
     deleteDraft: (entityId) => request(`/v1/drafts/${encodeURIComponent(entityId)}`, { method: 'DELETE' }),
+    listPromotionProposals: () => request('/v1/proposals'),
+    getPromotionProposal: (proposalId) => request(`/v1/proposals/${encodeURIComponent(proposalId)}`),
+    submitPromotionProposal: (input) => request('/v1/proposals', { method: 'POST', body: coerceSubmitPromotionInput(input) }),
+    reviewPromotionProposal: (input) => {
+      const payload = coerceReviewPromotionInput(input);
+      return request(`/v1/proposals/${encodeURIComponent(payload.proposalId)}/review`, { method: 'PUT', body: omitKey(payload, 'proposalId') });
+    },
+    applyPromotionProposal: (input) => {
+      const payload = coerceApplyPromotionInput(input);
+      return request(`/v1/proposals/${encodeURIComponent(payload.proposalId)}/apply`, { method: 'POST', body: omitKey(payload, 'proposalId') });
+    },
+    listReviewItems: () => request('/v1/reviews'),
+    createReviewItem: (input) => request('/v1/reviews', { method: 'POST', body: coerceCreateReviewItemInput(input) }),
+    updateReviewItem: (input) => {
+      const payload = coerceUpdateReviewItemInput(input);
+      return request(`/v1/reviews/${encodeURIComponent(payload.itemId)}`, { method: 'PUT', body: omitKey(payload, 'itemId') });
+    },
+    memoryDebt: () => request('/v1/debt'),
     listRelations: (input) => request(buildRelationsPath(coerceRelationsFilterInput(input))),
     replaceRelations: (input) => request('/v1/relations', { method: 'PUT', body: coerceReplaceRelationsInput(input) }),
     clearRelations: (input) => request(buildClearRelationsPath(coerceOriginInput(input)), { method: 'DELETE' }),
     search: (input) => request('/v1/search', { method: 'POST', body: coerceSearchInput(input) }),
+    recall: (input) => request('/v1/recall', { method: 'POST', body: coerceRecallInput(input) }),
     queryRelations: (input) => request('/v1/query-relations', { method: 'POST', body: coerceRelationInput(input) }),
     remember: (input) => request('/v1/remember', { method: 'POST', body: input }),
     record: (input) => request('/v1/record', { method: 'POST', body: input }),
@@ -421,6 +465,7 @@ function createHttpExecutor(
     annotate: (input) => request('/v1/annotate', { method: 'POST', body: input }),
     related: (id) => request(`/v1/entities/${encodeURIComponent(id)}/related`),
     links: (id) => request(`/v1/entities/${encodeURIComponent(id)}/links`),
+    evidence: (id) => request(`/v1/entities/${encodeURIComponent(id)}/evidence`),
     traverse: (input) => request('/v1/traverse', { method: 'POST', body: input }),
     rebuild: () => request('/v1/rebuild', { method: 'POST', body: {} }),
     doctor: () => request('/v1/doctor'),
@@ -466,6 +511,33 @@ async function executeCommand(
       return executor.putDraft(await loadJsonPayload(parsed, options));
     case 'delete-draft':
       return executor.deleteDraft(readId(parsed));
+    case 'proposals':
+      return executor.listPromotionProposals();
+    case 'get-proposal':
+      return executor.getPromotionProposal(readId(parsed));
+    case 'submit-proposal':
+      return executor.submitPromotionProposal(await loadJsonPayload(parsed, options));
+    case 'review-proposal':
+      return executor.reviewPromotionProposal({
+        ...await loadJsonPayload(parsed, options),
+        proposalId: readId(parsed)
+      });
+    case 'apply-proposal':
+      return executor.applyPromotionProposal({
+        proposalId: readId(parsed),
+        appliedBy: readString(parsed.flags.appliedBy) ?? readString(parsed.flags.applied_by)
+      });
+    case 'reviews':
+      return executor.listReviewItems();
+    case 'create-review':
+      return executor.createReviewItem(await loadJsonPayload(parsed, options));
+    case 'update-review':
+      return executor.updateReviewItem({
+        ...await loadJsonPayload(parsed, options),
+        itemId: readId(parsed)
+      });
+    case 'debt':
+      return executor.memoryDebt();
     case 'relations':
       return executor.listRelations(buildRelationsFilterPayload(parsed));
     case 'replace-relations':
@@ -474,6 +546,8 @@ async function executeCommand(
       return executor.clearRelations(buildOriginPayload(parsed));
     case 'search':
       return executor.search(await loadJsonPayload(parsed, options));
+    case 'recall':
+      return executor.recall(await loadJsonPayload(parsed, options));
     case 'query-relations':
       return executor.queryRelations(await loadJsonPayload(parsed, options));
     case 'remember':
@@ -493,6 +567,8 @@ async function executeCommand(
       return executor.related(readId(parsed));
     case 'links':
       return executor.links(readId(parsed));
+    case 'evidence':
+      return executor.evidence(readId(parsed));
     case 'traverse':
       return executor.traverse(buildTraversePayload(parsed));
     case 'rebuild':
@@ -594,7 +670,20 @@ function coerceSearchInput(input: JsonObject): Parameters<KnowledgeBaseService['
     limit: readNumber(input.limit) ?? 10,
     assistQuery: readBoolean(input.assistQuery),
     mode: readString(input.mode) as KnowledgeSearchMode | undefined,
-    lexicalBackend: readString(input.lexicalBackend) as KnowledgeLexicalBackend | undefined
+    lexicalBackend: readString(input.lexicalBackend) as KnowledgeLexicalBackend | undefined,
+    temporalFocus: readString(input.temporalFocus) as Parameters<KnowledgeBaseService['search']>[0]['temporalFocus'],
+    evidenceOnly: readBoolean(input.evidenceOnly) ?? readBoolean(input.evidence_only)
+  };
+}
+
+function coerceRecallInput(input: JsonObject): Parameters<KnowledgeBaseService['recall']>[0] {
+  return {
+    query: readString(input.query),
+    purpose: readString(input.purpose),
+    entityIds: readStringArray(input.entityIds) ?? readStringArray(input.entity_ids),
+    limit: readNumber(input.limit),
+    maxTokens: readNumber(input.maxTokens) ?? readNumber(input.max_tokens),
+    temporalFocus: readString(input.temporalFocus) as Parameters<KnowledgeBaseService['recall']>[0]['temporalFocus']
   };
 }
 
@@ -660,6 +749,70 @@ function coerceDraftInput(input: JsonObject): Parameters<KnowledgeBaseService['u
     openQuestions: readStringArray(input.openQuestions) ?? readStringArray(input.open_questions),
     sourceIds: readStringArray(input.sourceIds) ?? readStringArray(input.source_ids),
     timelineNotes: readStringArray(input.timelineNotes) ?? readStringArray(input.timeline_notes)
+  };
+}
+
+function coerceSubmitPromotionInput(input: JsonObject): Parameters<KnowledgeBaseService['submitPromotionProposal']>[0] {
+  const operation = requireEnum(input.operation, 'operation', ['record', 'remember', 'relate', 'annotate'] as const);
+  const payload = input.payload;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Missing required field: payload');
+  }
+  return {
+    id: readString(input.id),
+    operation,
+    payload: payload as Record<string, unknown>,
+    title: readString(input.title),
+    summary: readString(input.summary),
+    targetEntityIds: readStringArray(input.targetEntityIds) ?? readStringArray(input.target_entity_ids),
+    sourceIds: readStringArray(input.sourceIds) ?? readStringArray(input.source_ids),
+    submittedBy: readString(input.submittedBy) ?? readString(input.submitted_by),
+    warnings: readStringArray(input.warnings)
+  };
+}
+
+function coerceReviewPromotionInput(input: JsonObject): Parameters<KnowledgeBaseService['reviewPromotionProposal']>[0] {
+  return {
+    proposalId: requireString(input.proposalId ?? input.proposal_id, 'proposalId'),
+    status: requireEnum(input.status, 'status', ['approved', 'rejected', 'needs_more_evidence', 'archived'] as const),
+    reviewer: readString(input.reviewer),
+    notes: readString(input.notes)
+  };
+}
+
+function coerceApplyPromotionInput(input: JsonObject): Parameters<KnowledgeBaseService['applyPromotionProposal']>[0] {
+  return {
+    proposalId: requireString(input.proposalId ?? input.proposal_id, 'proposalId'),
+    appliedBy: readString(input.appliedBy) ?? readString(input.applied_by)
+  };
+}
+
+function coerceCreateReviewItemInput(input: JsonObject): Parameters<KnowledgeBaseService['createReviewItem']>[0] {
+  return {
+    id: readString(input.id),
+    type: requireEnum(input.type, 'type', ['promotion', 'stale', 'conflict', 'duplicate', 'unsupported', 'provenance', 'dangling', 'other'] as const),
+    status: readString(input.status) as Parameters<KnowledgeBaseService['createReviewItem']>[0]['status'],
+    severity: readString(input.severity) as Parameters<KnowledgeBaseService['createReviewItem']>[0]['severity'],
+    title: requireString(input.title, 'title'),
+    summary: requireString(input.summary, 'summary'),
+    targetIds: readStringArray(input.targetIds) ?? readStringArray(input.target_ids),
+    sourceIds: readStringArray(input.sourceIds) ?? readStringArray(input.source_ids),
+    relatedIds: readStringArray(input.relatedIds) ?? readStringArray(input.related_ids),
+    proposalId: readString(input.proposalId) ?? readString(input.proposal_id),
+    assignedTo: readString(input.assignedTo) ?? readString(input.assigned_to),
+    reviewer: readString(input.reviewer),
+    notes: readString(input.notes),
+    nextAction: readString(input.nextAction) ?? readString(input.next_action)
+  };
+}
+
+function coerceUpdateReviewItemInput(input: JsonObject): Parameters<KnowledgeBaseService['updateReviewItem']>[0] {
+  return {
+    itemId: requireString(input.itemId ?? input.item_id, 'itemId'),
+    status: requireString(input.status, 'status') as Parameters<KnowledgeBaseService['updateReviewItem']>[0]['status'],
+    assignedTo: readString(input.assignedTo) ?? readString(input.assigned_to),
+    reviewer: readString(input.reviewer),
+    notes: readString(input.notes)
   };
 }
 
@@ -837,6 +990,15 @@ function renderHelp(topic?: string): string {
       '  kb get-draft --id ENTITY_ID',
       '  kb put-draft --json @payload.json',
       '  kb delete-draft --id ENTITY_ID',
+      '  kb proposals',
+      '  kb get-proposal --id PROPOSAL_ID',
+      '  kb submit-proposal --json @payload.json',
+      '  kb review-proposal --id PROPOSAL_ID --json @payload.json',
+      '  kb apply-proposal --id PROPOSAL_ID',
+      '  kb reviews',
+      '  kb create-review --json @payload.json',
+      '  kb update-review --id REVIEW_ID --json @payload.json',
+      '  kb debt',
       '  kb relations [--entity-id ENTITY_ID] [--origin-kind entity|source|event|seed] [--origin-id ORIGIN_ID] [--type RELATION]',
       '  kb replace-relations --json @payload.json',
       '  kb clear-relations --origin-kind entity|source|event|seed --origin-id ORIGIN_ID',
@@ -857,6 +1019,7 @@ function renderHelp(topic?: string): string {
     '  kb get <id>',
     '  kb delete --id ENTITY_ID',
     '  kb search --json \'{"query":"...","mode":"search-only|graph-only|graph-first-hybrid"}\'',
+    '  kb recall --json \'{"query":"...","purpose":"pre-answer context"}\'',
     '  kb query-relations --json \'{"query":"founder of acme","mode":"graph-only|graph-first-hybrid"}\'',
     '  kb remember --json @payload.json',
     '  kb record --json @payload.json',
@@ -868,6 +1031,8 @@ function renderHelp(topic?: string): string {
     '  kb validate <remember|record|relate|annotate|search|query-relations|record-batch|annotate-batch> --json @payload.json',
     '  kb related --id ENTITY_ID',
     '  kb links --id ENTITY_ID',
+    '  kb evidence --id ENTITY_ID',
+    '  kb debt',
     '  kb traverse --id ENTITY_ID [--type RELATION] [--direction in|out|both] [--depth 1] [--explicit-only] [--include-mentions] [--origin-kind entity|source|event|seed]',
     '  kb rebuild',
     '  kb doctor',
@@ -889,6 +1054,7 @@ function renderHelp(topic?: string): string {
     '  - Do not use `kb annotate` for relation edges; it is only for timeline/provenance updates.',
     '  - Use `kb remember` for facts, sources, corrections, and narrative evidence capture.',
     '  - Use `kb query-relations` for relation-shaped questions; `kb search` is lexical/hybrid retrieval.',
+    '  - Use `kb recall` only when an integration explicitly wants a read-only trust-aware context bundle; agents/runtimes still decide when to inject it.',
     '  - `kb inspect` must tell you workspace namespace, backend, canonicality, and whether you are on a production or support surface before writes.',
     '  - Use `KB_BASE_URL` to target a deployed KB and `KB_API_TOKEN` for protected remote hosts. `KB_BEARER_TOKEN` is accepted as a compatibility alias.',
     '  - Use `kb cloudflare deploy` to scaffold a protected Cloudflare KB host and verify both `/v1` and `/mcp`.',
@@ -943,6 +1109,19 @@ export function buildSubcommandArgv(parsed: ParsedArgs, commandIndex: number): s
   return argv;
 }
 
+function buildTrustSubstrateCapabilities(): KnowledgeWorkspaceCapabilities['trustSubstrate'] {
+  return {
+    version: KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION,
+    trustAwareRetrieval: true,
+    evidenceViews: true,
+    promotionReview: true,
+    memoryDebt: true,
+    decisionViews: true,
+    recallBundles: true,
+    recallMutatesState: false
+  };
+}
+
 function buildLocalCapabilities(
   transport: Extract<KnowledgeBaseCliTransport, { mode: 'local' }>,
   mode: KnowledgeBaseConfig['mode'],
@@ -956,7 +1135,8 @@ function buildLocalCapabilities(
     mode,
     canonical: false,
     workspaceRole: backend === 'r2-mirror' ? 'mirror-support' : 'local-development',
-    rootDir
+    rootDir,
+    trustSubstrate: buildTrustSubstrateCapabilities()
   };
 }
 
@@ -1032,6 +1212,12 @@ function readStringArray(value: unknown): string[] | undefined {
   return strings.length > 0 ? strings : undefined;
 }
 
+function omitKey<T extends Record<string, unknown>, K extends keyof T>(value: T, key: K): Omit<T, K> {
+  const next = { ...value };
+  delete next[key];
+  return next;
+}
+
 async function executeBatch(
   entries: JsonObject[],
   execute: (entry: JsonObject) => Promise<unknown>
@@ -1096,7 +1282,7 @@ function renderSchema(command: SchemaCommand): {
       return {
         command,
         required: ['query'],
-        optional: ['kind', 'limit', 'assistQuery', 'mode', 'lexicalBackend'],
+        optional: ['kind', 'limit', 'assistQuery', 'mode', 'lexicalBackend', 'temporalFocus', 'evidenceOnly'],
         enums: {
           mode: ['search-only', 'graph-only', 'graph-first-hybrid'],
           lexicalBackend: ['legacy-lexical', 'bm25-lexical']

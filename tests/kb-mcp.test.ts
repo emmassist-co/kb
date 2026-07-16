@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { buildTrustSubstrateCapabilities } from '../packages/kb-core/src/service-helpers.js';
 import { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
 import { FileKnowledgeStore } from '../packages/kb-storage-file/src/file-store.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -17,7 +18,9 @@ test('kb mcp tool catalog is filtered by scope', () => {
     'inspect',
     'doctor',
     'search',
-    'query_relations'
+    'query_relations',
+    'evidence',
+    'recall'
   ]);
   assert.deepEqual(listKnowledgeBaseMcpToolNames(['kb.read', 'kb.write']), [
     'capabilities',
@@ -25,6 +28,8 @@ test('kb mcp tool catalog is filtered by scope', () => {
     'doctor',
     'search',
     'query_relations',
+    'evidence',
+    'recall',
     'remember',
     'record',
     'relate',
@@ -36,6 +41,8 @@ test('kb mcp tool catalog is filtered by scope', () => {
     'doctor',
     'search',
     'query_relations',
+    'evidence',
+    'recall',
     'remember',
     'record',
     'relate',
@@ -127,7 +134,8 @@ test('kb mcp stdio smoke can round-trip capabilities, record, and search', async
       mode: 'basic',
       canonical: false,
       workspaceRole: 'local-development',
-      rootDir
+      rootDir,
+      trustSubstrate: buildTrustSubstrateCapabilities()
     });
 
     const record = await client.callTool({
@@ -195,7 +203,8 @@ test('kb mcp http transport can round-trip capabilities, record, and search', as
       mode: 'basic',
       canonical: true,
       workspaceRole: 'canonical-production',
-      rootDir
+      rootDir,
+      trustSubstrate: buildTrustSubstrateCapabilities()
     });
 
     const record = await client.callTool({

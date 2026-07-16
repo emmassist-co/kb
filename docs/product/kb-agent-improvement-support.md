@@ -22,8 +22,9 @@ KB owns:
 - stable command surfaces for reading and writing durable knowledge
 - payload schemas and validation
 - canonical entity, source, event, and relation state
-- provenance and timeline surfaces
-- graph reads and relation traversal
+- provenance, trust metadata, evidence views, and timeline surfaces
+- graph reads, relation traversal, and read-only recall bundles
+- proposal/review/debt state for externally prepared improvements
 - package-shipped skills and markdown recipes that teach agents safe workflows
 
 ## Support Matrix
@@ -39,7 +40,7 @@ KB owns:
 | Duplicate cleanup | partial | expose search, list, get, delete, and record | decide whether records are duplicates | guidance only; no auto-merge | low |
 | Contradiction review | partial | expose evidence, entities, relations, and export | decide whether claims conflict | guidance only; no detector | low |
 | Stale knowledge review | partial | expose timestamps, current truth, events, and sources | decide whether state is stale | agent stale-review recipe | low |
-| Proposal handoff | partial | document payload shapes and existing validation | produce findings and choose proposed writes | proposal-format recipe | medium |
+| Proposal handoff | yes | store proposal/review state and apply approved normal writes | produce findings and choose proposed writes | proposal-format recipe plus `submit-proposal` / `review-proposal` / `apply-proposal` | medium |
 | Autonomous schedules | intentionally no | CLI can be invoked externally | own scheduler and checkpoints | explicit non-goal | avoided |
 | Recipe run state | intentionally no | none | store state wherever the agent/runtime wants | explicit non-goal | avoided |
 | KB-side thinking commands | intentionally no | none | all judgment lives outside KB | explicit non-goal | avoided |
@@ -49,15 +50,16 @@ KB owns:
 Use the narrow command surface before reaching for operator repair tools:
 
 1. Run `kb-local inspect` to confirm workspace, backend, and canonicality.
-2. Search and read before writing: `kb-local search`, `kb-local query-relations`, `kb-local get`, `kb-local links`, and `kb-local traverse`.
-3. Use `kb-local remember` for durable facts, source-backed notes, corrections, and narrative evidence.
-4. Use `kb-local record` for canonical structured entities when the agent has enough evidence to create or update the entity.
-5. Use `kb-local relate` for explicit relation edges between existing entities.
-6. Use `kb-local annotate` for timeline or provenance updates on existing entities.
-7. Use `kb-local validate <command>` before non-trivial writes or batches.
-8. Avoid writing when evidence is ambiguous; emit a proposal or report instead.
+2. Search and read before writing: `kb-local search`, `kb-local query-relations`, `kb-local get`, `kb-local evidence`, `kb-local links`, and `kb-local traverse`.
+3. Use `kb-local recall` only when a runtime explicitly wants a read-only trust-aware context bundle before answering.
+4. Use `kb-local remember` for durable facts, source-backed notes, corrections, and narrative evidence.
+5. Use `kb-local record` for canonical structured entities when the agent has enough evidence to create or update the entity.
+6. Use `kb-local relate` for explicit relation edges between existing entities.
+7. Use `kb-local annotate` for timeline or provenance updates on existing entities.
+8. Use `kb-local validate <command>` before non-trivial writes or batches.
+9. Avoid writing when evidence is ambiguous; emit a proposal or report instead, then use proposal/review surfaces when a human-approved promotion is needed.
 
-Operator-only surfaces such as direct source capture, event deletion, draft repair, relation replacement, and conflict resolution are for repair and support workflows, not normal improvement recipes.
+Operator-only surfaces such as proposal approval/application, direct review updates, direct source capture, event deletion, draft repair, relation replacement, and conflict resolution are for repair and support workflows, not normal improvement recipes.
 
 ## Recipe Contract
 

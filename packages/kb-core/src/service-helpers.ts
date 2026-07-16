@@ -1,21 +1,49 @@
 import { createEmptyEntity } from './documents.js';
 import { inferPageFamily } from './page-families.js';
 import { classifyRelationQuery, findEntityByQuery, inferQueryIntent } from './relations.js';
-import type {
-  KnowledgeCandidateRetrievalPlan,
-  EntityDocument,
-  EntityDraft,
-  KnowledgeBaseConfig,
-  KnowledgeEntityKind,
-  KnowledgeEntityRegistryEntry,
-  KnowledgeEvent,
-  KnowledgeLexicalBackend,
-  KnowledgeLink,
-  KnowledgeQueryIntent,
-  KnowledgeSearchResult
+import {
+  KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION,
+  type KnowledgeCandidateRetrievalPlan,
+  type EntityDocument,
+  type EntityDraft,
+  type KnowledgeBaseConfig,
+  type KnowledgeEntityKind,
+  type KnowledgeEntityRegistryEntry,
+  type KnowledgeEvent,
+  type KnowledgeLexicalBackend,
+  type KnowledgeLink,
+  type KnowledgeQueryIntent,
+  type KnowledgeSearchResult,
+  type KnowledgeTrustCaveat,
+  type KnowledgeTrustSubstrateCapabilities,
+  type KnowledgeTrustEnvelope,
+  type KnowledgeWorkspaceCapabilities,
+  type SourceDocument
 } from './types.js';
 
 export const DEFAULT_LEXICAL_BACKEND: KnowledgeLexicalBackend = 'legacy-lexical';
+
+export function buildTrustSubstrateCapabilities(): KnowledgeTrustSubstrateCapabilities {
+  return {
+    version: KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION,
+    trustAwareRetrieval: true,
+    evidenceViews: true,
+    promotionReview: true,
+    memoryDebt: true,
+    decisionViews: true,
+    recallBundles: true,
+    recallMutatesState: false
+  };
+}
+
+export function hydrateTrustSubstrateCapabilities<T extends Partial<KnowledgeWorkspaceCapabilities>>(
+  capabilities: T
+): T & { trustSubstrate: KnowledgeTrustSubstrateCapabilities } {
+  return {
+    ...capabilities,
+    trustSubstrate: capabilities.trustSubstrate ?? buildTrustSubstrateCapabilities()
+  };
+}
 
 export function defaultSearchMode(mode: KnowledgeBaseConfig['mode']): 'search-only' | 'graph-first-hybrid' {
   return mode === 'compound' ? 'graph-first-hybrid' : 'search-only';
@@ -651,6 +679,126 @@ export function scoreToConfidence(score: number): 'low' | 'medium' | 'high' {
   if (score >= 12) return 'high';
   if (score >= 6) return 'medium';
   return 'low';
+}
+
+export function buildTrustEnvelope(input: {
+  result: KnowledgeSearchResult;
+  entities: EntityDocument[];
+  sources: SourceDocument[];
+  links: KnowledgeLink[];
+}): KnowledgeTrustEnvelope {
+  const entity = input.result.kind === 'entity'
+    ? input.entities.find((entry) => entry.meta.id === input.result.id) ?? null
+    : null;
+  const source = input.result.kind === 'source'
+    ? input.sources.find((entry) => entry.meta.id === input.result.id) ?? null
+    : null;
+  const supersededBy = findSupersededBy(input.result.id, input.entities, input.sources);
+  const supersedes = entity?.meta.supersedes ?? source?.meta.supersedes ?? [];
+  const freshnessStatus = entity?.meta.freshnessStatus ?? source?.meta.freshnessStatus;
+  const lastReviewedAt = entity?.meta.lastReviewedAt ?? source?.meta.lastReviewedAt;
+  const linkedSourceIds = uniqueStrings([
+    ...input.result.sourceIds,
+    ...(entity?.sources ?? []),
+    ...(entity?.meta.sources ?? []),
+    ...(source ? [source.meta.id] : []),
+    ...input.links
+      .filter((link) => link.fromId === input.result.id || link.toId === input.result.id)
+      .flatMap((link) => link.sourceIds)
+  ]);
+  const currentness = deriveTrustCurrentness({
+    kind: input.result.kind,
+    entityStatus: entity?.meta.status,
+    source,
+    supersededBy
+  });
+  const evidenceRole = input.result.kind === 'entity'
+    ? 'canonical_truth'
+    : source?.meta.rawSourceRef
+      ? 'raw_evidence'
+      : 'supporting_evidence';
+  const caveats = buildTrustCaveats({
+    result: input.result,
+    entity,
+    source,
+    sourceIds: linkedSourceIds,
+    freshnessStatus,
+    currentness,
+    supersededBy
+  });
+  return {
+    currentness,
+    evidenceRole,
+    freshnessStatus,
+    lastReviewedAt,
+    confidence: input.result.confidence,
+    sourceIds: linkedSourceIds,
+    supersedes: uniqueStrings(supersedes),
+    supersededBy,
+    caveats
+  };
+}
+
+function deriveTrustCurrentness(input: {
+  kind: 'entity' | 'source';
+  entityStatus?: string;
+  source: SourceDocument | null;
+  supersededBy: string[];
+}): KnowledgeTrustEnvelope['currentness'] {
+  if (input.supersededBy.length > 0) return 'superseded';
+  if (input.entityStatus && /historical|archived|inactive|superseded/i.test(input.entityStatus)) return 'historical';
+  if (input.kind === 'source' && input.source?.meta.rawSourceRef) return 'raw';
+  return input.kind === 'entity' ? 'current' : 'historical';
+}
+
+function buildTrustCaveats(input: {
+  result: KnowledgeSearchResult;
+  entity: EntityDocument | null;
+  source: SourceDocument | null;
+  sourceIds: string[];
+  freshnessStatus: KnowledgeTrustEnvelope['freshnessStatus'];
+  currentness: KnowledgeTrustEnvelope['currentness'];
+  supersededBy: string[];
+}): KnowledgeTrustCaveat[] {
+  const caveats: KnowledgeTrustCaveat[] = [];
+  if (input.freshnessStatus === 'stale') {
+    caveats.push({ code: 'freshness_stale', severity: 'warning', message: 'Record is marked stale.' });
+  } else if (input.freshnessStatus === 'needs_review') {
+    caveats.push({ code: 'freshness_needs_review', severity: 'warning', message: 'Record needs review before treating it as fully current.' });
+  } else if (!input.freshnessStatus) {
+    caveats.push({ code: 'freshness_unknown', severity: 'info', message: 'Record has no freshness status.' });
+  }
+  if (input.currentness === 'superseded') {
+    caveats.push({
+      code: 'superseded_record',
+      severity: 'warning',
+      message: 'Record has been superseded by newer KB state.',
+      relatedIds: input.supersededBy
+    });
+  }
+  if (input.currentness === 'historical') {
+    caveats.push({ code: 'historical_record', severity: 'info', message: 'Record is evidence or historical context, not canonical current truth.' });
+  }
+  if (input.currentness === 'raw') {
+    caveats.push({ code: 'raw_unpromoted_evidence', severity: 'info', message: 'Record is raw evidence and has not been promoted to canonical current truth.' });
+  }
+  if (input.result.kind === 'entity' && input.entity?.currentTruth.trim() && input.sourceIds.length === 0) {
+    caveats.push({ code: 'unsupported_current_truth', severity: 'warning', message: 'Current truth has no linked source evidence.' });
+  }
+  if (input.result.ambiguous) {
+    caveats.push({ code: 'ambiguous_result', severity: 'info', message: 'Retrieval marked this result as ambiguous.' });
+  }
+  if (input.result.confidence === 'low') {
+    caveats.push({ code: 'low_confidence', severity: 'info', message: 'Retrieval confidence is low.' });
+  }
+  return caveats;
+}
+
+function findSupersededBy(id: string, entities: EntityDocument[], sources: SourceDocument[]): string[] {
+  return uniqueStrings([
+    ...entities.filter((entry) => (entry.meta.supersedes ?? []).includes(id)).map((entry) => entry.meta.id),
+    ...sources.filter((entry) => (entry.meta.supersedes ?? []).includes(id)).map((entry) => entry.meta.id)
+  ]);
 }
 
 export function applyAmbiguityCalibration(results: KnowledgeSearchResult[]): KnowledgeSearchResult[] {

@@ -2,7 +2,9 @@ import type {
   KnowledgeBaseMode,
   KnowledgeEntityRegistryEntry,
   KnowledgeEvent,
-  KnowledgeLink
+  KnowledgeLink,
+  KnowledgePromotionProposal,
+  KnowledgeReviewItem
 } from '@emmassist-co/kb-core';
 import {
   clonePersistedKnowledgeState,
@@ -43,6 +45,8 @@ export class R2CanonicalKbStore {
 
   async load(): Promise<{ state: PersistedKnowledgeState; version: string | null }> {
     const state = createEmptyPersistedKnowledgeState(this.mode);
+    const proposals = state.proposals ??= {};
+    const reviewItems = state.reviewItems ??= {};
     const files = await this.listAllKeys();
     let version: string | null = null;
     for (const key of files) {
@@ -68,6 +72,14 @@ export class R2CanonicalKbStore {
       }
       if (relative.startsWith('drafts/') && relative.endsWith('.json')) {
         state.drafts[relative.slice('drafts/'.length, -5)] = JSON.parse(content);
+        continue;
+      }
+      if (relative.startsWith('proposals/') && relative.endsWith('.json')) {
+        proposals[relative.slice('proposals/'.length, -5)] = JSON.parse(content) as KnowledgePromotionProposal;
+        continue;
+      }
+      if (relative.startsWith('reviews/') && relative.endsWith('.json')) {
+        reviewItems[relative.slice('reviews/'.length, -5)] = JSON.parse(content) as KnowledgeReviewItem;
         continue;
       }
       if (relative.startsWith('events/') && relative.endsWith('.json')) {
@@ -97,6 +109,8 @@ export class R2CanonicalKbStore {
   async rebuild(state: PersistedKnowledgeState, version: string): Promise<void> {
     await this.reset();
     const snapshot = clonePersistedKnowledgeState(state);
+    const proposals = snapshot.proposals ?? {};
+    const reviewItems = snapshot.reviewItems ?? {};
     await this.putMeta(version);
     for (const [id, markdown] of sortedEntries(snapshot.entities)) {
       await this.putEntity(id, markdown);
@@ -112,6 +126,12 @@ export class R2CanonicalKbStore {
     }
     for (const [id, draft] of sortedEntries(snapshot.drafts)) {
       await this.putDraft(id, draft);
+    }
+    for (const [id, proposal] of sortedEntries(proposals)) {
+      await this.putProposal(id, proposal);
+    }
+    for (const [id, item] of sortedEntries(reviewItems)) {
+      await this.putReviewItem(id, item);
     }
     const groupedLinks = new Map<string, KnowledgeLink[]>();
     for (const link of [...snapshot.links].sort((left, right) => left.id.localeCompare(right.id))) {
@@ -161,6 +181,22 @@ export class R2CanonicalKbStore {
 
   async deleteDraft(id: string): Promise<void> {
     await this.bucket.delete(this.key(`drafts/${id}.json`));
+  }
+
+  async putProposal(id: string, proposal: KnowledgePromotionProposal): Promise<void> {
+    await this.bucket.put(this.key(`proposals/${id}.json`), `${JSON.stringify(proposal, null, 2)}\n`);
+  }
+
+  async deleteProposal(id: string): Promise<void> {
+    await this.bucket.delete(this.key(`proposals/${id}.json`));
+  }
+
+  async putReviewItem(id: string, item: KnowledgeReviewItem): Promise<void> {
+    await this.bucket.put(this.key(`reviews/${id}.json`), `${JSON.stringify(item, null, 2)}\n`);
+  }
+
+  async deleteReviewItem(id: string): Promise<void> {
+    await this.bucket.delete(this.key(`reviews/${id}.json`));
   }
 
   async putEvent(event: KnowledgeEvent): Promise<void> {

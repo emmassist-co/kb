@@ -161,6 +161,52 @@ test('service persists extractor metadata without changing member queries', asyn
   assert.equal(result.results[0]?.id, 'person-carol-wilson');
 });
 
+test('relation queries hydrate trust metadata on results', async () => {
+  const service = new KnowledgeBaseService(
+    'acme',
+    TEST_CONFIG,
+    new SnapshotKnowledgeStore(createEmptyPersistedKnowledgeState('basic'))
+  );
+
+  await service.record({
+    entity: {
+      id: 'company-anchor',
+      kind: 'company',
+      title: 'Anchor',
+      currentTruth: 'Anchor runs finance systems.'
+    }
+  });
+  await service.record({
+    entity: {
+      id: 'person-carol-wilson',
+      kind: 'person',
+      title: 'Carol Wilson',
+      currentTruth: 'Carol Wilson works at Anchor.',
+      freshnessStatus: 'fresh',
+      lastReviewedAt: '2026-07-15T00:00:00.000Z'
+    },
+    relations: [
+      {
+        type: 'member_of',
+        fromId: 'person-carol-wilson',
+        toId: 'company-anchor',
+        confidence: 0.95
+      }
+    ]
+  });
+
+  const result = await service.queryRelations({
+    query: 'Who works at Anchor?',
+    limit: 5,
+    mode: 'graph-only'
+  });
+
+  assert.equal(result.results[0]?.id, 'person-carol-wilson');
+  assert.equal(result.results[0]?.trust?.currentness, 'current');
+  assert.equal(result.results[0]?.trust?.freshnessStatus, 'fresh');
+  assert.equal(result.results[0]?.trust?.evidenceRole, 'canonical_truth');
+});
+
 test('relation answer-kind policy allows organization investors', async () => {
   const service = new KnowledgeBaseService(
     'acme',

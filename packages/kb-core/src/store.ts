@@ -1,4 +1,13 @@
-import type { EntityDraft, KnowledgeBaseMode, KnowledgeEntityRegistryEntry, KnowledgeEvent, KnowledgeLink, KnowledgeLock } from './types.js';
+import type {
+  EntityDraft,
+  KnowledgeBaseMode,
+  KnowledgeEntityRegistryEntry,
+  KnowledgeEvent,
+  KnowledgeLink,
+  KnowledgeLock,
+  KnowledgePromotionProposal,
+  KnowledgeReviewItem
+} from './types.js';
 
 export interface KnowledgeLinkOrigin {
   kind: 'entity' | 'source' | 'event' | 'seed';
@@ -25,6 +34,14 @@ export interface KnowledgeStore {
   putDraft(draft: EntityDraft): Promise<void>;
   deleteDraft(entityId: string): Promise<void>;
   listDrafts(): Promise<EntityDraft[]>;
+  getPromotionProposal?(proposalId: string): Promise<KnowledgePromotionProposal | null>;
+  putPromotionProposal?(proposal: KnowledgePromotionProposal): Promise<void>;
+  deletePromotionProposal?(proposalId: string): Promise<void>;
+  listPromotionProposals?(): Promise<KnowledgePromotionProposal[]>;
+  getReviewItem?(itemId: string): Promise<KnowledgeReviewItem | null>;
+  putReviewItem?(item: KnowledgeReviewItem): Promise<void>;
+  deleteReviewItem?(itemId: string): Promise<void>;
+  listReviewItems?(): Promise<KnowledgeReviewItem[]>;
   listLinks(): Promise<KnowledgeLink[]>;
   replaceLinksForOrigin(origin: KnowledgeLinkOrigin, links: KnowledgeLink[]): Promise<void>;
   acquireEntityLock(entityId: string, ttlMs: number): Promise<KnowledgeLock | null>;

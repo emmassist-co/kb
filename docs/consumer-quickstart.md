@@ -71,6 +71,8 @@ Then use the same CLI as an HTTP client:
 export KB_BASE_URL=http://127.0.0.1:3001
 
 npx kb search --json '{"query":"billing"}'
+npx kb evidence --id vendor-stripe
+npx kb recall --json '{"query":"billing","purpose":"pre-answer context"}'
 ```
 
 ## 4. Local R2 Mirror Mode
@@ -154,9 +156,9 @@ Use `kb-cloudflare-setup` when the agent should guide an operator through deploy
 
 ## Agent Operating Protocol
 
-Agents should search before answering workspace-specific factual questions, write durable decisions with `record` or `remember`, capture external evidence with source metadata, use `relate` for explicit entity edges, and reserve `annotate` for timeline/provenance notes. Do not dump raw chat logs into KB; summarize the durable fact, decision, correction, or source-backed claim.
+Agents should search before answering workspace-specific factual questions, inspect trust state with `evidence` when a canonical answer needs support, and use `recall` only when their runtime explicitly wants a read-only context bundle. Write durable decisions with `record` or `remember`, capture external evidence with source metadata, use `relate` for explicit entity edges, and reserve `annotate` for timeline/provenance notes. Do not dump raw chat logs into KB; summarize the durable fact, decision, correction, or source-backed claim.
 
-If memory looks wrong, prefer a correction or superseding update over silent deletion. If an agent is running a maintenance, correction, relation, stale-review, or document-review workflow, it should use `kb-agent-improvement`; KB itself does not own schedules, recipe state, document ingestion, contradiction detection, or truth regeneration. Use `inspect`, `doctor`, `validate-mirror`, `health`, and conflict commands to understand state before repairing it.
+If memory looks wrong, prefer a correction or superseding update over silent deletion. If a proposed write needs human approval, use proposal/review surfaces (`submit-proposal`, `review-proposal`, `apply-proposal`) instead of pretending raw notes are canonical truth. If an agent is running a maintenance, correction, relation, stale-review, or document-review workflow, it should use `kb-agent-improvement`; KB itself does not own schedules, recipe state, document ingestion, contradiction detection, or truth regeneration. Use `inspect`, `doctor`, `debt`, `validate-mirror`, `health`, and conflict commands to understand state before repairing it.
 
 Protected remote KBs also require:
 

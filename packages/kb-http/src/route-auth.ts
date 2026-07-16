@@ -10,9 +10,15 @@ export function requiredScopesForKnowledgeBaseRoute(
     return ['kb.read'];
   }
 
+  if (request.method === 'POST' && request.pathname === '/v1/recall') {
+    return ['kb.read'];
+  }
+
   if (
     request.pathname === '/v1/export' ||
-    request.pathname === '/v1/rebuild'
+    request.pathname === '/v1/rebuild' ||
+    (request.pathname.startsWith('/v1/proposals/') && (request.pathname.endsWith('/review') || request.pathname.endsWith('/apply'))) ||
+    (request.pathname.startsWith('/v1/reviews') && request.method !== 'GET')
   ) {
     return ['kb.operator'];
   }

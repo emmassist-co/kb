@@ -189,7 +189,7 @@ function createStdioTransport(parsed: ParsedArgs, repoRoot: string): StdioClient
       '--import',
       'tsx/esm',
       path.resolve(repoRoot, 'scripts/kb-mcp-stdio.ts'),
-      '--workspace-id',
+      '--tenant-id',
       parsed.tenantId,
       '--root-dir',
       parsed.rootDir,

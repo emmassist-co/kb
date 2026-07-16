@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-mcp",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "private": false,
   "description": "MCP transport adapter for the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
@@ -30,8 +30,8 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@emmassist-co/kb-core": "^0.5.1",
-    "@emmassist-co/kb-http": "^0.5.1",
+    "@emmassist-co/kb-core": "^0.6.0",
+    "@emmassist-co/kb-http": "^0.6.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
   },

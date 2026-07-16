@@ -1,6 +1,6 @@
 # KB Eval Scorecard
 
-Generated: 2026-07-15T09:46:42.438Z
+Generated: 2026-07-16T09:41:34.652Z
 Corpus: `kb-core-six`
 Provenance: `deterministic-synthetic-fixtures`
 Suite: `kb:core-six`

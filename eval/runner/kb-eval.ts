@@ -176,7 +176,8 @@ function buildScorecardPolicy(args: ParsedArgs): EvalScorecard['policy'] | undef
       'Optimize on product-core admin-world retrieval quality.',
       'Use deterministic core-six categories as regression floors.',
       'Keep anti-cheat relation paraphrase and prose-only transfer rails green before making product-general relation-quality claims.',
-      'Keep the exact GBrain GitHub benchmark contract as an external comparison rail rather than a direct ship target.'
+      'Keep the exact GBrain GitHub benchmark contract as an external comparison rail rather than a direct ship target.',
+      'The GBrain comparison uses the same upstream runner, 240-page corpus, 145 public queries, top-k, and returned-denominator scorer; KB runtime/scoring remains benchmark-metadata-blind.'
     ]
   };
 }

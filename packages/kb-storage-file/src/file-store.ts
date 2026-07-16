@@ -8,7 +8,9 @@ import type {
   KnowledgeLinkOrigin,
   KnowledgeStore,
   KnowledgeLink,
-  KnowledgeLock
+  KnowledgeLock,
+  KnowledgePromotionProposal,
+  KnowledgeReviewItem
 } from '@emmassist-co/kb-core';
 
 interface FileStoreManifest {
@@ -25,6 +27,8 @@ export class FileKnowledgeStore implements KnowledgeStore {
   private readonly entityDir: string;
   private readonly sourceDir: string;
   private readonly draftDir: string;
+  private readonly proposalDir: string;
+  private readonly reviewDir: string;
   private readonly eventPath: string;
   private readonly linkPath: string;
   private readonly registryPath: string;
@@ -35,6 +39,8 @@ export class FileKnowledgeStore implements KnowledgeStore {
     this.entityDir = path.join(rootDir, 'entities');
     this.sourceDir = path.join(rootDir, 'sources');
     this.draftDir = path.join(rootDir, 'drafts');
+    this.proposalDir = path.join(rootDir, 'proposals');
+    this.reviewDir = path.join(rootDir, 'reviews');
     this.eventPath = path.join(rootDir, 'events.jsonl');
     this.linkPath = path.join(rootDir, 'links.jsonl');
     this.registryPath = path.join(rootDir, 'registry.json');
@@ -152,15 +158,51 @@ export class FileKnowledgeStore implements KnowledgeStore {
   }
 
   async listDrafts(): Promise<EntityDraft[]> {
+    return this.listJsonDir<EntityDraft>(this.draftDir);
+  }
+
+  async getPromotionProposal(proposalId: string): Promise<KnowledgePromotionProposal | null> {
+    const raw = await this.readOptionalFile(path.join(this.proposalDir, `${proposalId}.json`));
+    return raw ? (JSON.parse(raw) as KnowledgePromotionProposal) : null;
+  }
+
+  async putPromotionProposal(proposal: KnowledgePromotionProposal): Promise<void> {
     await this.ensureReady();
-    const entries = await readdir(this.draftDir);
-    const drafts: EntityDraft[] = [];
-    for (const entry of entries) {
-      if (!entry.endsWith('.json')) continue;
-      const raw = await readFile(path.join(this.draftDir, entry), 'utf8');
-      drafts.push(JSON.parse(raw) as EntityDraft);
+    await writeFile(path.join(this.proposalDir, `${proposal.id}.json`), JSON.stringify(proposal, null, 2), 'utf8');
+  }
+
+  async deletePromotionProposal(proposalId: string): Promise<void> {
+    try {
+      await rm(path.join(this.proposalDir, `${proposalId}.json`));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
-    return drafts;
+  }
+
+  async listPromotionProposals(): Promise<KnowledgePromotionProposal[]> {
+    return this.listJsonDir<KnowledgePromotionProposal>(this.proposalDir);
+  }
+
+  async getReviewItem(itemId: string): Promise<KnowledgeReviewItem | null> {
+    const raw = await this.readOptionalFile(path.join(this.reviewDir, `${itemId}.json`));
+    return raw ? (JSON.parse(raw) as KnowledgeReviewItem) : null;
+  }
+
+  async putReviewItem(item: KnowledgeReviewItem): Promise<void> {
+    await this.ensureReady();
+    await writeFile(path.join(this.reviewDir, `${item.id}.json`), JSON.stringify(item, null, 2), 'utf8');
+  }
+
+  async deleteReviewItem(itemId: string): Promise<void> {
+    try {
+      await rm(path.join(this.reviewDir, `${itemId}.json`));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+
+  async listReviewItems(): Promise<KnowledgeReviewItem[]> {
+    return this.listJsonDir<KnowledgeReviewItem>(this.reviewDir);
   }
 
   async listLinks(): Promise<KnowledgeLink[]> {
@@ -215,6 +257,8 @@ export class FileKnowledgeStore implements KnowledgeStore {
     await mkdir(this.entityDir, { recursive: true });
     await mkdir(this.sourceDir, { recursive: true });
     await mkdir(this.draftDir, { recursive: true });
+    await mkdir(this.proposalDir, { recursive: true });
+    await mkdir(this.reviewDir, { recursive: true });
     await mkdir(this.lockDir, { recursive: true });
     if (!(await exists(this.manifestPath))) {
       await writeFile(this.manifestPath, JSON.stringify({ mode: this.configuredMode }, null, 2), 'utf8');
@@ -237,6 +281,18 @@ export class FileKnowledgeStore implements KnowledgeStore {
       results.push({ id: entry.slice(0, -3), markdown });
     }
     return results.sort((left, right) => left.id.localeCompare(right.id));
+  }
+
+  private async listJsonDir<T>(dir: string): Promise<T[]> {
+    await this.ensureReady();
+    const entries = await readdir(dir);
+    const results: T[] = [];
+    for (const entry of entries) {
+      if (!entry.endsWith('.json')) continue;
+      const raw = await readFile(path.join(dir, entry), 'utf8');
+      results.push(JSON.parse(raw) as T);
+    }
+    return results.sort((left, right) => String((left as { id?: string; entityId?: string }).id ?? (left as { entityId?: string }).entityId ?? '').localeCompare(String((right as { id?: string; entityId?: string }).id ?? (right as { entityId?: string }).entityId ?? '')));
   }
 
   private async readOptionalFile(filePath: string): Promise<string | null> {

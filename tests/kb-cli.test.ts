@@ -78,8 +78,105 @@ test('kb cli local mode can record and search in-process', async () => {
       }
     );
     assert.equal(search.exitCode, 0);
-    const parsed = JSON.parse(search.stdout) as { results: Array<{ id: string }> };
+    const parsed = JSON.parse(search.stdout) as { results: Array<{ id: string; trust?: { currentness: string } }> };
     assert.equal(parsed.results[0]?.id, 'vendor-stripe');
+    assert.equal(parsed.results[0]?.trust?.currentness, 'current');
+
+    const evidence = await runKnowledgeBaseCli(
+      ['evidence', '--id', 'vendor-stripe'],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(evidence.exitCode, 0);
+    const evidencePayload = JSON.parse(evidence.stdout) as { id: string; currentTruth: { claims: Array<{ text: string }> } };
+    assert.equal(evidencePayload.id, 'vendor-stripe');
+    assert.equal(evidencePayload.currentTruth.claims[0]?.text, 'Stripe owns billing.');
+
+    const recall = await runKnowledgeBaseCli(
+      ['recall', '--json', '{"query":"billing stripe","purpose":"pre-answer"}'],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(recall.exitCode, 0);
+    const recallPayload = JSON.parse(recall.stdout) as { purpose?: string; claims: Array<{ entityId?: string }> };
+    assert.equal(recallPayload.purpose, 'pre-answer');
+    assert.equal(recallPayload.claims[0]?.entityId, 'vendor-stripe');
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb cli proposal review flow promotes canonical writes', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-proposal-'));
+
+  try {
+    const submit = await runKnowledgeBaseCli(
+      [
+        'submit-proposal',
+        '--json',
+        '{"id":"proposal_billing","operation":"record","payload":{"entity":{"id":"vendor-stripe","kind":"vendor","title":"Stripe","currentTruth":"Stripe owns billing."}}}'
+      ],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(submit.exitCode, 0);
+    assert.equal((JSON.parse(submit.stdout) as { status: string }).status, 'review_pending');
+
+    const review = await runKnowledgeBaseCli(
+      ['review-proposal', '--id', 'proposal_billing', '--json', '{"status":"approved","reviewer":"operator"}'],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(review.exitCode, 0);
+    assert.equal((JSON.parse(review.stdout) as { status: string }).status, 'approved');
+
+    const apply = await runKnowledgeBaseCli(
+      ['apply-proposal', '--id', 'proposal_billing', '--applied-by', 'operator'],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(apply.exitCode, 0);
+    const appliedPayload = JSON.parse(apply.stdout) as { proposal: { status: string }; mutation: { entityIds: string[] } };
+    assert.equal(appliedPayload.proposal.status, 'applied');
+    assert.deepEqual(appliedPayload.mutation.entityIds, ['vendor-stripe']);
+
+    const debt = await runKnowledgeBaseCli(
+      ['debt'],
+      {
+        transport: {
+          mode: 'local',
+          tenantId: 'acme',
+          rootDir
+        }
+      }
+    );
+    assert.equal(debt.exitCode, 0);
+    assert.equal(typeof (JSON.parse(debt.stdout) as { ok: boolean }).ok, 'boolean');
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }

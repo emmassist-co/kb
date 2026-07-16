@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
 import { FileKnowledgeStore } from '../packages/kb-storage-file/src/file-store.js';
+import { buildTrustSubstrateCapabilities } from '../packages/kb-core/src/service-helpers.js';
 import { createKnowledgeBaseCloudflareFetch } from '../packages/kb-http/src/cloudflare-worker.js';
 import { startKnowledgeBaseNodeServer } from '../packages/kb-http/src/node-server.js';
 import { handleKnowledgeBaseHttpRequest } from '../packages/kb-http/src/server.js';
@@ -39,7 +40,8 @@ test('kb http exposes capabilities envelope', async () => {
       mode: 'local',
       tenantId: 'acme',
       transport: 'http',
-      workspaceRole: 'local-development'
+      workspaceRole: 'local-development',
+      trustSubstrate: buildTrustSubstrateCapabilities()
     }
   });
 });
@@ -83,6 +85,7 @@ test('kb http inspect exposes capabilities plus compact workspace summary', asyn
       tenantId: 'acme',
       transport: 'http',
       workspaceRole: 'canonical-production',
+      trustSubstrate: buildTrustSubstrateCapabilities(),
       summary: {
         mode: 'basic',
         entities: [{ id: 'company-acme', title: 'Acme', kind: 'company' }],
@@ -93,7 +96,7 @@ test('kb http inspect exposes capabilities plus compact workspace summary', asyn
   });
 });
 
-test('kb http exposes event, draft, and relation routes', async () => {
+test('kb http exposes event, draft, relation, and evidence routes', async () => {
   const calls: string[] = [];
   const response = await handleKnowledgeBaseHttpRequest(
     {
@@ -151,14 +154,179 @@ test('kb http exposes event, draft, and relation routes', async () => {
     }
   );
 
+  const evidenceResponse = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async evidence(entityId: string) {
+          calls.push(`evidence:${entityId}`);
+          return { id: entityId, currentTruth: { claims: [] } };
+        }
+      } as never
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/entities/vendor-stripe/evidence',
+      searchParams: new URLSearchParams()
+    }
+  );
+
   assert.equal(response.status, 200);
   assert.equal(draftResponse.status, 200);
   assert.equal(relationResponse.status, 200);
+  assert.equal(evidenceResponse.status, 200);
   assert.deepEqual(calls, [
     'listEvents',
     'getDraft:vendor-stripe',
-    'listRelations:{"entityId":"vendor-stripe","type":"vendor_for"}'
+    'listRelations:{"entityId":"vendor-stripe","type":"vendor_for"}',
+    'evidence:vendor-stripe'
   ]);
+});
+
+test('kb http exposes proposal, review, and debt routes', async () => {
+  const calls: string[] = [];
+  const submitResponse = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async submitPromotionProposal(input: Record<string, unknown>) {
+          calls.push(`submit:${input.operation}`);
+          return { id: 'proposal_1', ...input };
+        }
+      } as never
+    },
+    {
+      method: 'POST',
+      pathname: '/v1/proposals',
+      searchParams: new URLSearchParams(),
+      body: {
+        operation: 'record',
+        payload: { entity: { id: 'vendor-stripe' } }
+      }
+    }
+  );
+  const reviewResponse = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async reviewPromotionProposal(input: Record<string, unknown>) {
+          calls.push(`review:${input.proposalId}:${input.status}`);
+          return input;
+        }
+      } as never
+    },
+    {
+      method: 'PUT',
+      pathname: '/v1/proposals/proposal_1/review',
+      searchParams: new URLSearchParams(),
+      body: { status: 'approved' }
+    }
+  );
+  const applyResponse = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async applyPromotionProposal(input: Record<string, unknown>) {
+          calls.push(`apply:${input.proposalId}`);
+          return { proposal: input, mutation: { entityIds: [] } };
+        }
+      } as never
+    },
+    {
+      method: 'POST',
+      pathname: '/v1/proposals/proposal_1/apply',
+      searchParams: new URLSearchParams(),
+      body: {}
+    }
+  );
+  const debtResponse = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async memoryDebt() {
+          calls.push('debt');
+          return { ok: false, items: [] };
+        }
+      } as never
+    },
+    {
+      method: 'GET',
+      pathname: '/v1/debt',
+      searchParams: new URLSearchParams()
+    }
+  );
+
+  assert.equal(submitResponse.status, 200);
+  assert.equal(reviewResponse.status, 200);
+  assert.equal(applyResponse.status, 200);
+  assert.equal(debtResponse.status, 200);
+  assert.deepEqual(calls, ['submit:record', 'review:proposal_1:approved', 'apply:proposal_1', 'debt']);
+});
+
+test('kb http requires operator scope for proposal approval', async () => {
+  let called = false;
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async reviewPromotionProposal() {
+          called = true;
+          return {};
+        }
+      } as never,
+      auth: {
+        required: true,
+        tokens: [{ token: 'writer', scopes: ['kb.read', 'kb.write'] }]
+      }
+    },
+    {
+      method: 'PUT',
+      pathname: '/v1/proposals/proposal_1/review',
+      searchParams: new URLSearchParams(),
+      headers: {
+        authorization: 'Bearer writer'
+      },
+      body: { status: 'approved' }
+    }
+  );
+
+  assert.equal(response.status, 403);
+  assert.equal(called, false);
+  assert.deepEqual(response.body, {
+    ok: false,
+    error: {
+      code: 'forbidden',
+      message: 'Missing required scopes: kb.operator'
+    }
+  });
+});
+
+test('kb http delegates recall requests to the service as read-only route', async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const response = await handleKnowledgeBaseHttpRequest(
+    {
+      service: {
+        async recall(input: Record<string, unknown>) {
+          calls.push(input);
+          return { query: input.query, claims: [] };
+        }
+      } as never,
+      auth: {
+        required: true,
+        tokens: [{ token: 'reader', scopes: ['kb.read'] }]
+      }
+    },
+    {
+      method: 'POST',
+      pathname: '/v1/recall',
+      searchParams: new URLSearchParams(),
+      headers: {
+        authorization: 'Bearer reader'
+      },
+      body: { query: 'billing', purpose: 'pre-answer' }
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls, [{ query: 'billing', purpose: 'pre-answer' }]);
+  assert.deepEqual(response.body, {
+    ok: true,
+    data: { query: 'billing', claims: [] }
+  });
 });
 
 test('kb http delegates search requests to the service', async () => {

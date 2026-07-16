@@ -71,6 +71,63 @@ test('kb flue adapter logs runtime telemetry for search requests', async () => {
   assert.ok((event.durationMs as number) >= 0);
 });
 
+test('kb flue adapter logs runtime telemetry for recall bundles', async () => {
+  const events: unknown[] = [];
+  const command = createKbCommand(
+    {
+      async readFileBuffer() {
+        throw new Error('readFileBuffer should not be used in this test');
+      }
+    },
+    {},
+    {
+      runtime: {
+        async getService() {
+          return {
+            async recall() {
+              return {
+                query: 'billing stripe',
+                temporalFocus: 'current',
+                generatedAt: '2026-07-15T00:00:00.000Z',
+                maxTokens: 1200,
+                estimatedTokens: 10,
+                claims: [{ id: 'vendor-stripe:claim:1', entityId: 'vendor-stripe', text: 'Stripe owns billing.', sourceIds: [], trust: { caveats: [] } }],
+                decisions: [],
+                caveats: [],
+                citations: [],
+                omitted: []
+              };
+            }
+          } as Pick<KnowledgeBaseService, 'recall'> as KnowledgeBaseService;
+        },
+        async flush() {
+          return null;
+        },
+        async rebuild() {
+          return null;
+        }
+      },
+      telemetry: {
+        log(event) {
+          events.push(event);
+        }
+      }
+    }
+  );
+
+  const result = await command.execute(['recall', '--json', '{"query":"billing stripe","purpose":"pre-answer"}']);
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(events.length, 1);
+  const event = events[0] as Record<string, unknown>;
+  assert.equal(event.type, 'kb_runtime_query');
+  assert.equal(event.operation, 'recall');
+  assert.equal(event.query, 'billing stripe');
+  assert.equal(event.mode, 'current');
+  assert.equal(event.resultCount, 1);
+  assert.deepEqual(event.resultIds, ['vendor-stripe']);
+});
+
 test('kb flue adapter logs runtime telemetry for relation queries', async () => {
   const events: unknown[] = [];
   const command = createKbCommand(

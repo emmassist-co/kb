@@ -40,12 +40,45 @@ test('r2 canonical store round-trips durable KB state', async () => {
     sources: {},
     events: [],
     links: [],
-    drafts: {}
+    drafts: {},
+    proposals: {
+      proposal_billing: {
+        id: 'proposal_billing',
+        tenantId: 'workspace-template',
+        status: 'review_pending',
+        operation: 'record',
+        payload: { entity: { id: 'vendor-stripe' } },
+        targetEntityIds: ['vendor-stripe'],
+        sourceIds: [],
+        warnings: [],
+        createdAt: '2026-07-15T00:00:00.000Z',
+        updatedAt: '2026-07-15T00:00:00.000Z'
+      }
+    },
+    reviewItems: {
+      review_billing: {
+        id: 'review_billing',
+        tenantId: 'workspace-template',
+        type: 'promotion',
+        status: 'open',
+        severity: 'info',
+        title: 'Review billing proposal',
+        summary: 'Review proposal.',
+        targetIds: ['vendor-stripe'],
+        sourceIds: [],
+        relatedIds: [],
+        proposalId: 'proposal_billing',
+        createdAt: '2026-07-15T00:00:00.000Z',
+        updatedAt: '2026-07-15T00:00:00.000Z'
+      }
+    }
   }, 'version-1');
 
   const loaded = await store.load();
   assert.equal(loaded.version, 'version-1');
   assert.match(loaded.state.entities['vendor-stripe'] ?? '', /Stripe handles invoice payments/);
+  assert.equal(loaded.state.proposals.proposal_billing?.status, 'review_pending');
+  assert.equal(loaded.state.reviewItems.review_billing?.proposalId, 'proposal_billing');
 });
 
 test('kb cloudflare DO core queues canonical sync and reports pending persistence state', async () => {
@@ -129,7 +162,9 @@ test('kb cloudflare DO core rebuilds restores and resets canonical state', async
     sources: {},
     events: [],
     links: [],
-    drafts: {}
+    drafts: {},
+    proposals: {},
+    reviewItems: {}
   }, 'restored-version');
 
   const restored = await methods.restoreSnapshotFromCanonical({
