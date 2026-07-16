@@ -48,6 +48,7 @@ For the full install and deployment path, see:
 - `kb-storage-cloudflare` persists canonical state in Cloudflare-native storage
 - `kb-http` exposes the canonical JSON/HTTP contract for local and deployed hosts
 - `kb-cli` gives operators and local agents a single command surface
+- `kb-dashboard` provides the packaged browser dashboard assets used by local operator hosts
 - `kb-flue-adapter` plugs the KB into Flue runtimes
 - `kb-autoresearch`, `kb-verify`, and `eval/` enforce compounding quality rather than one-off retrieval demos
 
@@ -60,6 +61,7 @@ The staged open-source package set is:
 - `@emmassist-co/kb-storage-cloudflare`
 - `@emmassist-co/kb-http`
 - `@emmassist-co/kb-mcp`
+- `@emmassist-co/kb-dashboard`
 - `@emmassist-co/kb-cli`
 - `@emmassist-co/kb-flue-adapter`
 
@@ -101,6 +103,7 @@ Current package boundaries already reflect the intended shape:
 - `packages/kb-http`: canonical `GET`/`POST`/`PUT`/`DELETE` contract with both Node and Worker hosts
 - `packages/kb-mcp`: Streamable HTTP MCP adapter over the same workspace-scoped Worker runtime and auth model
 - `packages/kb-cli`: local operator CLI, daemon mode, HTTP client mode, and installable skills
+- `packages/kb-dashboard`: static Vite browser dashboard package that local hosts can serve next to `/v1`
 - `packages/kb-flue-adapter`: published Flue runtime adapter with a structural command contract that survives Flue SDK export changes
 - `packages/kb-autoresearch`: private package and repo-owned research tooling surface, not a staged public install target
 
@@ -229,6 +232,7 @@ Important boundary: KB does **not** claim to own every chat bridge or agent runt
 | --- | --- | --- |
 | Local folder memory | `KB_ROOT_DIR=$PWD/.kb npx kb inspect` | One local agent needs durable memory in the current repo or workspace. |
 | Local shared daemon | `npx kb serve --port 3001` then `KB_BASE_URL=http://127.0.0.1:3001` | Multiple local tools should share one local `/v1` contract. |
+| Local browser dashboard | install optional `@emmassist-co/kb-dashboard`, then `npx kb dashboard --port 3001` | A human operator wants to browse entities, sources, graph links, recent activity, and supported markdown edits without Obsidian. CLI-only installs can omit the dashboard package. |
 | Protected remote HTTP | `KB_BASE_URL=https://YOUR-KB-HOST` + `KB_API_TOKEN` | Remote agents or serverless code need the canonical workspace memory. |
 | MCP client | `POST https://YOUR-KB-HOST/mcp` with the same bearer token | Claude, Cursor, or another MCP-aware host should use KB tools directly. |
 | Cloudflare bootstrap | `npx kb cloudflare deploy --workspace-id my-workspace` | An operator wants the canonical Worker, Durable Object, R2, `/v1`, and `/mcp` surface. |

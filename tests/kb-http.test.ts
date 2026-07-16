@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
+import { FileKnowledgeStore } from '../packages/kb-storage-file/src/file-store.js';
 import { createKnowledgeBaseCloudflareFetch } from '../packages/kb-http/src/cloudflare-worker.js';
 import { startKnowledgeBaseNodeServer } from '../packages/kb-http/src/node-server.js';
 import { handleKnowledgeBaseHttpRequest } from '../packages/kb-http/src/server.js';
@@ -465,4 +470,193 @@ test('kb http accepts protected read routes with a valid bearer token', async ()
     ok: true,
     data: { status: 'ok' }
   });
+});
+
+test('kb http exposes safe document read and stale-write save routes', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-http-documents-'));
+  const service = new KnowledgeBaseService(
+    'acme',
+    {
+      enabled: true,
+      mode: 'basic',
+      writePolicy: 'mixed',
+      persistence: { backend: 'file', cacheRefreshPolicy: 'none', rootDir: '.kb' },
+      ingest: {
+        agentTurns: false,
+        userCorrections: false,
+        workspaceSignals: false,
+        externalResearch: false
+      }
+    },
+    new FileKnowledgeStore(rootDir, 'basic')
+  );
+
+  try {
+    await service.record({
+      entity: {
+        id: 'company-acme',
+        kind: 'company',
+        title: 'Acme',
+        currentTruth: 'Acme runs billing.'
+      }
+    });
+
+    const getResponse = await handleKnowledgeBaseHttpRequest(
+      { service: service as never },
+      {
+        method: 'GET',
+        pathname: '/v1/documents/entity/company-acme',
+        searchParams: new URLSearchParams()
+      }
+    );
+    assert.equal(getResponse.status, 200);
+    const getBody = getResponse.body as { data: { markdown: string; revision: string; parsed: { meta: { id: string; tenantId: string } } } };
+    assert.equal(getBody.data.parsed.meta.id, 'company-acme');
+    assert.equal(getBody.data.parsed.meta.tenantId, 'acme');
+
+    const savedMarkdown = getBody.data.markdown.replace('Acme runs billing.', 'Acme owns billing and invoices.');
+    const saveResponse = await handleKnowledgeBaseHttpRequest(
+      { service: service as never },
+      {
+        method: 'PUT',
+        pathname: '/v1/documents/entity/company-acme',
+        searchParams: new URLSearchParams(),
+        body: { markdown: savedMarkdown, revision: getBody.data.revision }
+      }
+    );
+    assert.equal(saveResponse.status, 200);
+    const saved = saveResponse.body as { data: { markdown: string; revision: string } };
+    assert.match(saved.data.markdown, /owns billing/);
+    assert.notEqual(saved.data.revision, getBody.data.revision);
+
+    await assert.rejects(
+      () => handleKnowledgeBaseHttpRequest(
+        { service: service as never },
+        {
+          method: 'PUT',
+          pathname: '/v1/documents/entity/company-acme',
+          searchParams: new URLSearchParams(),
+          body: { markdown: savedMarkdown, revision: getBody.data.revision }
+        }
+      ),
+      /Stale entity document revision/
+    );
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb http document save rejects identity changes', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-http-doc-identity-'));
+  const service = new KnowledgeBaseService(
+    'acme',
+    {
+      enabled: true,
+      mode: 'basic',
+      writePolicy: 'mixed',
+      persistence: { backend: 'file', cacheRefreshPolicy: 'none', rootDir: '.kb' },
+      ingest: {
+        agentTurns: false,
+        userCorrections: false,
+        workspaceSignals: false,
+        externalResearch: false
+      }
+    },
+    new FileKnowledgeStore(rootDir, 'basic')
+  );
+
+  try {
+    await service.record({ entity: { id: 'company-acme', kind: 'company', title: 'Acme' } });
+    const getResponse = await handleKnowledgeBaseHttpRequest(
+      { service: service as never },
+      { method: 'GET', pathname: '/v1/documents/entity/company-acme', searchParams: new URLSearchParams() }
+    );
+    const getBody = getResponse.body as { data: { markdown: string; revision: string } };
+    const changedId = getBody.data.markdown.replace('id: company-acme', 'id: company-other');
+    await assert.rejects(
+      () => handleKnowledgeBaseHttpRequest(
+        { service: service as never },
+        {
+          method: 'PUT',
+          pathname: '/v1/documents/entity/company-acme',
+          searchParams: new URLSearchParams(),
+          body: { markdown: changedId, revision: getBody.data.revision }
+        }
+      ),
+      /document id cannot change/
+    );
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('kb node server serves dashboard assets without shadowing api routes', async (t) => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-http-dashboard-root-'));
+  const assetsDir = mkdtempSync(path.join(tmpdir(), 'kb-http-dashboard-assets-'));
+  writeFileSync(path.join(assetsDir, 'index.html'), '<main id="app">dashboard</main>', 'utf8');
+  writeFileSync(path.join(assetsDir, 'app.js'), 'console.log("dashboard")', 'utf8');
+  const service = new KnowledgeBaseService(
+    'acme',
+    {
+      enabled: true,
+      mode: 'basic',
+      writePolicy: 'mixed',
+      persistence: { backend: 'file', cacheRefreshPolicy: 'none', rootDir: '.kb' },
+      ingest: {
+        agentTurns: false,
+        userCorrections: false,
+        workspaceSignals: false,
+        externalResearch: false
+      }
+    },
+    new FileKnowledgeStore(rootDir, 'basic')
+  );
+  let server;
+  try {
+    server = await startKnowledgeBaseNodeServer(
+      {
+        service,
+        capabilities: {
+          backend: 'file',
+          canonical: false,
+          mode: 'local',
+          tenantId: 'acme',
+          transport: 'http',
+          workspaceRole: 'local-development'
+        }
+      },
+      { dashboard: { assetsDir, token: 'secret-token' } }
+    );
+  } catch (error) {
+    rmSync(rootDir, { recursive: true, force: true });
+    rmSync(assetsDir, { recursive: true, force: true });
+    if (isSandboxListenError(error)) {
+      t.skip('sandbox blocks localhost listen');
+      return;
+    }
+    throw error;
+  }
+
+  try {
+    const dashboard = await fetch(`${server.url}/dashboard/records/company-acme`);
+    assert.equal(dashboard.status, 200);
+    assert.match(await dashboard.text(), /dashboard/);
+
+    const config = await fetch(`${server.url}/dashboard/config.json`);
+    assert.equal(config.status, 200);
+    assert.deepEqual(await config.json(), {
+      apiBase: '/v1',
+      basePath: '/dashboard',
+      readOnly: false,
+      token: 'secret-token'
+    });
+
+    const api = await fetch(`${server.url}/v1/capabilities`);
+    assert.equal(api.headers.get('content-type'), 'application/json; charset=utf-8');
+    assert.equal(api.status, 200);
+  } finally {
+    await server.close();
+    rmSync(rootDir, { recursive: true, force: true });
+    rmSync(assetsDir, { recursive: true, force: true });
+  }
 });

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { buildBm25Index, scoreBm25Index } from './bm25.js';
 import {
   createEmptyEntity,
@@ -80,6 +81,25 @@ import type {
 
 const ENTITY_LOCK_TTL_MS = 15_000;
 
+
+export type KnowledgeDocumentKind = 'entity' | 'source';
+
+export interface KnowledgeDocumentSnapshot {
+  kind: KnowledgeDocumentKind;
+  id: string;
+  markdown: string;
+  parsed: EntityDocument | SourceDocument;
+  revision: string;
+  validationIssues: string[];
+}
+
+export interface KnowledgeDocumentSaveInput {
+  kind: KnowledgeDocumentKind;
+  id: string;
+  markdown: string;
+  revision: string;
+}
+
 export interface KnowledgeBaseReplayAdapter {
   appendRecord(rootDir: string, record: KnowledgeReplayRecord): Promise<void>;
   loadRecords(rootDir: string | undefined, tenantId: string, recordsPath?: string): Promise<KnowledgeReplayRecord[]>;
@@ -132,6 +152,52 @@ export class KnowledgeBaseService {
       return { kind: 'source', markdown: sourceMarkdown, parsed: parseSourceDocument(sourceMarkdown) };
     }
     throw new Error(`Knowledge record not found: ${id}`);
+  }
+
+  async getDocument(input: { kind: KnowledgeDocumentKind; id: string }): Promise<KnowledgeDocumentSnapshot> {
+    const markdown = input.kind === 'entity'
+      ? await this.store.getEntityMarkdown(input.id)
+      : await this.store.getSourceMarkdown(input.id);
+    if (!markdown) throw new Error(`Knowledge ${input.kind} document not found: ${input.id}`);
+    return this.buildDocumentSnapshot(input.kind, input.id, markdown);
+  }
+
+  async saveDocument(input: KnowledgeDocumentSaveInput): Promise<KnowledgeDocumentSnapshot> {
+    const currentMarkdown = input.kind === 'entity'
+      ? await this.store.getEntityMarkdown(input.id)
+      : await this.store.getSourceMarkdown(input.id);
+    if (!currentMarkdown) throw new Error(`Knowledge ${input.kind} document not found: ${input.id}`);
+    const currentRevision = this.hashDocument(currentMarkdown);
+    if (input.revision !== currentRevision) {
+      throw new Error(`Stale ${input.kind} document revision for ${input.id}. Reload before saving.`);
+    }
+
+    const next = this.buildDocumentSnapshot(input.kind, input.id, input.markdown);
+    if (next.validationIssues.length > 0) {
+      throw new Error(`Invalid ${input.kind} document: ${next.validationIssues.join(' ')}`);
+    }
+    if (next.parsed.meta.id !== input.id) {
+      throw new Error(`${input.kind} document id cannot change from ${input.id} to ${next.parsed.meta.id}.`);
+    }
+    if (next.parsed.meta.tenantId !== this.tenantId) {
+      throw new Error(`${input.kind} document tenantId cannot change from ${this.tenantId} to ${next.parsed.meta.tenantId}.`);
+    }
+
+    if (input.kind === 'entity') {
+      await this.store.putEntityMarkdown(input.id, input.markdown);
+      await this.upsertRegistryEntry(next.parsed as EntityDocument);
+      this.invalidateLexicalCaches();
+      await this.reindexEntity(input.id);
+    } else {
+      await this.store.putSourceMarkdown(input.id, input.markdown);
+      this.invalidateLexicalCaches();
+      await this.reindexSource(input.id);
+    }
+
+    const savedMarkdown = input.kind === 'entity'
+      ? await this.store.getEntityMarkdown(input.id)
+      : await this.store.getSourceMarkdown(input.id);
+    return this.buildDocumentSnapshot(input.kind, input.id, savedMarkdown ?? input.markdown);
   }
 
   async createEntity(input: {
@@ -1800,6 +1866,25 @@ export class KnowledgeBaseService {
         input.limit ?? 10
       )
     };
+  }
+
+  private buildDocumentSnapshot(kind: KnowledgeDocumentKind, id: string, markdown: string): KnowledgeDocumentSnapshot {
+    const parsed = kind === 'entity' ? parseEntityDocument(markdown) : parseSourceDocument(markdown);
+    const validationIssues = kind === 'entity'
+      ? validateEntityDocument(parsed as EntityDocument)
+      : validateSourceDocument(parsed as SourceDocument);
+    return {
+      kind,
+      id,
+      markdown,
+      parsed,
+      revision: this.hashDocument(markdown),
+      validationIssues
+    };
+  }
+
+  private hashDocument(markdown: string): string {
+    return createHash('sha256').update(markdown).digest('hex');
   }
 
   private getBm25Index(entities: EntityDocument[], sources: SourceDocument[]) {

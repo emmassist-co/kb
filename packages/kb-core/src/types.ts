@@ -315,6 +315,10 @@ export interface KnowledgeWorkspaceCapabilities {
   workspaceRole: 'canonical-production' | 'local-development' | 'mirror-support' | 'runtime-support';
   rootDir?: string;
   baseUrl?: string;
+  dashboard?: {
+    readOnly: boolean;
+    basePath: string;
+  };
 }
 
 export interface KnowledgeRelationQueryInput {

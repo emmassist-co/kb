@@ -16,14 +16,14 @@
     "packages/*"
   ],
   "scripts": {
-    "clean": "rm -rf packages/kb-core/dist packages/kb-storage-file/dist packages/kb-storage-cloudflare/dist packages/kb-http/dist packages/kb-mcp/dist packages/kb-cli/dist packages/kb-flue-adapter/dist",
+    "clean": "rm -rf packages/kb-core/dist packages/kb-storage-file/dist packages/kb-storage-cloudflare/dist packages/kb-http/dist packages/kb-mcp/dist packages/kb-dashboard/dist packages/kb-cli/dist packages/kb-flue-adapter/dist",
     "build:kb-core": "tsc -p packages/kb-core/tsconfig.json",
     "build:kb-storage-file": "tsc -p packages/kb-storage-file/tsconfig.json",
     "build:kb-storage-cloudflare": "tsc -p packages/kb-storage-cloudflare/tsconfig.json",
     "build:kb-http": "tsc -p packages/kb-http/tsconfig.json",
     "build:kb-mcp": "npm run build:kb-http && tsc -p packages/kb-mcp/tsconfig.json",
     "build:kb-cli": "tsc -p packages/kb-cli/tsconfig.json",
-    "build:public": "npm run clean && npm run build:kb-core && npm run build:kb-storage-file && npm run build:kb-storage-cloudflare && npm run build:kb-http && npm run build:kb-mcp && npm run build:kb-cli && npm run build:kb-flue-adapter",
+    "build:public": "npm run clean && npm run build:kb-core && npm run build:kb-storage-file && npm run build:kb-storage-cloudflare && npm run build:kb-http && npm run build:kb-mcp && npm run build:kb-dashboard && npm run build:kb-cli && npm run build:kb-flue-adapter",
     "verify:public-packages": "npm run build:public && node scripts/verify-public-packages.mjs",
     "smoke:kb-agent-readiness": "node --import tsx/esm scripts/kb-agent-readiness-smoke.ts",
     "smoke:kb-mcp": "node --import tsx/esm scripts/kb-mcp-smoke.ts",
@@ -47,7 +47,8 @@
     "eval:kb:gbrain-evals-upstream": "node --import tsx/esm scripts/run-gbrain-evals-upstream.ts",
     "eval:kb:gbrain-evals-upstream:kb": "node --import tsx/esm scripts/run-gbrain-evals-upstream.ts --adapter=kb-upstream",
     "eval:kb:gbrain-world-corpus-links": "node --import tsx/esm eval/runner/kb-benchmark.ts --gbrain-world eval/data/gbrain-world-v1 --gbrain-world-contract corpus-linkable --side-by-side",
-    "build:kb-flue-adapter": "tsc -p packages/kb-flue-adapter/tsconfig.json"
+    "build:kb-flue-adapter": "tsc -p packages/kb-flue-adapter/tsconfig.json",
+    "build:kb-dashboard": "tsc -p packages/kb-dashboard/tsconfig.json && vite build --config packages/kb-dashboard/dashboard/vite.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.908.0",
@@ -56,9 +57,14 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "@types/node": "^24.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "vite": "^7.3.6",
     "wrangler": "^4.87.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.62.2"
   }
 }

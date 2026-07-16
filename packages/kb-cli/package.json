@@ -1,6 +1,6 @@
 {
   "name": "@emmassist-co/kb-cli",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "private": false,
   "description": "CLI for local, HTTP-backed, and R2-synced operation of the Cloudflare-first KB stack.",
   "license": "Apache-2.0",
@@ -28,9 +28,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.908.0",
-    "@emmassist-co/kb-core": "^0.4.4",
-    "@emmassist-co/kb-http": "^0.4.1",
-    "@emmassist-co/kb-storage-file": "^0.2.3"
+    "@emmassist-co/kb-core": "^0.5.0",
+    "@emmassist-co/kb-http": "^0.5.0",
+    "@emmassist-co/kb-storage-file": "^0.2.4"
   },
   "files": [
     "bin",

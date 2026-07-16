@@ -1,7 +1,16 @@
 import { KnowledgeBaseService, type KnowledgeBaseConfig } from '@emmassist-co/kb-core';
 import { startKnowledgeBaseNodeServer, type KnowledgeBaseNodeServerHandle } from '@emmassist-co/kb-http';
 import { FileKnowledgeStore } from '@emmassist-co/kb-storage-file';
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
+
+export interface KnowledgeBaseCliDashboardOptions {
+  enabled?: boolean;
+  assetsDir?: string;
+  basePath?: string;
+  readOnly?: boolean;
+  token?: string;
+}
 
 export interface KnowledgeBaseCliDaemonOptions {
   tenantId: string;
@@ -10,6 +19,7 @@ export interface KnowledgeBaseCliDaemonOptions {
   config?: KnowledgeBaseConfig;
   host?: string;
   port?: number;
+  dashboard?: KnowledgeBaseCliDashboardOptions;
 }
 
 const DEFAULT_CONFIG: KnowledgeBaseConfig = {
@@ -39,6 +49,9 @@ export async function startKnowledgeBaseCliDaemon(
     config,
     new FileKnowledgeStore(rootDir, config.mode)
   );
+  const dashboardToken = options.dashboard?.enabled && !options.dashboard.readOnly
+    ? options.dashboard.token ?? randomBytes(18).toString('base64url')
+    : undefined;
   return startKnowledgeBaseNodeServer(
     {
       service,
@@ -49,8 +62,15 @@ export async function startKnowledgeBaseCliDaemon(
         workspaceRole: 'local-development',
         tenantId: options.tenantId,
         transport: 'http',
-        rootDir
+        rootDir,
+        dashboard: options.dashboard?.enabled ? {
+          readOnly: options.dashboard.readOnly ?? false,
+          basePath: options.dashboard.basePath ?? '/dashboard'
+        } : undefined
       },
+      dashboard: dashboardToken ? {
+        token: dashboardToken
+      } : undefined,
       rebuild: async () => {
         const exported = await service.export();
         return {
@@ -68,6 +88,30 @@ export async function startKnowledgeBaseCliDaemon(
         };
       }
     },
-    { host: options.host, port: options.port }
+    {
+      host: options.host,
+      port: options.port,
+      dashboard: options.dashboard?.enabled ? {
+        assetsDir: options.dashboard.assetsDir ?? await resolveOptionalDashboardAssetsDir(),
+        basePath: options.dashboard.basePath ?? '/dashboard',
+        readOnly: options.dashboard.readOnly ?? false,
+        token: dashboardToken
+      } : undefined
+    }
   );
 }
+
+async function resolveOptionalDashboardAssetsDir(): Promise<string> {
+  try {
+    const dynamicImport = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<{
+      resolveKnowledgeBaseDashboardAssetsDir?: () => string;
+    }>;
+    const dashboard = await dynamicImport('@emmassist-co/kb-dashboard');
+    const resolveAssets = dashboard.resolveKnowledgeBaseDashboardAssetsDir;
+    if (typeof resolveAssets === 'function') return resolveAssets();
+  } catch {
+    // Fall through to the actionable error below.
+  }
+  throw new Error('Dashboard assets were not found. Install @emmassist-co/kb-dashboard alongside @emmassist-co/kb-cli, or pass --assets-dir to kb dashboard.');
+}
+

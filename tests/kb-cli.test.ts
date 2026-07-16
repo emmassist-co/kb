@@ -1537,3 +1537,57 @@ test('kb cli exposes direct event, draft, relation, and source-capture surfaces'
     rmSync(rootDir, { recursive: true, force: true });
   }
 });
+
+test('kb cli daemon can serve browser dashboard UI and api routes', async (t) => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-dashboard-root-'));
+  const assetsDir = mkdtempSync(path.join(tmpdir(), 'kb-cli-dashboard-assets-'));
+  writeFileSync(path.join(assetsDir, 'index.html'), '<main>kb dashboard</main>', 'utf8');
+  let daemon;
+
+  try {
+    daemon = await startKnowledgeBaseCliDaemon({
+      tenantId: 'acme',
+      rootDir,
+      dashboard: {
+        enabled: true,
+        assetsDir
+      }
+    });
+  } catch (error) {
+    rmSync(rootDir, { recursive: true, force: true });
+    rmSync(assetsDir, { recursive: true, force: true });
+    if (isSandboxListenError(error)) {
+      t.skip('sandbox blocks localhost listen');
+      return;
+    }
+    throw error;
+  }
+
+  try {
+    assert.match(daemon.dashboardUrl ?? '', /\/dashboard\/$/);
+    const dashboard = await fetch(daemon.dashboardUrl ?? '');
+    assert.equal(dashboard.status, 200);
+    assert.match(await dashboard.text(), /kb dashboard/);
+    const capabilities = await fetch(`${daemon.url}/v1/capabilities`);
+    assert.equal(capabilities.status, 200);
+  } finally {
+    await daemon.close();
+    rmSync(rootDir, { recursive: true, force: true });
+    rmSync(assetsDir, { recursive: true, force: true });
+  }
+});
+
+test('kb cli dashboard refuses non-loopback host', async () => {
+  const result = await runKnowledgeBaseCli(
+    ['dashboard', '--host', '0.0.0.0'],
+    {
+      transport: {
+        mode: 'local',
+        tenantId: 'acme',
+        rootDir: mkdtempSync(path.join(tmpdir(), 'kb-cli-dashboard-host-'))
+      }
+    }
+  );
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stderr, /Refusing to start dashboard on a non-loopback host/);
+});
