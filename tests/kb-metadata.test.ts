@@ -549,6 +549,46 @@ test('promotion proposals require review before applying canonical writes', asyn
   assert.equal((await service.get('vendor-stripe')).kind, 'entity');
 });
 
+test('promotion proposals normalize snake_case annotate payloads before applying', async () => {
+  const service = new KnowledgeBaseService(
+    'acme',
+    TEST_CONFIG,
+    new SnapshotKnowledgeStore(createEmptyPersistedKnowledgeState('basic'))
+  );
+
+  await service.record({
+    entity: {
+      id: 'vendor-stripe',
+      kind: 'vendor',
+      title: 'Stripe',
+      currentTruth: 'Stripe owns billing.'
+    }
+  });
+  await service.submitPromotionProposal({
+    id: 'proposal_annotation',
+    operation: 'annotate',
+    payload: {
+      entity_ids: ['vendor-stripe'],
+      summary: 'Reviewed billing evidence during launch smoke.',
+      source_ids: []
+    }
+  });
+  await service.reviewPromotionProposal({
+    proposalId: 'proposal_annotation',
+    status: 'approved',
+    reviewer: 'operator'
+  });
+
+  const applied = await service.applyPromotionProposal({
+    proposalId: 'proposal_annotation',
+    appliedBy: 'operator'
+  });
+
+  assert.equal(applied.proposal.status, 'applied');
+  assert.deepEqual(applied.mutation.entityIds, ['vendor-stripe']);
+  assert.ok(applied.mutation.hydrated.events.some((event) => event.entityIds.includes('vendor-stripe')));
+});
+
 test('memory debt derives doctor findings and links review items', async () => {
   const service = new KnowledgeBaseService(
     'acme',
