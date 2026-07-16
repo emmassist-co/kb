@@ -32,13 +32,13 @@ Use this file as the merged-work ledger for `kb/`.
 
 ## Entries
 
-## 2026-07-15 - Add Local Browser Dashboard
+## 2026-07-16 - Publish Compiled KB Core Patch
 
-- Area: CLI command, HTTP surface, package
-- Merged to `main`: no
+- Area: package
+- Merged to `main`: yes
 - Commit / PR: pending
-- Feature summary: added a local `kb dashboard` browser UI served by the KB CLI, introduced `@emmassist-co/kb-dashboard` as the separate Vite TypeScript dashboard package, exposed safe entity/source markdown document endpoints with stale-write validation, and added optional dashboard static serving to the local Node host.
-- Customer-visible impact: operators who install the optional dashboard package can browse local KB inventory, records, graph relations, recent events, and supported markdown/frontmatter edits from a browser without Obsidian; CLI-only consumers are not forced to install dashboard assets.
+- Feature summary: republished the dashboard release package set with `@emmassist-co/kb-core` exported from compiled `dist` artifacts instead of source TypeScript, and updated dependent package ranges to the compiled patch versions.
+- Customer-visible impact: fresh installs of `@emmassist-co/kb-cli` can run under Node without attempting to strip TypeScript from `node_modules`.
 - Deployment status: pending
 - Deployment date:
 - Deployment environment:
@@ -47,8 +47,28 @@ Use this file as the merged-work ledger for `kb/`.
 - Human tester:
 - Human test date:
 - Human test environment:
+- Human test flow: install `@emmassist-co/kb-cli` and `@emmassist-co/kb-dashboard` into a fresh temp project from GitHub Packages, run `kb dashboard`, and verify the UI and `/v1/capabilities` load.
+- Automated coverage: pending
+- Needs iteration: no
+- Follow-up: none
+
+## 2026-07-15 - Add Local Browser Dashboard
+
+- Area: CLI command, HTTP surface, package
+- Merged to `main`: yes
+- Commit / PR: PR #13, merge commit `f9bbdf0`
+- Feature summary: added a local `kb dashboard` browser UI served by the KB CLI, introduced `@emmassist-co/kb-dashboard` as the separate Vite TypeScript dashboard package, exposed safe entity/source markdown document endpoints with stale-write validation, and added optional dashboard static serving to the local Node host.
+- Customer-visible impact: operators who install the optional dashboard package can browse local KB inventory, records, graph relations, recent events, and supported markdown/frontmatter edits from a browser without Obsidian; CLI-only consumers are not forced to install dashboard assets.
+- Deployment status: deployed
+- Deployment date: 2026-07-16
+- Deployment environment: GitHub Packages
+- Deployment evidence: published `@emmassist-co/kb-dashboard@0.1.0`, `@emmassist-co/kb-http@0.5.0`, `@emmassist-co/kb-cli@1.9.0`, and dependent package versions to GitHub Packages.
+- Human testing status: pending
+- Human tester:
+- Human test date:
+- Human test environment:
 - Human test flow: run `kb dashboard --port 3001` against a local file-backed workspace, inspect inventory/records/graph/recents, edit an entity markdown document, and verify stale-write protection by saving from two browser tabs.
-- Automated coverage: `npm run verify:public-packages`; `npm run typecheck`; `npm test`
+- Automated coverage: GitHub Actions `verify`; `npm run verify:public-packages`; `npm run typecheck`; `npm test`
 - Needs iteration: no
 - Follow-up: consider remote read-only dashboard support and richer graph diff playback after local operator flows are exercised manually.
 
