@@ -35,20 +35,20 @@ Use this file as the merged-work ledger for `kb/`.
 ## 2026-07-16 - Add KB Trust Substrate
 
 - Area: kb-core, kb-http, kb-mcp, kb-cli, storage adapters, flue adapter, docs
-- Merged to `main`: no
-- Commit / PR: pending
-- Feature summary: added trust/currentness metadata to retrieval, entity evidence and decision views, promotion proposal/review/application workflows, memory debt summaries, read-only recall bundles, persisted proposal/review state in file/R2-backed stores, HTTP/MCP/CLI surfaces, packaged agent skill/recipe guidance, Flue runtime contract help, and package version bumps (`kb-core` 0.6.0, `kb-http` 0.6.0, `kb-mcp` 0.2.0, storage adapters 0.3.0, `kb-cli` 1.10.0, `kb-flue-adapter` 0.7.0).
+- Merged to `main`: yes
+- Commit / PR: PR #16, merge commit `e1a76eb`; direct release patch commit for `kb-core@0.6.1`; follow-up PR #17 for Flue/skill readiness
+- Feature summary: added trust/currentness metadata to retrieval, entity evidence and decision views, promotion proposal/review/application workflows, memory debt summaries, read-only recall bundles, persisted proposal/review state in file/R2-backed stores, HTTP/MCP/CLI surfaces, packaged agent skill/recipe guidance, Flue runtime contract help, and package version bumps (`kb-core` 0.6.1, `kb-http` 0.6.0, `kb-mcp` 0.2.0, storage adapters 0.3.0, `kb-cli` 1.10.0, `kb-flue-adapter` 0.7.0).
 - Customer-visible impact: agents and operators can inspect source support and caveats before trusting KB results, route ambiguous raw evidence through explicit review before canonical writes, see memory debt, and request caller-triggered recall context without KB owning autonomous memory orchestration.
-- Deployment status: pending
-- Deployment date:
-- Deployment environment:
-- Deployment evidence:
+- Deployment status: released
+- Deployment date: 2026-07-16
+- Deployment environment: GitHub Packages
+- Deployment evidence: published `@emmassist-co/kb-core@0.6.0`, `@emmassist-co/kb-storage-file@0.3.0`, `@emmassist-co/kb-storage-cloudflare@0.3.0`, `@emmassist-co/kb-http@0.6.0`, `@emmassist-co/kb-mcp@0.2.0`, `@emmassist-co/kb-cli@1.10.0`, and `@emmassist-co/kb-flue-adapter@0.7.0`; then published `@emmassist-co/kb-core@0.6.1` to fix proposal application for documented snake_case `annotate` payloads. Fresh install smoke passed with `@emmassist-co/kb-cli@1.10.0` resolving `@emmassist-co/kb-core@0.6.1`, covering `record`, trust-aware `search`, `evidence`, `submit-proposal`, `review-proposal`, `apply-proposal`, `debt`, and `recall`.
 - Human testing status: pending
 - Human tester:
 - Human test date:
 - Human test environment:
 - Human test flow: manually run a local KB workspace through `record`, `search`, `evidence`, `submit-proposal`, `review-proposal`, `apply-proposal`, `debt`, and `recall`, then verify the same read-only recall/evidence paths through HTTP or MCP.
-- Automated coverage: `node --import tsx/esm --test tests/kb-metadata.test.ts tests/kb-http.test.ts tests/kb-cli.test.ts tests/kb-mcp.test.ts tests/kb-flue-adapter.test.ts`; `node --import tsx/esm --test tests/kb-benchmark.test.ts tests/kb-cli-docs.test.ts`; `npm run typecheck`; `npm test`; `npm run verify:public-packages`; `npm run verify:kb:evals`; `npm run eval:kb:all -- --json`; `npm run eval:kb:admin-world -- --split dev --json`; `npm run eval:kb:admin-world -- --split holdout --json`; `npm run eval:kb:gbrain-evals-upstream`; `npm run eval:kb:gbrain-evals-upstream:kb`; `npm run eval:kb:gbrain-world -- --json`; `npm run smoke:kb-mcp -- --tenant-id trust-substrate-smoke`; `npm run smoke:kb-mcp -- --transport stdio --tenant-id trust-substrate-smoke-stdio`.
+- Automated coverage: `node --import tsx/esm --test tests/kb-metadata.test.ts tests/kb-http.test.ts tests/kb-cli.test.ts tests/kb-mcp.test.ts tests/kb-flue-adapter.test.ts`; `node --import tsx/esm --test tests/kb-benchmark.test.ts tests/kb-cli-docs.test.ts`; `node --import tsx/esm --test tests/kb-metadata.test.ts` after the `kb-core@0.6.1` patch; `npm run typecheck`; `npm test`; `npm run verify:public-packages`; `npm run verify:kb:evals`; `npm run eval:kb:all -- --json`; `npm run eval:kb:admin-world -- --split dev --json`; `npm run eval:kb:admin-world -- --split holdout --json`; `npm run eval:kb:gbrain-evals-upstream`; `npm run eval:kb:gbrain-evals-upstream:kb`; `npm run eval:kb:gbrain-world -- --json`; `npm run smoke:kb-mcp -- --tenant-id trust-substrate-smoke`; `npm run smoke:kb-mcp -- --transport stdio --tenant-id trust-substrate-smoke-stdio`.
 - Needs iteration: no
 - Follow-up: none
 

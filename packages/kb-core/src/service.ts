@@ -1912,9 +1912,21 @@ export class KnowledgeBaseService {
       case 'remember':
         return this.remember(payload as Parameters<KnowledgeBaseService['remember']>[0]);
       case 'relate':
-        return this.relate(payload as Parameters<KnowledgeBaseService['relate']>[0]);
+        return this.relate({
+          type: readRequiredStringValue(payload.type, 'type'),
+          fromId: readRequiredStringValue(payload.fromId ?? payload.from_id, 'fromId'),
+          toId: readRequiredStringValue(payload.toId ?? payload.to_id, 'toId'),
+          sourceIds: readStringArrayValue(payload.sourceIds ?? payload.source_ids),
+          confidence: typeof payload.confidence === 'number' ? payload.confidence : undefined
+        });
       case 'annotate':
-        return this.annotate(payload as Parameters<KnowledgeBaseService['annotate']>[0]);
+        return this.annotate({
+          entityIds: readStringArrayValue(payload.entityIds ?? payload.entity_ids),
+          summary: readRequiredStringValue(payload.summary, 'summary'),
+          effectiveAt: readStringValue(payload.effectiveAt ?? payload.effective_at),
+          sourceIds: readStringArrayValue(payload.sourceIds ?? payload.source_ids),
+          provenance: readStringValue(payload.provenance)
+        });
     }
   }
 
@@ -2921,6 +2933,12 @@ function readArrayObjects(value: unknown): Array<Record<string, unknown>> {
 
 function readStringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readRequiredStringValue(value: unknown, field: string): string {
+  const parsed = readStringValue(value);
+  if (!parsed) throw new Error(`Missing required field: ${field}`);
+  return parsed;
 }
 
 function readStringArrayValue(value: unknown): string[] {
