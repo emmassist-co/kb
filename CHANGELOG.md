@@ -37,7 +37,7 @@ Use this file as the merged-work ledger for `kb/`.
 - Area: kb-cli, kb-flue-adapter, docs
 - Merged to `main`: no
 - Commit / PR: pending
-- Feature summary: fixed post-merge review feedback by making `kb help runtime` a real CLI topic for package-installed agents, correcting Cloudflare setup skill `jq` selectors for `/v1/capabilities` and `/v1/inspect` response envelopes, and preparing patch bumps (`kb-cli` 1.11.1, `kb-flue-adapter` 0.8.1).
+- Feature summary: fixed post-merge review feedback by making `kb help runtime` a real CLI topic for package-installed agents, correcting Cloudflare setup skill `jq` selectors for `/v1/capabilities` and `/v1/inspect` response envelopes, avoiding false canonical-production claims for generic `KB_BASE_URL` HTTP targets, and preparing release bumps (`kb-cli` 1.12.0, `kb-flue-adapter` 0.8.1).
 - Customer-visible impact: Flue and package-installed agents can follow the trust-substrate setup skills without hitting misleading runtime help or null Cloudflare capability checks.
 - Deployment status: pending
 - Deployment date:
@@ -47,7 +47,7 @@ Use this file as the merged-work ledger for `kb/`.
 - Human tester:
 - Human test date:
 - Human test environment:
-- Human test flow: install `@emmassist-co/kb-cli@1.11.1`, run `kb help runtime`, and verify Cloudflare setup commands select `.capabilities.trustSubstrate` and `.data | {workspaceRole, trustSubstrate}` against a deployed KB host.
+- Human test flow: install `@emmassist-co/kb-cli@1.12.0`, run `kb help runtime`, confirm generic HTTP targets report canonicality as unknown until `kb inspect`, and verify Cloudflare setup commands select `.capabilities.trustSubstrate` and `.data | {workspaceRole, trustSubstrate}` against a deployed KB host.
 - Automated coverage: `npm run typecheck`; `node --import tsx/esm --test tests/kb-cli.test.ts tests/kb-cli-docs.test.ts tests/kb-skills.test.ts`.
 - Needs iteration: no
 - Follow-up: publish patched packages after merge.

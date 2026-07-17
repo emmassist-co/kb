@@ -935,10 +935,21 @@ type SchemaCommand = 'remember' | 'record' | 'relate' | 'annotate' | 'search' | 
 function renderRuntimeHelp(env: Record<string, string | undefined>): string {
   const baseUrl = env.KB_BASE_URL?.trim();
   const backend = env.KB_BACKEND?.trim() || (baseUrl ? 'http' : 'file');
+  const normalizedBackend = backend.toLowerCase();
   const tenantId = env.KB_WORKSPACE_ID?.trim() || env.WORKSPACE_TENANT_ID?.trim() || env.KB_TENANT_ID?.trim() || 'default';
-  const canonical = backend.toLowerCase() === 'cloudflare' || Boolean(baseUrl);
   const transport = baseUrl ? 'http' : 'local';
-  const workspaceRole = canonical ? 'canonical-production' : backend.toLowerCase() === 'r2-mirror' ? 'mirror-support' : 'local-development';
+  const canonical = normalizedBackend === 'cloudflare'
+    ? 'yes'
+    : baseUrl
+      ? 'unknown (run `kb inspect`)'
+      : 'no';
+  const workspaceRole = normalizedBackend === 'cloudflare'
+    ? 'canonical-production'
+    : baseUrl
+      ? 'unknown (run `kb inspect`)'
+      : normalizedBackend === 'r2-mirror'
+        ? 'mirror-support'
+        : 'local-development';
   return [
     'KB runtime contract',
     '',
@@ -946,7 +957,7 @@ function renderRuntimeHelp(env: Record<string, string | undefined>): string {
     `  workspace: ${tenantId}`,
     `  backend: ${backend}`,
     `  transport: ${transport}`,
-    `  canonical: ${canonical ? 'yes' : 'no'}`,
+    `  canonical: ${canonical}`,
     `  workspace role: ${workspaceRole}`,
     `  trust substrate: ${KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION}`,
     '',

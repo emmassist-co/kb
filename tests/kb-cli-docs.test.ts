@@ -284,7 +284,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(packageSkill, /kb submit-proposal --json @proposal\.json/);
   assert.match(packageSkill, /kb debt/);
 
-  assert.equal(kbCliPackage.version, '1.11.1');
+  assert.equal(kbCliPackage.version, '1.12.0');
   assert.ok(kbCliPackage.files.includes('skills'));
   assert.ok(kbCliPackage.files.includes('recipes'));
 
