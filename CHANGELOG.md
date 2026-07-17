@@ -37,7 +37,7 @@ Use this file as the merged-work ledger for `kb/`.
 - Area: kb-cli, kb-flue-adapter, docs
 - Merged to `main`: no
 - Commit / PR: pending
-- Feature summary: fixed post-merge review feedback by making `kb help runtime` a real CLI topic for package-installed agents, correcting Cloudflare setup skill `jq` selectors for `/v1/capabilities` and `/v1/inspect` response envelopes, and preparing patch bumps (`kb-cli` 1.10.1, `kb-flue-adapter` 0.7.1).
+- Feature summary: fixed post-merge review feedback by making `kb help runtime` a real CLI topic for package-installed agents, correcting Cloudflare setup skill `jq` selectors for `/v1/capabilities` and `/v1/inspect` response envelopes, and preparing patch bumps (`kb-cli` 1.11.1, `kb-flue-adapter` 0.8.1).
 - Customer-visible impact: Flue and package-installed agents can follow the trust-substrate setup skills without hitting misleading runtime help or null Cloudflare capability checks.
 - Deployment status: pending
 - Deployment date:
@@ -47,7 +47,7 @@ Use this file as the merged-work ledger for `kb/`.
 - Human tester:
 - Human test date:
 - Human test environment:
-- Human test flow: install `@emmassist-co/kb-cli@1.10.1`, run `kb help runtime`, and verify Cloudflare setup commands select `.capabilities.trustSubstrate` and `.data | {workspaceRole, trustSubstrate}` against a deployed KB host.
+- Human test flow: install `@emmassist-co/kb-cli@1.11.1`, run `kb help runtime`, and verify Cloudflare setup commands select `.capabilities.trustSubstrate` and `.data | {workspaceRole, trustSubstrate}` against a deployed KB host.
 - Automated coverage: `npm run typecheck`; `node --import tsx/esm --test tests/kb-cli.test.ts tests/kb-cli-docs.test.ts tests/kb-skills.test.ts`.
 - Needs iteration: no
 - Follow-up: publish patched packages after merge.
@@ -56,19 +56,19 @@ Use this file as the merged-work ledger for `kb/`.
 
 - Area: kb-core, kb-http, kb-mcp, kb-cli, storage adapters, flue adapter, docs
 - Merged to `main`: yes
-- Commit / PR: PR #16, merge commit `e1a76eb`; direct release patch commit for `kb-core@0.6.1`; follow-up PR #17 for Flue/skill readiness
-- Feature summary: added trust/currentness metadata to retrieval, entity evidence and decision views, promotion proposal/review/application workflows, memory debt summaries, read-only recall bundles, persisted proposal/review state in file/R2-backed stores, HTTP/MCP/CLI surfaces, packaged agent skill/recipe guidance, Flue runtime contract help, and package version bumps (`kb-core` 0.6.1, `kb-http` 0.6.0, `kb-mcp` 0.2.0, storage adapters 0.3.0, `kb-cli` 1.10.0, `kb-flue-adapter` 0.7.0).
+- Commit / PR: PR #16, merge commit `e1a76eb`; direct release patch commit for `kb-core@0.6.1`; follow-up PR #17, merge commit `1ca238c`, for Flue/skill readiness
+- Feature summary: added trust/currentness metadata to retrieval, entity evidence and decision views, promotion proposal/review/application workflows, memory debt summaries, read-only recall bundles, persisted proposal/review state in file/R2-backed stores, HTTP/MCP/CLI surfaces, packaged agent skill/recipe guidance, Flue runtime contract help, and package version bumps (`kb-core` 0.6.1, `kb-http` 0.6.0, `kb-mcp` 0.2.0, storage adapters 0.3.0, `kb-cli` 1.11.0, `kb-flue-adapter` 0.8.0).
 - Customer-visible impact: agents and operators can inspect source support and caveats before trusting KB results, route ambiguous raw evidence through explicit review before canonical writes, see memory debt, and request caller-triggered recall context without KB owning autonomous memory orchestration.
 - Deployment status: released
 - Deployment date: 2026-07-16
 - Deployment environment: GitHub Packages
-- Deployment evidence: published `@emmassist-co/kb-core@0.6.0`, `@emmassist-co/kb-storage-file@0.3.0`, `@emmassist-co/kb-storage-cloudflare@0.3.0`, `@emmassist-co/kb-http@0.6.0`, `@emmassist-co/kb-mcp@0.2.0`, `@emmassist-co/kb-cli@1.10.0`, and `@emmassist-co/kb-flue-adapter@0.7.0`; then published `@emmassist-co/kb-core@0.6.1` to fix proposal application for documented snake_case `annotate` payloads. Fresh install smoke passed with `@emmassist-co/kb-cli@1.10.0` resolving `@emmassist-co/kb-core@0.6.1`, covering `record`, trust-aware `search`, `evidence`, `submit-proposal`, `review-proposal`, `apply-proposal`, `debt`, and `recall`.
+- Deployment evidence: published `@emmassist-co/kb-core@0.6.0`, `@emmassist-co/kb-storage-file@0.3.0`, `@emmassist-co/kb-storage-cloudflare@0.3.0`, `@emmassist-co/kb-http@0.6.0`, `@emmassist-co/kb-mcp@0.2.0`, `@emmassist-co/kb-cli@1.10.0`, and `@emmassist-co/kb-flue-adapter@0.7.0`; then published `@emmassist-co/kb-core@0.6.1` to fix proposal application for documented snake_case `annotate` payloads; then published `@emmassist-co/kb-cli@1.11.0` and `@emmassist-co/kb-flue-adapter@0.8.0` with the PR #17 Flue/skill readiness updates. Fresh install smoke passed with `@emmassist-co/kb-cli@1.10.0` resolving `@emmassist-co/kb-core@0.6.1`, covering `record`, trust-aware `search`, `evidence`, `submit-proposal`, `review-proposal`, `apply-proposal`, `debt`, and `recall`; fresh install smoke also passed for `@emmassist-co/kb-cli@1.11.0` and `@emmassist-co/kb-flue-adapter@0.8.0`, covering packaged agent-improvement help and trust substrate inspect metadata.
 - Human testing status: pending
 - Human tester:
 - Human test date:
 - Human test environment:
 - Human test flow: manually run a local KB workspace through `record`, `search`, `evidence`, `submit-proposal`, `review-proposal`, `apply-proposal`, `debt`, and `recall`, then verify the same read-only recall/evidence paths through HTTP or MCP.
-- Automated coverage: `node --import tsx/esm --test tests/kb-metadata.test.ts tests/kb-http.test.ts tests/kb-cli.test.ts tests/kb-mcp.test.ts tests/kb-flue-adapter.test.ts`; `node --import tsx/esm --test tests/kb-benchmark.test.ts tests/kb-cli-docs.test.ts`; `node --import tsx/esm --test tests/kb-metadata.test.ts` after the `kb-core@0.6.1` patch; `npm run typecheck`; `npm test`; `npm run verify:public-packages`; `npm run verify:kb:evals`; `npm run eval:kb:all -- --json`; `npm run eval:kb:admin-world -- --split dev --json`; `npm run eval:kb:admin-world -- --split holdout --json`; `npm run eval:kb:gbrain-evals-upstream`; `npm run eval:kb:gbrain-evals-upstream:kb`; `npm run eval:kb:gbrain-world -- --json`; `npm run smoke:kb-mcp -- --tenant-id trust-substrate-smoke`; `npm run smoke:kb-mcp -- --transport stdio --tenant-id trust-substrate-smoke-stdio`.
+- Automated coverage: `node --import tsx/esm --test tests/kb-metadata.test.ts tests/kb-http.test.ts tests/kb-cli.test.ts tests/kb-mcp.test.ts tests/kb-flue-adapter.test.ts`; `node --import tsx/esm --test tests/kb-benchmark.test.ts tests/kb-cli-docs.test.ts`; `node --import tsx/esm --test tests/kb-metadata.test.ts` after the `kb-core@0.6.1` patch; `node --import tsx/esm --test tests/kb-cli-docs.test.ts tests/kb-skills.test.ts tests/kb-flue-adapter.test.ts` for the `kb-cli@1.11.0` / `kb-flue-adapter@0.8.0` release; `npm run typecheck`; `npm test`; `npm run verify:public-packages`; `npm run verify:kb:evals`; `npm run eval:kb:all -- --json`; `npm run eval:kb:admin-world -- --split dev --json`; `npm run eval:kb:admin-world -- --split holdout --json`; `npm run eval:kb:gbrain-evals-upstream`; `npm run eval:kb:gbrain-evals-upstream:kb`; `npm run eval:kb:gbrain-world -- --json`; `npm run smoke:kb-mcp -- --tenant-id trust-substrate-smoke`; `npm run smoke:kb-mcp -- --transport stdio --tenant-id trust-substrate-smoke-stdio`.
 - Needs iteration: no
 - Follow-up: none
 
