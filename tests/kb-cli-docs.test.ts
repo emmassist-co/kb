@@ -118,6 +118,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(cloudflareSetupSkill, /KB_API_TOKEN/);
   assert.match(cloudflareSetupSkill, /kb cloudflare deploy/);
   assert.match(cloudflareSetupSkill, /kb cloudflare verify/);
+  assert.match(cloudflareSetupSkill, /\.capabilities\.trustSubstrate/);
+  assert.match(cloudflareSetupSkill, /\.data \| \{workspaceRole, trustSubstrate\}/);
   assert.match(cloudflareSetupSkill, /node_modules\/@emmassist-co\/kb-cli\/skills\/kb-cloudflare-setup/);
   assert.match(cloudflareSetupSkill, /docs\/cloudflare-agent-setup\.md/);
   assert.ok(existsSync(path.resolve(process.cwd(), 'packages/kb-cli/skills/kb-cloudflare-setup/agents/openai.yaml')));
@@ -282,7 +284,7 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(packageSkill, /kb submit-proposal --json @proposal\.json/);
   assert.match(packageSkill, /kb debt/);
 
-  assert.equal(kbCliPackage.version, '1.11.0');
+  assert.equal(kbCliPackage.version, '1.12.0');
   assert.ok(kbCliPackage.files.includes('skills'));
   assert.ok(kbCliPackage.files.includes('recipes'));
 
