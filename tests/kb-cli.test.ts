@@ -697,6 +697,25 @@ test('kb cli help makes the edge-writing split explicit', async () => {
   assert.match(result.stdout, /recheck an existing protected Cloudflare KB host without redeploying it/);
 });
 
+test('kb cli runtime help exposes trust-substrate contract for package users', async () => {
+  const result = await runKnowledgeBaseCli(['help', 'runtime'], {
+    env: {
+      KB_BASE_URL: 'https://kb.example.com',
+      KB_WORKSPACE_ID: 'acme'
+    }
+  });
+
+  assert.equal(result.exitCode, 0);
+  assert.match(result.stdout, /KB runtime contract/);
+  assert.match(result.stdout, /workspace: acme/);
+  assert.match(result.stdout, /backend: http/);
+  assert.match(result.stdout, /transport: http/);
+  assert.match(result.stdout, /canonical: yes/);
+  assert.match(result.stdout, /trust substrate: 2026-07-16\.trust-substrate/);
+  assert.match(result.stdout, /Use `kb evidence --id ENTITY_ID` before asserting/);
+  assert.match(result.stdout, /Recall bundles never mutate state/);
+});
+
 test('kb cloudflare help exposes both deploy and verify flows', async () => {
   const result = await runKnowledgeBaseCli(['cloudflare', 'help']);
 

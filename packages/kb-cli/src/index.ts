@@ -172,7 +172,7 @@ export async function runKnowledgeBaseCli(
     const command = parsed.positionals[0] ?? 'help';
     if (command === 'help' || parsed.flags.help) {
       const topic = parsed.positionals[1];
-      return { stdout: `${renderHelp(topic)}\n`, stderr: '', exitCode: 0 };
+      return { stdout: `${renderHelp(topic, options.env)}\n`, stderr: '', exitCode: 0 };
     }
     if (command === 'schema') {
       const topic = requireSchemaCommand(parsed.positionals[1]);
@@ -932,7 +932,44 @@ function renderOutput(data: unknown, format: string): string {
 
 type SchemaCommand = 'remember' | 'record' | 'relate' | 'annotate' | 'search' | 'query-relations' | 'record-batch' | 'annotate-batch';
 
-function renderHelp(topic?: string): string {
+function renderRuntimeHelp(env: Record<string, string | undefined>): string {
+  const baseUrl = env.KB_BASE_URL?.trim();
+  const backend = env.KB_BACKEND?.trim() || (baseUrl ? 'http' : 'file');
+  const tenantId = env.KB_WORKSPACE_ID?.trim() || env.WORKSPACE_TENANT_ID?.trim() || env.KB_TENANT_ID?.trim() || 'default';
+  const canonical = backend.toLowerCase() === 'cloudflare' || Boolean(baseUrl);
+  const transport = baseUrl ? 'http' : 'local';
+  const workspaceRole = canonical ? 'canonical-production' : backend.toLowerCase() === 'r2-mirror' ? 'mirror-support' : 'local-development';
+  return [
+    'KB runtime contract',
+    '',
+    'Current CLI context:',
+    `  workspace: ${tenantId}`,
+    `  backend: ${backend}`,
+    `  transport: ${transport}`,
+    `  canonical: ${canonical ? 'yes' : 'no'}`,
+    `  workspace role: ${workspaceRole}`,
+    `  trust substrate: ${KNOWLEDGE_TRUST_SUBSTRATE_CONTRACT_VERSION}`,
+    '',
+    'Default agent loop:',
+    '  1. Run `kb inspect` to verify the live workspace, backend, canonicality, and capabilities envelope.',
+    '  2. Use `kb search` before answering workspace-specific factual questions; inspect returned `trust` caveats.',
+    '  3. Use `kb query-relations` for relation-shaped questions before broad fallback search.',
+    '  4. Use `kb evidence --id ENTITY_ID` before asserting weak, surprising, stale, or caveated facts.',
+    '  5. Use `kb recall` only when the caller explicitly wants a read-only trust-aware context bundle.',
+    '  6. Use `kb remember` for raw evidence, corrections, or source-backed notes.',
+    '  7. Use `kb submit-proposal` when a canonical truth change needs review.',
+    '  8. Use `kb record`, `kb relate`, or `kb annotate` only for authorized canonical writes.',
+    '',
+    'Trust and write discipline:',
+    '  - KB stores evidence/status/history/review contracts; agents and operators keep judgment and approval.',
+    '  - Recall bundles never mutate state or decide prompt injection.',
+    '  - Raw notes and proposals do not become canonical truth until an authorized record/apply path runs.',
+    '  - Verify risky writes with `kb evidence`, `kb links`, `kb traverse`, `kb doctor`, or `kb debt`.',
+    '  - Use `kb help operator` only for explicit repair, review, or support workflows.'
+  ].join('\n');
+}
+
+function renderHelp(topic?: string, env: Record<string, string | undefined> = {}): string {
   if (topic && isSchemaCommand(topic)) {
     const schema = renderSchema(topic);
     return [
@@ -976,6 +1013,9 @@ function renderHelp(topic?: string): string {
       '',
       'External agents own reading, reasoning, scheduling, approval, and any recipe run state.'
     ].join('\n');
+  }
+  if (topic === 'runtime') {
+    return renderRuntimeHelp(env);
   }
   if (topic === 'operator') {
     return [

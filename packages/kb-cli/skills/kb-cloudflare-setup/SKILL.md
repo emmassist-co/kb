@@ -80,8 +80,8 @@ npx wrangler deploy
 export KB_BASE_URL=https://YOUR-KB-HOST
 export KB_API_TOKEN=replace-me-with-a-secret
 
-curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/capabilities" | jq '.trustSubstrate'
-curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/inspect" | jq '{workspaceRole, trustSubstrate}'
+curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/capabilities" | jq '.capabilities.trustSubstrate'
+curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/inspect" | jq '.data | {workspaceRole, trustSubstrate}'
 curl -s -H "Authorization: Bearer $KB_API_TOKEN" "$KB_BASE_URL/v1/doctor" | jq
 npx kb cloudflare verify --workspace-id <workspace-id>
 ```
