@@ -1,46 +1,33 @@
 # `@emmassist-co/kb-flue-adapter`
 
-Flue-specific KB integration layer.
+Flue adapter for the KB runtime surface.
 
 ## Owns
 
-- Flue command wiring for `kb`
-- runtime config translation
-- compatibility surface for the workspace runtime
+- Flue-facing `kb` command parsing
+- focused help, schema, and validation surfaces
+- result shaping for mounted-runtime KB commands
+- direct runtime and RPC bridging for KB reads, writes, drafts, events, relations, rebuild, and restore
 
 ## Does not own
 
-- KB semantics
+- KB storage semantics
 - storage backends
-- HTTP route logic
-- host-specific runtime assembly
+- tenant product-config resolution
+- host runtime creation or service wiring
 
-## Compatibility
+## Host contract
 
-- returns a structural command object instead of importing legacy `@flue/sdk` subpath types
-- works with Flue `0.3.x` and the root-export Flue `1.x` line
-- consuming repos can assign `createKbCommand(...)` to their local Flue `Command` type
+Hosts should pass a small adapter into `createKbCommand(...)` that provides:
 
-## Example
+- product-config resolution
+- KB runtime creation
+- KB service creation
 
-```ts
-import type { Command } from '@flue/sdk';
-import { createKbCommand } from '@emmassist-co/kb-flue-adapter';
+That keeps the published package reusable across Flue hosts without hard-wiring one app's product-config or runtime layout into the package.
 
-const kbCommand: Command = createKbCommand(fs, env, { runtime });
-```
+## Notes
 
-Older `0.3.x` consumers that still import `Command` from `@flue/sdk/client` remain compatible because the adapter output is structural rather than nominal.
-
-## Agent Runtime Contract
-
-A Flue agent should call `kb help runtime` or `kb inspect` at startup. The adapter reports the trust-substrate contract and exposes the same normal agent verbs as the CLI:
-
-- `kb search` and `kb query-relations` for trust-aware retrieval
-- `kb evidence --id ...` for source support, caveats, decisions, and supersession
-- `kb recall --json ...` for caller-triggered read-only context bundles
-- `kb remember`, `kb record`, `kb relate`, and `kb annotate` for authorized normal writes
-- `kb submit-proposal` when a canonical change needs review
-- `kb debt`, `kb reviews`, `kb review-proposal`, and `kb apply-proposal` only for explicit operator/review workflows
-
-Recall bundles never mutate state. Raw evidence and proposals do not become canonical truth until an authorized record/apply path runs.
+- Runtime consumers should use `@emmassist-co/kb-flue-adapter/command` directly.
+- This package stays Flue-structural and host-agnostic.
+- If a behavior is pure KB contract, keep it here instead of re-implementing it in an app-local wrapper.

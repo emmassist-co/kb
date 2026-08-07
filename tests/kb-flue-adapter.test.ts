@@ -1,298 +1,222 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { KnowledgeBaseService } from '../packages/kb-core/src/service.js';
 import { createKbCommand } from '../packages/kb-flue-adapter/src/command.js';
+import type { FlueKbHostAdapter, FlueKbRuntime, FlueKbService } from '../packages/kb-flue-adapter/src/config.js';
 
-test('kb flue adapter logs runtime telemetry for search requests', async () => {
-  const events: unknown[] = [];
-  const command = createKbCommand(
-    {
-      async readFileBuffer() {
-        throw new Error('readFileBuffer should not be used in this test');
-      }
+const fs = {} as never;
+
+function createHost(service: Partial<FlueKbService> = {}, runtimeOverrides: Partial<FlueKbRuntime> = {} as Partial<FlueKbRuntime>) {
+  const fullService = {
+    async list() {
+      return { mode: 'basic', entities: [], sources: [], links: [] };
     },
-    {},
-    {
-      runtime: {
-        async getService() {
-          return {
-            async search() {
-              return {
-                query: 'billing stripe',
-                mode: 'graph-first-hybrid',
-                results: [
-                  {
-                    id: 'vendor-stripe',
-                    title: 'Stripe',
-                    kind: 'vendor',
-                    score: 0.99,
-                    reason: ['contains:billing'],
-                    matchedFields: ['currentTruth'],
-                    sourceIds: ['src_1'],
-                    confidence: 'high',
-                    ambiguous: false
-                  }
-                ]
-              };
-            }
-          } as Pick<KnowledgeBaseService, 'search'> as KnowledgeBaseService;
-        },
-        async flush() {
-          return null;
-        },
-        async rebuild() {
-          return null;
+    async get() {
+      return null;
+    },
+    async captureSource(payload: unknown) {
+      return payload;
+    },
+    async listEvents() {
+      return [];
+    },
+    async getEvent() {
+      return null;
+    },
+    async deleteEvent() {
+      return { deleted: true };
+    },
+    async listDrafts() {
+      return [];
+    },
+    async getDraft() {
+      return null;
+    },
+    async updateEntityDraft(payload: unknown) {
+      return payload;
+    },
+    async deleteDraft() {
+      return { deleted: true };
+    },
+    async listRelations() {
+      return { links: [] };
+    },
+    async replaceRelations(payload: unknown) {
+      return payload;
+    },
+    async clearRelations(payload: unknown) {
+      return payload;
+    },
+    async search(payload: unknown) {
+      return { ...(payload as Record<string, unknown>), results: [] };
+    },
+    async queryRelations(payload: unknown) {
+      return { ...(payload as Record<string, unknown>), results: [] };
+    },
+    async remember(payload: unknown) {
+      return payload;
+    },
+    async record(payload: unknown) {
+      return payload;
+    },
+    async relate(payload: unknown) {
+      return payload;
+    },
+    async annotate(payload: unknown) {
+      return payload;
+    },
+    async related() {
+      return { links: [] };
+    },
+    async links() {
+      return { links: [] };
+    },
+    async traverse() {
+      return { links: [] };
+    },
+    async doctor() {
+      return { ok: true };
+    },
+    async export() {
+      return { ok: true };
+    },
+    async deleteRecord(id: string) {
+      return { deleted: true, id };
+    },
+    async readMemory(payload: unknown) {
+      return { query: payload, shared: [], user: [], conflicts: [] };
+    },
+    async writeMemory(payload: unknown) {
+      return { memory: payload, verification: [{ id: 'memory_1' }] };
+    },
+    ...service
+  } satisfies FlueKbService;
+
+  const runtime: FlueKbRuntime = {
+    async getService() {
+      return fullService;
+    },
+    async rebuild() {
+      return { rebuilt: true };
+    },
+    async restoreCanonical() {
+      return { restored: true };
+    },
+    ...runtimeOverrides
+  };
+
+  const host: FlueKbHostAdapter = {
+    async resolveProductConfig() {
+      return {
+        tenant: { id: 'acme' },
+        knowledgeBase: {
+          enabled: true,
+          mode: 'runtime',
+          writePolicy: 'evidence-first',
+          persistence: { backend: 'cloudflare' }
         }
-      },
-      telemetry: {
-        log(event) {
-          events.push(event);
-        }
-      }
+      };
+    },
+    createRuntime() {
+      return runtime;
+    },
+    createService() {
+      return fullService;
     }
-  );
+  };
 
-  const result = await command.execute(['search', '--json', '{"query":"billing stripe","mode":"graph-first-hybrid"}']);
+  return { host, runtime, service: fullService };
+}
 
-  assert.equal(result.exitCode, 0);
-  assert.equal(events.length, 1);
-  const event = events[0] as Record<string, unknown>;
-  assert.equal(event.type, 'kb_runtime_query');
-  assert.equal(event.operation, 'search');
-  assert.equal(event.query, 'billing stripe');
-  assert.equal(event.mode, 'graph-first-hybrid');
-  assert.equal(event.resultCount, 1);
-  assert.deepEqual(event.resultIds, ['vendor-stripe']);
-  assert.equal(typeof event.payloadBytes, 'number');
-  assert.equal(event.estimatedTokens, Math.ceil((event.payloadBytes as number) / 4));
-  assert.equal(typeof event.durationMs, 'number');
-  assert.ok((event.durationMs as number) >= 0);
-});
-
-test('kb flue adapter logs runtime telemetry for recall bundles', async () => {
-  const events: unknown[] = [];
-  const command = createKbCommand(
-    {
-      async readFileBuffer() {
-        throw new Error('readFileBuffer should not be used in this test');
-      }
-    },
-    {},
-    {
-      runtime: {
-        async getService() {
-          return {
-            async recall() {
-              return {
-                query: 'billing stripe',
-                temporalFocus: 'current',
-                generatedAt: '2026-07-15T00:00:00.000Z',
-                maxTokens: 1200,
-                estimatedTokens: 10,
-                claims: [{ id: 'vendor-stripe:claim:1', entityId: 'vendor-stripe', text: 'Stripe owns billing.', sourceIds: [], trust: { caveats: [] } }],
-                decisions: [],
-                caveats: [],
-                citations: [],
-                omitted: []
-              };
-            }
-          } as Pick<KnowledgeBaseService, 'recall'> as KnowledgeBaseService;
-        },
-        async flush() {
-          return null;
-        },
-        async rebuild() {
-          return null;
-        }
-      },
-      telemetry: {
-        log(event) {
-          events.push(event);
-        }
-      }
-    }
-  );
-
-  const result = await command.execute(['recall', '--json', '{"query":"billing stripe","purpose":"pre-answer"}']);
-
-  assert.equal(result.exitCode, 0);
-  assert.equal(events.length, 1);
-  const event = events[0] as Record<string, unknown>;
-  assert.equal(event.type, 'kb_runtime_query');
-  assert.equal(event.operation, 'recall');
-  assert.equal(event.query, 'billing stripe');
-  assert.equal(event.mode, 'current');
-  assert.equal(event.resultCount, 1);
-  assert.deepEqual(event.resultIds, ['vendor-stripe']);
-});
-
-test('kb flue adapter inspect advertises trust substrate capabilities to Flue runtimes', async () => {
-  const command = createKbCommand(
-    {
-      async readFileBuffer() {
-        throw new Error('readFileBuffer should not be used in this test');
-      }
-    },
-    {
-      WORKSPACE_TENANT_ID: 'acme',
-      KB_BACKEND: 'cloudflare'
-    },
-    {
-      runtime: {
-        async getService() {
-          return {
-            async list() {
-              return { mode: 'basic', entities: [], sources: [], links: [] };
-            }
-          } as Pick<KnowledgeBaseService, 'list'> as KnowledgeBaseService;
-        },
-        async flush() {
-          return null;
-        },
-        async rebuild() {
-          return null;
-        }
-      }
-    }
-  );
-
-  const result = await command.execute(['inspect']);
-  assert.equal(result.exitCode, 0);
-  const payload = JSON.parse(result.stdout) as { data: { trustSubstrate?: { version?: string; recallMutatesState?: boolean } } };
-  assert.equal(payload.data.trustSubstrate?.version, '2026-07-16.trust-substrate');
-  assert.equal(payload.data.trustSubstrate?.recallMutatesState, false);
-});
-
-test('kb flue adapter logs runtime telemetry for relation queries', async () => {
-  const events: unknown[] = [];
-  const command = createKbCommand(
-    {
-      async readFileBuffer() {
-        throw new Error('readFileBuffer should not be used in this test');
-      }
-    },
-    {},
-    {
-      runtime: {
-        async getService() {
-          return {
-            async queryRelations() {
-              return {
-                query: 'Who works at Stripe?',
-                mode: 'graph-only',
-                classification: {
-                  relationType: 'works_at',
-                  anchorId: 'vendor-stripe'
-                },
-                results: [
-                  {
-                    id: 'person-jane',
-                    title: 'Jane Smith',
-                    kind: 'person',
-                    score: 12,
-                    reason: ['relation:works_at'],
-                    matchedFields: ['graph'],
-                    sourceIds: [],
-                    confidence: 'high',
-                    ambiguous: false
-                  }
-                ]
-              };
-            }
-          } as Pick<KnowledgeBaseService, 'queryRelations'> as KnowledgeBaseService;
-        },
-        async flush() {
-          return null;
-        },
-        async rebuild() {
-          return null;
-        }
-      },
-      telemetry: {
-        log(event) {
-          events.push(event);
-        }
-      }
-    }
-  );
-
-  const result = await command.execute(['query-relations', '--json', '{"query":"Who works at Stripe?","mode":"graph-only"}']);
-
-  assert.equal(result.exitCode, 0);
-  assert.equal(events.length, 1);
-  const event = events[0] as Record<string, unknown>;
-  assert.equal(event.type, 'kb_runtime_query');
-  assert.equal(event.operation, 'query-relations');
-  assert.equal(event.query, 'Who works at Stripe?');
-  assert.equal(event.mode, 'graph-only');
-  assert.equal(event.resultCount, 1);
-  assert.deepEqual(event.resultIds, ['person-jane']);
-  assert.equal(event.relationType, 'works_at');
-  assert.equal(event.anchorId, 'vendor-stripe');
-  assert.equal(typeof event.payloadBytes, 'number');
-  assert.equal(event.estimatedTokens, Math.ceil((event.payloadBytes as number) / 4));
-  assert.equal(typeof event.durationMs, 'number');
-  assert.ok((event.durationMs as number) >= 0);
-});
-
-test('kb flue adapter help exposes runtime context and operator-only repair topics', async () => {
-  const command = createKbCommand(
-    {
-      async readFileBuffer() {
-        throw new Error('readFileBuffer should not be used in this test');
-      }
-    },
-    {
-      WORKSPACE_TENANT_ID: 'acme',
-      KB_BACKEND: 'cloudflare'
-    }
-  );
+test('kb flue adapter help exposes memory-first public commands', async () => {
+  const { host } = createHost();
+  const command = createKbCommand(fs, {}, { host });
 
   const help = await command.execute(['help']);
   assert.equal(help.exitCode, 0);
-  assert.match(help.stdout, /Default runtime surface:/);
-  assert.match(help.stdout, /kb recall --json/);
-  assert.match(help.stdout, /kb evidence --id ENTITY_ID/);
-  assert.match(help.stdout, /kb submit-proposal --json @payload\.json/);
-  assert.match(help.stdout, /kb debt/);
-  assert.match(help.stdout, /kb help runtime/);
-  assert.match(help.stdout, /kb help operator/);
-  assert.doesNotMatch(help.stdout, /kb capture-source --json/);
+  assert.match(help.stdout, /kb memory-read --json/);
+  assert.match(help.stdout, /kb memory-write --json/);
+  assert.match(help.stdout, /kb schema memory-read/);
+  assert.match(help.stdout, /kb help memory-write/);
+  assert.doesNotMatch(help.stdout, /kb recall --json/);
+  assert.doesNotMatch(help.stdout, /kb evidence --id/);
+  assert.doesNotMatch(help.stdout, /kb submit-proposal --json/);
+
+  const memoryHelp = await command.execute(['help', 'memory-write']);
+  assert.equal(memoryHelp.exitCode, 0);
+  assert.match(memoryHelp.stdout, /kb memory-write --json/);
+  assert.match(memoryHelp.stdout, /explicit_correction|explicit_confirmation/);
+});
+
+test('kb flue adapter supports scoped memory reads and writes through the host service', async () => {
+  const reads: unknown[] = [];
+  const writes: unknown[] = [];
+  const { host } = createHost({
+    async readMemory(payload: unknown) {
+      reads.push(payload);
+      return {
+        shared: [{ summary: 'Kinto should use transport.' }],
+        user: [],
+        conflicts: []
+      };
+    },
+    async writeMemory(payload: unknown) {
+      writes.push(payload);
+      return {
+        scope: 'user',
+        memoryKind: 'user_preference',
+        verification: [{ id: 'memory_user_1' }]
+      };
+    }
+  });
+  const command = createKbCommand(fs, {}, { host });
+
+  const read = await command.execute(['memory-read', '--json', '{"subjectEntityId":"vendor-kinto","memoryKind":"vendor"}']);
+  assert.equal(read.exitCode, 0);
+  assert.equal(reads.length, 1);
+  assert.match(read.stdout, /transport/);
+
+  const write = await command.execute([
+    'memory-write',
+    '--json',
+    '{"scope":"user","memoryKind":"user_preference","summary":"Keep replies short.","userId":"alex","policy":"explicit_confirmation"}'
+  ]);
+  assert.equal(write.exitCode, 0);
+  assert.equal(writes.length, 1);
+  assert.match(write.stdout, /memory_user_1/);
+});
+
+test('kb flue adapter inspect and runtime help expose the mounted runtime contract', async () => {
+  const { host } = createHost();
+  const command = createKbCommand(fs, {}, { host });
+
+  const inspect = await command.execute(['inspect']);
+  assert.equal(inspect.exitCode, 0);
+  const payload = JSON.parse(inspect.stdout) as { data?: { workspaceRole?: string; launchTrust?: { promise?: string } } };
+  assert.equal(payload.data?.workspaceRole, 'runtime-support');
+  assert.equal(payload.data?.launchTrust?.promise, 'Important company facts do not get lost.');
 
   const runtime = await command.execute(['help', 'runtime']);
   assert.equal(runtime.exitCode, 0);
-  assert.match(runtime.stdout, /KB runtime contract/);
   assert.match(runtime.stdout, /tenant: acme/);
   assert.match(runtime.stdout, /backend: cloudflare/);
-  assert.match(runtime.stdout, /canonical: yes/);
-  assert.match(runtime.stdout, /workspace role: canonical-production/);
-  assert.match(runtime.stdout, /trust substrate: 2026-07-16\.trust-substrate/);
-  assert.match(runtime.stdout, /Use `kb search` before answering tenant-specific factual questions/);
-  assert.match(runtime.stdout, /Use `kb evidence --id ENTITY_ID` before asserting/);
-  assert.match(runtime.stdout, /Recall is read-only/);
-
-  const operator = await command.execute(['help', 'operator']);
-  assert.equal(operator.exitCode, 0);
-  assert.match(operator.stdout, /kb operator surface/);
-  assert.match(operator.stdout, /kb capture-source --json @payload\.json/);
-  assert.match(operator.stdout, /kb review-proposal --id PROPOSAL_ID --json @payload\.json/);
-  assert.match(operator.stdout, /kb apply-proposal --id PROPOSAL_ID/);
-  assert.match(operator.stdout, /kb debt/);
-  assert.match(operator.stdout, /Use these only for direct KB repair, cleanup, or inspection\./);
+  assert.match(runtime.stdout, /kb memory-read/);
+  assert.match(runtime.stdout, /kb search/);
 });
 
+test('published kb flue adapter stays direct and host-agnostic', async () => {
+  const packageJson = JSON.parse(
+    readFileSync(path.resolve(process.cwd(), 'packages/kb-flue-adapter/package.json'), 'utf8')
+  ) as { version?: string; dependencies?: Record<string, string>; peerDependencies?: Record<string, string> };
+  const source = readFileSync(path.resolve(process.cwd(), 'packages/kb-flue-adapter/src/command.ts'), 'utf8');
 
-test('kb flue adapter avoids legacy Flue SDK subpath imports and advertises the widened peer range', async () => {
-  const commandSourcePath = path.resolve(process.cwd(), 'packages/kb-flue-adapter/src/command.ts');
-  const packageJsonPath = path.resolve(process.cwd(), 'packages/kb-flue-adapter/package.json');
-  const [commandSource, packageJsonText] = await Promise.all([
-    readFile(commandSourcePath, 'utf8'),
-    readFile(packageJsonPath, 'utf8')
-  ]);
-  const packageJson = JSON.parse(packageJsonText) as { peerDependencies?: Record<string, string> };
-
-  assert.doesNotMatch(commandSource, /@flue\/sdk\/client/);
-  assert.match(packageJson.peerDependencies?.['@flue/sdk'] ?? '', /1\.0\.0-beta\.1/);
+  assert.equal(packageJson.version, '0.9.1');
+  assert.equal(packageJson.dependencies?.['just-bash'], '^2.14.4');
+  assert.equal(packageJson.dependencies?.['@emmassist-co/kb-cli'], undefined);
+  assert.equal(packageJson.peerDependencies?.['@flue/sdk'], undefined);
+  assert.doesNotMatch(source, /runKnowledgeBaseCli/);
+  assert.doesNotMatch(source, /KnowledgeBaseCliExecutor/);
+  assert.doesNotMatch(source, /@flue\/sdk\/client/);
+  assert.doesNotMatch(source, /\.\.\/\.\.\/src\//);
 });
