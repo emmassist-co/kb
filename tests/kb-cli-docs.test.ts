@@ -13,8 +13,8 @@ test('kb docs describe the staged public package set and current consumer entry 
   assert.match(repoReadme, /@emmassist-co\/kb-mcp/);
   assert.match(repoReadme, /@emmassist-co\/kb-dashboard/);
   assert.match(repoReadme, /@emmassist-co\/kb-cli/);
-  assert.match(repoReadme, /Not yet in the staged public package set/);
   assert.match(repoReadme, /@emmassist-co\/kb-flue-adapter/);
+  assert.match(repoReadme, /Not yet in the staged public package set/);
   assert.match(repoReadme, /@emmassist-co\/kb-autoresearch/);
   assert.match(repoReadme, /## Should An Agent Use KB\?/);
   assert.match(repoReadme, /durable, inspectable workspace memory shared by a human and multiple agents/);
